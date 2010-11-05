@@ -54,7 +54,7 @@ type Server struct {
 
 	// A list of all connected clients
 	cmutex *sync.RWMutex
-	clients *list.List
+	clients []*ClientConnection
 
 	// Codec information
 	AlphaCodec int32
@@ -83,7 +83,6 @@ func NewServer(addr string, port int) (s *Server, err os.Error) {
 
 	// Create the list of connected clients
 	s.cmutex = new(sync.RWMutex)
-	s.clients = list.New()
 
 	s.outgoing = make(chan *Message)
 	s.incoming = make(chan *Message)
@@ -112,7 +111,7 @@ func (server *Server) NewClient(conn net.Conn) (err os.Error) {
 	// Get the address of the connected client
 	if addr := conn.RemoteAddr(); addr != nil {
 		client.tcpaddr = addr.(*net.TCPAddr)
-		log.Stdoutf("client connected: %s", client.tcpaddr.String())
+		log.Printf("client connected: %s", client.tcpaddr.String())
 	}
 
 	client.server = server
@@ -130,7 +129,7 @@ func (server *Server) NewClient(conn net.Conn) (err os.Error) {
 
 	// Add it to the list of connected clients
 	server.cmutex.Lock()
-	server.clients.PushBack(client)
+	server.clients = append(server.clients, client)
 	server.cmutex.Unlock()
 
 	go client.receiver()
@@ -145,8 +144,7 @@ func (server *Server) getClientConnection(session uint32) (client *ClientConnect
 	server.cmutex.RLock()
 	defer server.cmutex.RUnlock()
 
-	for x := range server.clients.Iter() {
-		user := x.(*ClientConnection)
+	for _, user := range server.clients {
 		if user.Session == session {
 			return user
 		}
@@ -263,8 +261,7 @@ func (server *Server) updateCodecVersions() {
 	server.cmutex.RLock()
 	defer server.cmutex.RUnlock()
 
-	for x := range server.clients.Iter() {
-		client := x.(*ClientConnection)
+	for _, client := range server.clients {
 		for i := 0; i < len(client.codecs); i++ {
 			codecusers[client.codecs[i]] += 1
 		}
@@ -307,11 +304,11 @@ func (server *Server) updateCodecVersions() {
 		PreferAlpha: proto.Bool(server.PreferAlphaCodec),
 	})
 	if err != nil {
-		log.Stdoutf("Unable to broadcast..")
+		log.Printf("Unable to broadcast.")
 		return
 	}
 
-	log.Stdoutf("CELT codec switch %v %v (PreferAlpha %v)", server.AlphaCodec, server.BetaCodec, server.PreferAlphaCodec)
+	log.Printf("CELT codec switch %v %v (PreferAlpha %v)", server.AlphaCodec, server.BetaCodec, server.PreferAlphaCodec)
 
 	return
 }
@@ -320,8 +317,7 @@ func (server *Server) sendUserList(client *ClientConnection) {
 	server.cmutex.RLock()
 	defer server.cmutex.RUnlock()
 
-	for x := range server.clients.Iter() {
-		user := x.(*ClientConnection)
+	for _, user := range server.clients {
 		if user.state != StateClientAuthenticated {
 			continue
 		}
@@ -332,10 +328,10 @@ func (server *Server) sendUserList(client *ClientConnection) {
 			ChannelId: proto.Uint32(0),
 		})
 
-		log.Stdoutf("Sent One User...")
+		log.Printf("Sent one user")
 
 		if err != nil {
-			log.Stdoutf("unable to send!")
+			log.Printf("unable to send!")
 			continue
 		}
 	}
@@ -346,8 +342,7 @@ func (server *Server) broadcastProtoMessage(kind uint16, msg interface{}) (err o
 	server.cmutex.RLock()
 	defer server.cmutex.RUnlock()
 
-	for x := range server.clients.Iter() {
-		client := x.(*ClientConnection)
+	for _, client := range server.clients {
 		if client.state != StateClientAuthenticated {
 			continue
 		}
@@ -361,7 +356,7 @@ func (server *Server) broadcastProtoMessage(kind uint16, msg interface{}) (err o
 }
 
 func (server *Server) handleIncomingMessage(client *ClientConnection, msg *Message) {
-	log.Stdoutf("Handle Incoming Message")
+	log.Printf("Handle Incoming Message")
 	switch msg.kind {
 	case MessagePing:
 		server.handlePingMessage(msg.client, msg)
@@ -384,30 +379,30 @@ func (server *Server) handleIncomingMessage(client *ClientConnection, msg *Messa
 	case MessageCryptSetup:
 		server.handleCryptSetup(msg.client, msg)
 	case MessageContextActionAdd:
-		log.Stdoutf("MessageContextActionAdd from client")
+		log.Printf("MessageContextActionAdd from client")
 	case MessageContextAction:
-		log.Stdoutf("MessageContextAction from client")
+		log.Printf("MessageContextAction from client")
 	case MessageUserList:
-		log.Stdoutf("MessageUserList from client")
+		log.Printf("MessageUserList from client")
 	case MessageVoiceTarget:
-		log.Stdoutf("MessageVoiceTarget from client")
+		log.Printf("MessageVoiceTarget from client")
 	case MessagePermissionQuery:
-		log.Stdoutf("MessagePermissionQuery from client")
+		log.Printf("MessagePermissionQuery from client")
 	case MessageCodecVersion:
-		log.Stdoutf("MessageCodecVersion from client")
+		log.Printf("MessageCodecVersion from client")
 	case MessageUserStats:
 		server.handleUserStatsMessage(msg.client, msg)
 	case MessageRequestBlob:
-		log.Stdoutf("MessageRequestBlob from client")
+		log.Printf("MessageRequestBlob from client")
 	case MessageServerConfig:
-		log.Stdoutf("MessageServerConfig from client")
+		log.Printf("MessageServerConfig from client")
 	}
 }
 
 func (server *Server) multiplexer() {
 	for {
 		_ = <-server.outgoing
-		log.Stdoutf("recvd message to multiplex")
+		log.Printf("recvd message to multiplex")
 	}
 }
 
@@ -430,7 +425,9 @@ func (s *Server) SendUDP() {
 			// These are to be crypted...
 			crypted := make([]byte, len(msg.buf)+4)
 			msg.client.crypt.Encrypt(msg.buf, crypted)
-			s.udpconn.WriteTo(crypted, msg.client.udpaddr)
+			//s.udpconn.WriteTo(crypted, msg.client.udpaddr)
+			b := make([]byte, 1)
+			s.udpconn.WriteTo(b, msg.client.udpaddr)
 		} else if msg.address != nil {
 			s.udpconn.WriteTo(msg.buf, msg.address)
 		} else {
@@ -451,7 +448,7 @@ func (server *Server) ListenUDP() {
 
 		udpaddr, ok := remote.(*net.UDPAddr)
 		if !ok {
-			log.Stdoutf("No UDPAddr in read packet. Disabling UDP. (Windows?)")
+			log.Printf("No UDPAddr in read packet. Disabling UDP. (Windows?)")
 			return
 		}
 
@@ -468,7 +465,7 @@ func (server *Server) ListenUDP() {
 			buffer := bytes.NewBuffer(make([]byte, 0, 24))
 			_ = binary.Write(buffer, binary.BigEndian, uint32((1<<16)|(2<<8)|2))
 			_ = binary.Write(buffer, binary.BigEndian, rand)
-			_ = binary.Write(buffer, binary.BigEndian, uint32(server.clients.Len()))
+			_ = binary.Write(buffer, binary.BigEndian, uint32(len(server.clients)))
 			_ = binary.Write(buffer, binary.BigEndian, uint32(server.MaxUsers))
 			_ = binary.Write(buffer, binary.BigEndian, uint32(server.MaxBandwidth))
 
@@ -483,8 +480,7 @@ func (server *Server) ListenUDP() {
 
 			// First, check if any of our clients match the net.UDPAddr...
 			server.cmutex.RLock()
-			for x := range server.clients.Iter() {
-				client := x.(*ClientConnection)
+			for _, client := range server.clients {
 				if client.udpaddr.String() == udpaddr.String() {
 					match = client
 				}
@@ -494,9 +490,7 @@ func (server *Server) ListenUDP() {
 			// No matching client found. We must try to decrypt...
 			if match == nil {
 				server.cmutex.RLock()
-				for x := range server.clients.Iter() {
-					client := x.(*ClientConnection)
-
+				for _, client := range server.clients {
 					// Try to decrypt.
 					err = client.crypt.Decrypt(buf[0:nread], plain[0:])
 					if err != nil {
@@ -509,7 +503,7 @@ func (server *Server) ListenUDP() {
 
 					// If we were able to successfully decrpyt, add
 					// the UDPAddr to the ClientConnection struct.
-					log.Stdoutf("Client UDP connection established.")
+					log.Printf("Client UDP connection established.")
 					client.udpaddr = remote.(*net.UDPAddr)
 					match = client
 
@@ -527,7 +521,7 @@ func (server *Server) ListenUDP() {
 			if !decrypted {
 				err = match.crypt.Decrypt(buf[0:nread], plain[0:])
 				if err != nil {
-					log.Stdoutf("Unable to decrypt from client..")
+					log.Printf("Unable to decrypt from client..")
 				}
 			}
 
@@ -548,11 +542,11 @@ func (s *Server) ListenAndMurmur() {
 	// Create a new listening TLS socket.
 	l := NewTLSListener(s.port)
 	if l == nil {
-		log.Stderrf("Unable to create TLS listener")
+		log.Printf("Unable to create TLS listener")
 		return
 	}
 
-	log.Stderrf("Created new Murmur instance on port %v", s.port)
+	log.Printf("Created new Murmur instance on port %v", s.port)
 
 	// The main accept loop. Basically, we block
 	// until we get a new client connection, and
@@ -563,12 +557,12 @@ func (s *Server) ListenAndMurmur() {
 		// New client connected
 		conn, err := l.Accept()
 		if err != nil {
-			log.Stderrf("unable to accept()")
+			log.Printf("unable to accept()")
 		}
 
 		tls, ok := conn.(*tls.Conn)
 		if !ok {
-			log.Stderrf("Not tls :(")
+			log.Printf("Not tls :(")
 		}
 
 		// Force the TLS handshake to get going. We'd like
@@ -580,9 +574,9 @@ func (s *Server) ListenAndMurmur() {
 		// which wraps net.TCPConn.
 		err = s.NewClient(conn)
 		if err != nil {
-			log.Stderrf("Unable to start new client")
+			log.Printf("Unable to start new client")
 		}
 
-		log.Stdoutf("num clients = %v", s.clients.Len())
+		log.Printf("num clients = %v", len(s.clients))
 	}
 }

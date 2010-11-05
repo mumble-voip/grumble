@@ -17,34 +17,34 @@ func NewTLSListener(port int) (rl *tls.Listener) {
 	// Load the certificate
 	pemBytes, err := ioutil.ReadFile("grumble.crt")
 	if err != nil {
-		log.Stderr("Failed to read server.crt:", err)
+		log.Printf("Failed to read server.crt:", err)
 		return
 	}
 
 	// Decode the certificate
 	cert, _ := pem.Decode(pemBytes)
 	if cert == nil {
-		log.Stderr("Failed to parse server.crt")
+		log.Printf("Failed to parse server.crt")
 		return
 	}
 
 	// Load the private key
 	keyBytes, err := ioutil.ReadFile("grumble.key")
 	if err != nil {
-		log.Stderr("Failed to read server.key.insecure: %s", err)
+		log.Printf("Failed to read server.key.insecure: %s", err)
 		return
 	}
 
 	// Decode the private key
 	pkPEM, _ := pem.Decode(keyBytes)
 	if pkPEM == nil {
-		log.Stderrf("Failed to parse server.key.insecure: %s", err)
+		log.Printf("Failed to parse server.key.insecure: %s", err)
 		return
 	}
 
 	// Determine if we are an RSA private key
 	if pkPEM.Type != "RSA PRIVATE KEY" {
-		log.Stderrf("server.key.insecure is not an RSA private key. Found '%s'",
+		log.Printf("server.key.insecure is not an RSA private key. Found '%s'",
 			pkPEM.Type)
 		return
 	}
@@ -54,14 +54,14 @@ func NewTLSListener(port int) (rl *tls.Listener) {
 	// let us just assume that people will decrypt them for us, so
 	// we can use them without too much work.
 	if len(pkPEM.Headers) != 0 {
-		log.Stderr("server.key.insecure has headers and is probably encrypted.")
+		log.Printf("server.key.insecure has headers and is probably encrypted.")
 		return
 	}
 
 	// Parse the PKCS12 private key.
 	priv, err := x509.ParsePKCS1PrivateKey(pkPEM.Bytes)
 	if err != nil {
-		log.Stderrf("Invalid key in server.key.insecure: %s", err)
+		log.Printf("Invalid key in server.key.insecure: %s", err)
 		return
 	}
 
@@ -78,7 +78,7 @@ func NewTLSListener(port int) (rl *tls.Listener) {
 		port,
 	})
 	if err != nil {
-		log.Stderrf("Cannot bind: %s\n", err)
+		log.Printf("Cannot bind: %s\n", err)
 		return
 	}
 

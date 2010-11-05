@@ -10,7 +10,6 @@ import (
 	"mumbleproto"
 	"goprotobuf.googlecode.com/hg/proto"
 	"net"
-	"container/list"
 	"cryptstate"
 )
 
@@ -77,14 +76,14 @@ func (server *Server) handleCryptSetup(client *ClientConnection, msg *Message) {
 	// No client nonce. This means the client
 	// is requesting that we re-sync our nonces.
 	if len(cs.ClientNonce) == 0 {
-		log.Stdoutf("Requested crypt-nonce resync")
+		log.Printf("Requested crypt-nonce resync")
 		cs.ClientNonce = make([]byte, cryptstate.AESBlockSize)
 		if copy(cs.ClientNonce, client.crypt.EncryptIV[0:]) != cryptstate.AESBlockSize {
 			return
 		}
 		client.sendProtoMessage(MessageCryptSetup, cs)
 	} else {
-		log.Stdoutf("Received client nonce")
+		log.Printf("Received client nonce")
 		if len(cs.ClientNonce) != cryptstate.AESBlockSize {
 			return
 		}
@@ -93,7 +92,7 @@ func (server *Server) handleCryptSetup(client *ClientConnection, msg *Message) {
 		if copy(client.crypt.DecryptIV[0:], cs.ClientNonce) != cryptstate.AESBlockSize {
 			return
 		}
-		log.Stdoutf("Crypt re-sync successful")
+		log.Printf("Crypt re-sync successful")
 	}
 }
 
@@ -142,19 +141,13 @@ func (server *Server) handleTextMessage(client *ClientConnection, msg *Message) 
 		return
 	}
 
-	// Receiver list...
-	users := list.New()
-
+	users := []*ClientConnection{};
 	for i := 0; i < len(txtmsg.Session); i++ {
-		// Lookup user by ID
 		user := server.getClientConnection(txtmsg.Session[i])
-		if user != nil {
-			users.PushBack(user)
-		}
+		users = append(users, user)
 	}
 
-	for x := range users.Iter() {
-		user := x.(*ClientConnection)
+	for _, user := range users {
 		user.sendProtoMessage(MessageTextMessage, &mumbleproto.TextMessage{
 			Actor:   proto.Uint32(client.Session),
 			Message: txtmsg.Message,

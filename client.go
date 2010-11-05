@@ -148,12 +148,10 @@ func (client *ClientConnection) udpreceiver() {
 
 func (client *ClientConnection) sendUdp(msg *Message) {
 	if client.udp {
-		// Send as UDP
-		log.Stdoutf("Sent UDP!")
+		log.Printf("Sent UDP!")
 		client.server.udpsend <- msg
 	} else {
-		// Tunnel through TCP
-		log.Stdoutf("Sent TCP!")
+		log.Printf("Sent TCP!")
 		msg.kind = MessageUDPTunnel
 		client.msgchan <- msg
 	}
@@ -263,7 +261,7 @@ func (client *ClientConnection) sendChannelList() {
 	})
 	if err != nil {
 		// panic!
-		log.Stdoutf("poanic!")
+		log.Printf("poanic!")
 	}
 }
 
@@ -274,15 +272,14 @@ func (client *ClientConnection) sendUserList() {
 	server.cmutex.RLock()
 	defer server.cmutex.RUnlock()
 
-	for x := range server.clients.Iter() {
-		user := x.(*ClientConnection)
+	for _, user := range server.clients {
 		err := user.sendProtoMessage(MessageUserState, &mumbleproto.UserState{
 			Session: proto.Uint32(client.Session),
 			Name: proto.String(client.Username),
 			ChannelId: proto.Uint32(0),
 		})
 		if err != nil {
-			log.Stdoutf("unable to send!")
+			log.Printf("unable to send!")
 			continue
 		}
 	}
