@@ -17,7 +17,7 @@ import (
 )
 
 // A client connection
-type ClientConnection struct {
+type Client struct {
 	// Connection-related
 	tcpaddr  *net.TCPAddr
 	udpaddr  *net.UDPAddr
@@ -43,14 +43,14 @@ type ClientConnection struct {
 }
 
 // Something invalid happened on the wire.
-func (client *ClientConnection) Panic(reason string) {
+func (client *Client) Panic(reason string) {
 	client.disconnected = true
 	// fixme(mkrautz): we should inform the server "handler" method through a channel of this event,
 	// so it can perform a proper disconnect.
 }
 
 // Read a protobuf message from a client
-func (client *ClientConnection) readProtoMessage() (msg *Message, err os.Error) {
+func (client *Client) readProtoMessage() (msg *Message, err os.Error) {
 	var length uint32
 	var kind uint16
 
@@ -85,7 +85,7 @@ func (client *ClientConnection) readProtoMessage() (msg *Message, err os.Error) 
 }
 
 // Send a protobuf-encoded message
-func (c *ClientConnection) sendProtoMessage(kind uint16, msg interface{}) (err os.Error) {
+func (c *Client) sendProtoMessage(kind uint16, msg interface{}) (err os.Error) {
 	d, err := proto.Marshal(msg)
 	if err != nil {
 		return
@@ -100,7 +100,7 @@ func (c *ClientConnection) sendProtoMessage(kind uint16, msg interface{}) (err o
 }
 
 // UDP receiver.
-func (client *ClientConnection) udpreceiver() {
+func (client *Client) udpreceiver() {
 	for {
 		buf := <-client.udprecv
 		kind := (buf[0] >> 5) & 0x07;
@@ -146,7 +146,7 @@ func (client *ClientConnection) udpreceiver() {
 	}
 }
 
-func (client *ClientConnection) sendUdp(msg *Message) {
+func (client *Client) sendUdp(msg *Message) {
 	if client.udp {
 		log.Printf("Sent UDP!")
 		client.server.udpsend <- msg
@@ -161,7 +161,7 @@ func (client *ClientConnection) sendUdp(msg *Message) {
 //
 // Sender Goroutine
 //
-func (client *ClientConnection) sender() {
+func (client *Client) sender() {
 	for {
 		msg := <-client.msgchan
 
@@ -196,7 +196,7 @@ func (client *ClientConnection) sender() {
 }
 
 // Receiver Goroutine
-func (client *ClientConnection) receiver() {
+func (client *Client) receiver() {
 	for {
 
 		// The version handshake is done. Forward this message to the synchronous request handler.
@@ -249,7 +249,7 @@ func (client *ClientConnection) receiver() {
 }
 
 // Send the channel list to a client.
-func (client *ClientConnection) sendChannelList() {
+func (client *Client) sendChannelList() {
 	server := client.server
 	root := server.root
 
@@ -266,7 +266,7 @@ func (client *ClientConnection) sendChannelList() {
 }
 
 // Send the userlist to a client.
-func (client *ClientConnection) sendUserList() {
+func (client *Client) sendUserList() {
 	server := client.server
 
 	server.cmutex.RLock()

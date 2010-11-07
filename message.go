@@ -61,11 +61,11 @@ type Message struct {
 	// If there is no connection established, address must be used.
 	// If the datagram comes from an already-connected client, the
 	// client field should point to that client.
-	client *ClientConnection
+	client *Client
 	address net.Addr
 }
 
-func (server *Server) handleCryptSetup(client *ClientConnection, msg *Message) {
+func (server *Server) handleCryptSetup(client *Client, msg *Message) {
 	cs := &mumbleproto.CryptSetup{}
 	err := proto.Unmarshal(msg.buf, cs)
 	if err != nil {
@@ -96,7 +96,7 @@ func (server *Server) handleCryptSetup(client *ClientConnection, msg *Message) {
 	}
 }
 
-func (server *Server) handlePingMessage(client *ClientConnection, msg *Message) {
+func (server *Server) handlePingMessage(client *Client, msg *Message) {
 	ping := &mumbleproto.Ping{}
 	err := proto.Unmarshal(msg.buf, ping)
 	if err != nil {
@@ -115,25 +115,25 @@ func (server *Server) handlePingMessage(client *ClientConnection, msg *Message) 
 	})
 }
 
-func (server *Server) handleChannelAddMessage(client *ClientConnection, msg *Message) {
+func (server *Server) handleChannelAddMessage(client *Client, msg *Message) {
 }
 
-func (server *Server) handleChannelRemoveMessage(client *ClientConnection, msg *Message) {
+func (server *Server) handleChannelRemoveMessage(client *Client, msg *Message) {
 }
 
-func (server *Server) handleChannelStateMessage(client *ClientConnection, msg *Message) {
+func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 }
 
-func (server *Server) handleUserRemoveMessage(client *ClientConnection, msg *Message) {
+func (server *Server) handleUserRemoveMessage(client *Client, msg *Message) {
 }
 
-func (server *Server) handleUserStateMessage(client *ClientConnection, msg *Message) {
+func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 }
 
-func (server *Server) handleBanListMessage(client *ClientConnection, msg *Message) {
+func (server *Server) handleBanListMessage(client *Client, msg *Message) {
 }
 
-func (server *Server) handleTextMessage(client *ClientConnection, msg *Message) {
+func (server *Server) handleTextMessage(client *Client, msg *Message) {
 	txtmsg := &mumbleproto.TextMessage{}
 	err := proto.Unmarshal(msg.buf, txtmsg)
 	if err != nil {
@@ -141,9 +141,9 @@ func (server *Server) handleTextMessage(client *ClientConnection, msg *Message) 
 		return
 	}
 
-	users := []*ClientConnection{};
+	users := []*Client{};
 	for i := 0; i < len(txtmsg.Session); i++ {
-		user := server.getClientConnection(txtmsg.Session[i])
+		user := server.getClient(txtmsg.Session[i])
 		users = append(users, user)
 	}
 
@@ -155,16 +155,16 @@ func (server *Server) handleTextMessage(client *ClientConnection, msg *Message) 
 	}
 }
 
-func (server *Server) handleAclMessage(client *ClientConnection, msg *Message) {
+func (server *Server) handleAclMessage(client *Client, msg *Message) {
 }
 
 // User query
-func (server *Server) handleQueryUsers(client *ClientConnection, msg *Message) {
+func (server *Server) handleQueryUsers(client *Client, msg *Message) {
 }
 
 // User stats message. Shown in the Mumble client when a
 // user right clicks a user and selects 'User Information'.
-func (server *Server) handleUserStatsMessage(client *ClientConnection, msg *Message) {
+func (server *Server) handleUserStatsMessage(client *Client, msg *Message) {
 	stats := &mumbleproto.UserStats{}
 	err := proto.Unmarshal(msg.buf, stats)
 	if err != nil {

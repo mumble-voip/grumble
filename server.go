@@ -54,7 +54,7 @@ type Server struct {
 
 	// A list of all connected clients
 	cmutex *sync.RWMutex
-	clients []*ClientConnection
+	clients []*Client
 
 	// Codec information
 	AlphaCodec int32
@@ -106,7 +106,7 @@ func NewServer(addr string, port int) (s *Server, err os.Error) {
 
 // Called by the server to initiate a new client connection.
 func (server *Server) NewClient(conn net.Conn) (err os.Error) {
-	client := new(ClientConnection)
+	client := new(Client)
 
 	// Get the address of the connected client
 	if addr := conn.RemoteAddr(); addr != nil {
@@ -140,7 +140,7 @@ func (server *Server) NewClient(conn net.Conn) (err os.Error) {
 }
 
 // Lookup a client by it's session id. Optimize this by using a map.
-func (server *Server) getClientConnection(session uint32) (client *ClientConnection) {
+func (server *Server) getClient(session uint32) (client *Client) {
 	server.cmutex.RLock()
 	defer server.cmutex.RUnlock()
 
@@ -167,7 +167,7 @@ func (server *Server) handler() {
 	}
 }
 
-func (server *Server) handleAuthenticate(client *ClientConnection, msg *Message) {
+func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	// Is this message not an authenticate message? If not, discard it...
 	if msg.kind != MessageAuthenticate {
 		client.Panic("Unexpected message. Expected Authenticate.")
@@ -313,7 +313,7 @@ func (server *Server) updateCodecVersions() {
 	return
 }
 
-func (server *Server) sendUserList(client *ClientConnection) {
+func (server *Server) sendUserList(client *Client) {
 	server.cmutex.RLock()
 	defer server.cmutex.RUnlock()
 
@@ -355,7 +355,7 @@ func (server *Server) broadcastProtoMessage(kind uint16, msg interface{}) (err o
 	return
 }
 
-func (server *Server) handleIncomingMessage(client *ClientConnection, msg *Message) {
+func (server *Server) handleIncomingMessage(client *Client, msg *Message) {
 	log.Printf("Handle Incoming Message")
 	switch msg.kind {
 	case MessagePing:
@@ -474,7 +474,7 @@ func (server *Server) ListenUDP() {
 				address: udpaddr,
 			}
 		} else {
-			var match *ClientConnection
+			var match *Client
 			plain := make([]byte, nread-4)
 			decrypted := false
 
@@ -502,7 +502,7 @@ func (server *Server) ListenUDP() {
 					decrypted = true
 
 					// If we were able to successfully decrpyt, add
-					// the UDPAddr to the ClientConnection struct.
+					// the UDPAddr to the Client struct.
 					log.Printf("Client UDP connection established.")
 					client.udpaddr = remote.(*net.UDPAddr)
 					match = client
