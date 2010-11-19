@@ -49,6 +49,12 @@ func (client *Client) Panic(reason string) {
 	// so it can perform a proper disconnect.
 }
 
+func (client *Client) Disconnect() {
+	client.disconnected = true
+	close(client.udprecv)
+	close(client.msgchan)
+}
+
 // Read a protobuf message from a client
 func (client *Client) readProtoMessage() (msg *Message, err os.Error) {
 	var length uint32
@@ -101,8 +107,13 @@ func (c *Client) sendProtoMessage(kind uint16, msg interface{}) (err os.Error) {
 
 // UDP receiver.
 func (client *Client) udpreceiver() {
-	for {
-		buf := <-client.udprecv
+	for buf := range client.udprecv {
+
+		// Channel close.
+		if len(buf) == 0 {
+			return
+		}
+
 		kind := (buf[0] >> 5) & 0x07;
 
 		switch kind {
@@ -162,8 +173,11 @@ func (client *Client) sendUdp(msg *Message) {
 // Sender Goroutine
 //
 func (client *Client) sender() {
-	for {
-		msg := <-client.msgchan
+	for msg := range client.msgchan {
+		// Check for channel close.
+		if len(msg.buf) == 0 {
+			return
+		}
 
 		// First, we write out the message type as a big-endian uint16
 		err := binary.Write(client.writer, binary.BigEndian, msg.kind)
@@ -198,12 +212,17 @@ func (client *Client) sender() {
 // Receiver Goroutine
 func (client *Client) receiver() {
 	for {
-
 		// The version handshake is done. Forward this message to the synchronous request handler.
 		if client.state == StateClientAuthenticated || client.state == StateClientSentVersion {
 			// Try to read the next message in the pool
 			msg, err := client.readProtoMessage()
 			if err != nil {
+				if err == os.EOF {
+					log.Printf("Client disconnected.")
+					client.Disconnect()
+				} else {
+					log.Printf("Client error.")
+				}
 				return
 			}
 			// Special case UDPTunnel messages. They're high priority and shouldn't
@@ -231,6 +250,12 @@ func (client *Client) receiver() {
 		} else if client.state == StateServerSentVersion {
 			msg, err := client.readProtoMessage()
 			if err != nil {
+				if err == os.EOF {
+					log.Printf("Client disconnected.")
+					client.Disconnect()
+				} else {
+					log.Printf("Client error.")
+				}
 				return
 			}
 
@@ -268,18 +293,14 @@ func (client *Client) sendChannelList() {
 // Send the userlist to a client.
 func (client *Client) sendUserList() {
 	server := client.server
-
-	server.cmutex.RLock()
-	defer server.cmutex.RUnlock()
-
-	for _, user := range server.clients {
-		err := user.sendProtoMessage(MessageUserState, &mumbleproto.UserState{
+	for _, client := range server.clients {
+		err := client.sendProtoMessage(MessageUserState, &mumbleproto.UserState{
 			Session: proto.Uint32(client.Session),
 			Name: proto.String(client.Username),
 			ChannelId: proto.Uint32(0),
 		})
 		if err != nil {
-			log.Printf("unable to send!")
+			log.Printf("Unable to send UserList")
 			continue
 		}
 	}

@@ -57,7 +57,7 @@ type Message struct {
 	// is ignored for UDP packets.
 	kind uint16
 
-	// For UDP datagrams one of these fiels have to be filled out.
+	// For UDP datagrams one of these fields have to be filled out.
 	// If there is no connection established, address must be used.
 	// If the datagram comes from an already-connected client, the
 	// client field should point to that client.
@@ -143,7 +143,10 @@ func (server *Server) handleTextMessage(client *Client, msg *Message) {
 
 	users := []*Client{};
 	for i := 0; i < len(txtmsg.Session); i++ {
-		user := server.getClient(txtmsg.Session[i])
+		user, ok := server.clients[txtmsg.Session[i]]
+		if !ok {
+			log.Panic("Could not look up client by session")
+		}
 		users = append(users, user)
 	}
 
@@ -170,4 +173,5 @@ func (server *Server) handleUserStatsMessage(client *Client, msg *Message) {
 	if err != nil {
 		client.Panic(err.String())
 	}
+	log.Printf("UserStatsMessage")
 }
