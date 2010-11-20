@@ -285,20 +285,29 @@ func (client *Client) receiver() {
 	}
 }
 
-// Send the channel list to a client.
 func (client *Client) sendChannelList() {
-	server := client.server
-	root := server.root
+	client.sendChannelTree(client.server.root)
+}
 
+func (client *Client) sendChannelTree(channel *Channel) {
 	// Start at the root channel.
-	err := client.sendProtoMessage(MessageChannelState, &mumbleproto.ChannelState{
-		ChannelId:   proto.Uint32(uint32(root.Id)),
-		Name:        proto.String(root.Name),
-		Description: proto.String(root.Description),
-	})
+	log.Printf("sending channel ID=%i, NAME=%s", channel.Id, channel.Name)
+	chanstate := &mumbleproto.ChannelState{
+		ChannelId:   proto.Uint32(uint32(channel.Id)),
+		Name:        proto.String(channel.Name),
+		Description: proto.String(channel.Description),
+	}
+	if channel.parent != nil {
+		chanstate.Parent = proto.Uint32(uint32(channel.parent.Id))
+	}
+
+	err := client.sendProtoMessage(MessageChannelState, chanstate)
 	if err != nil {
-		// panic!
-		log.Printf("poanic!")
+		client.Panic(err.String())
+	}
+
+	for _, subchannel := range channel.children {
+		client.sendChannelTree(subchannel)
 	}
 }
 

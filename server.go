@@ -41,7 +41,6 @@ type Server struct {
 	udpconn  *net.UDPConn
 
 	incoming       chan *Message
-	outgoing       chan *Message
 	udpsend        chan *Message
 	voicebroadcast chan *VoiceBroadcast
 
@@ -63,7 +62,10 @@ type Server struct {
 	BetaCodec        int32
 	PreferAlphaCodec bool
 
+	// Channels
+	chanid     int
 	root *Channel
+	channels   map[int]*Channel
 }
 
 // Allocate a new Murmur instance
@@ -78,7 +80,6 @@ func NewServer(addr string, port int) (s *Server, err os.Error) {
 	s.hclients = make(map[string][]*Client)
 	s.hpclients = make(map[string]*Client)
 
-	s.outgoing = make(chan *Message)
 	s.incoming = make(chan *Message)
 	s.udpsend = make(chan *Message)
 	s.voicebroadcast = make(chan *VoiceBroadcast)
@@ -86,10 +87,13 @@ func NewServer(addr string, port int) (s *Server, err os.Error) {
 	s.MaxBandwidth = 300000
 	s.MaxUsers = 10
 
-	s.root = NewChannel(0, "Root")
+	s.channels = make(map[int]*Channel)
+
+	s.root = s.NewChannel("Root")
+	subChan := s.NewChannel("SubChannel")
+	s.root.AddChild(subChan)
 
 	go s.handler()
-	go s.multiplexer()
 
 	return
 }
@@ -150,6 +154,23 @@ func (server *Server) RemoveClient(client *Client) {
 	if err != nil {
 		// server panic
 	}
+}
+
+// Add a new channel to the server.
+func (server *Server) NewChannel(name string) (channel *Channel) {
+	channel = NewChannel(server.chanid, name)
+	server.channels[channel.Id] = channel
+	server.chanid += 1
+	return
+}
+
+// Remove a channel from the server.
+func (server *Server) RemoveChanel(channel *Channel) {
+	if (channel.Id == 0) {
+		log.Printf("Attempted to remove root channel.")
+		return
+	}
+	server.channels[channel.Id] = nil, false
 }
 
 // This is the synchronous handler goroutine.
@@ -263,7 +284,6 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 
 	// Broadcast the the user entered a channel
 	server.root.AddClient(client)
-	log.Printf("server.root = %p", server.root)
 	err = server.broadcastProtoMessage(MessageUserState, &mumbleproto.UserState{
 		Session:   proto.Uint32(client.Session),
 		Name:      proto.String(client.Username),
@@ -364,10 +384,8 @@ func (server *Server) sendUserList(client *Client) {
 			ChannelId: proto.Uint32(0),
 		})
 
-		log.Printf("Sent one user")
-
 		if err != nil {
-			log.Printf("unable to send!")
+			// Server panic?
 			continue
 		}
 	}
@@ -429,13 +447,6 @@ func (server *Server) handleIncomingMessage(client *Client, msg *Message) {
 		log.Printf("MessageRequestBlob from client")
 	case MessageServerConfig:
 		log.Printf("MessageServerConfig from client")
-	}
-}
-
-func (server *Server) multiplexer() {
-	for {
-		_ = <-server.outgoing
-		log.Printf("recvd message to multiplex")
 	}
 }
 

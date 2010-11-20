@@ -245,6 +245,8 @@ type UserState struct {
 	Hash	*string	"PB(bytes,15,opt,name=hash)"
 	CommentHash	[]byte	"PB(bytes,16,opt,name=comment_hash)"
 	TextureHash	[]byte	"PB(bytes,17,opt,name=texture_hash)"
+	PrioritySpeaker	*bool	"PB(varint,18,opt,name=priority_speaker)"
+	Recording	*bool	"PB(varint,19,opt,name=recording)"
 	XXX_unrecognized	[]byte
 }
 func (this *UserState) Reset() {

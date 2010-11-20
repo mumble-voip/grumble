@@ -137,6 +137,98 @@ func (server *Server) handleUserRemoveMessage(client *Client, msg *Message) {
 }
 
 func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
+	log.Printf("UserState!")
+	userstate := &mumbleproto.UserState{}
+	err := proto.Unmarshal(msg.buf, userstate)
+	if err != nil {
+		client.Panic(err.String())
+	}
+
+	if userstate.Session == nil {
+		log.Printf("UserState without session.")
+		return
+	}
+
+	actor := server.clients[client.Session]
+	user := server.clients[*userstate.Session]
+
+	log.Printf("actor = %v", actor)
+	log.Printf("user = %v", user)
+
+	userstate.Session = proto.Uint32(user.Session)
+	userstate.Actor = proto.Uint32(actor.Session)
+
+	// Has a channel ID
+	if userstate.ChannelId != nil {
+		// Destination channel
+		dstChan := server.channels[int(*userstate.ChannelId)]
+		log.Printf("dstChan = %v", dstChan)
+
+		// If the user and the actor aren't the same, check whether the actor has the 'move' permission
+		// on the user's channel to move.
+
+		// Check whether the actor has 'move' permissions on dstChan.  Check whether user has 'enter'
+		// permissions on dstChan.
+
+		// Check whether the channel is full.
+	}
+
+	if userstate.Mute != nil || userstate.Deaf != nil || userstate.Suppress != nil || userstate.PrioritySpeaker != nil {
+		// Disallow for SuperUser
+
+		// Check whether the actor has 'mutedeafen' permission on user's channel.
+
+		// Check if this was a suppress operation. Only the server can suppress users.
+	}
+
+	// Comment set/clear
+	if userstate.Comment != nil {
+		comment := *userstate.Comment
+		log.Printf("comment = %v", comment)
+
+		// Clearing another user's comment.
+		if user != actor {
+			// Check if actor has 'move' permissions on the root channel. It is needed
+			// to clear another user's comment.
+
+			// Only allow empty text.
+		}
+
+		// Check if the text is allowed.
+
+		// Only set the comment if it is different from the current
+		// user comment.
+	}
+
+	// Texture change
+	if userstate.Texture != nil {
+		// Check the length of the texture
+	}
+
+	// Registration
+	if userstate.UserId != nil {
+		// If user == actor, check for 'selfregister' permission on root channel.
+		// If user != actor, check for 'register' permission on root channel.
+
+		// Check if the UserId in the message is >= 0. A registration attempt
+		// must use a negative UserId.
+	}
+
+	// Prevent self-targetting state changes to be applied to other users
+	// That is, if actor != user, then:
+	//   Discard message if it has any of the following things set:
+	//      - SelfDeaf
+	//      - SelfMute
+	//      - Texture
+	//      - PluginContext
+	//      - PluginIdentity
+	//      - Recording
+	if actor != user && (userstate.SelfDeaf != nil || userstate.SelfMute != nil ||
+		userstate.Texture != nil || userstate.PluginContext != nil || userstate.PluginIdentity != nil ||
+		userstate.Recording != nil) {
+			return
+	}
+
 }
 
 func (server *Server) handleBanListMessage(client *Client, msg *Message) {
