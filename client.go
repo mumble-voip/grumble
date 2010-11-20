@@ -40,6 +40,7 @@ type Client struct {
 	Session  uint32
 	Username string
 	Tokens   []string
+	Channel  *Channel
 }
 
 // Something invalid happened on the wire.
@@ -48,11 +49,13 @@ func (client *Client) Panic(reason string) {
 }
 
 func (client *Client) Disconnect() {
-	client.disconnected = true
-	close(client.udprecv)
-	close(client.msgchan)
+	if !client.disconnected {
+		client.disconnected = true
+		close(client.udprecv)
+		close(client.msgchan)
 
-	client.server.RemoveClient(client)
+		client.server.RemoveClient(client)
+	}
 }
 
 // Read a protobuf message from a client

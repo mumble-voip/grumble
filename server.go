@@ -12,7 +12,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
-	"container/list"
 	"sync"
 	"goprotobuf.googlecode.com/hg/proto"
 	"mumbleproto"
@@ -54,6 +53,7 @@ type Server struct {
 	session uint32
 	clients map[uint32]*Client
 
+	// Host, host/port -> client mapping
 	hmutex    sync.Mutex
 	hclients  map[string][]*Client
 	hpclients map[string]*Client
@@ -64,16 +64,6 @@ type Server struct {
 	PreferAlphaCodec bool
 
 	root *Channel
-}
-
-// A Mumble channel
-type Channel struct {
-	Id          int
-	Name        string
-	Description string
-	Temporary   bool
-	Position    int
-	Channels    *list.List
 }
 
 // Allocate a new Murmur instance
@@ -96,10 +86,7 @@ func NewServer(addr string, port int) (s *Server, err os.Error) {
 	s.MaxBandwidth = 300000
 	s.MaxUsers = 10
 
-	s.root = &Channel{
-		Id:   0,
-		Name: "Root",
-	}
+	s.root = NewChannel(0, "Root")
 
 	go s.handler()
 	go s.multiplexer()
@@ -137,8 +124,6 @@ func (server *Server) NewClient(conn net.Conn) (err os.Error) {
 // internal representation.
 func (server *Server) RemoveClient(client *Client) {
 	server.hmutex.Lock()
-	defer server.hmutex.Unlock()
-
 	if client.udpaddr != nil {
 		host := client.udpaddr.IP.String()
 		oldclients := server.hclients[host]
@@ -151,7 +136,20 @@ func (server *Server) RemoveClient(client *Client) {
 		server.hclients[host] = newclients
 		server.hpclients[client.udpaddr.String()] = nil, false
 	}
+	server.hmutex.Unlock()
+
 	server.clients[client.Session] = nil, false
+
+	// Remove client from channel
+	channel := client.Channel
+	channel.RemoveClient(client)
+
+	err := server.broadcastProtoMessage(MessageUserRemove, &mumbleproto.UserRemove{
+		Session:   proto.Uint32(client.Session),
+	})
+	if err != nil {
+		// server panic
+	}
 }
 
 // This is the synchronous handler goroutine.
@@ -172,6 +170,15 @@ func (server *Server) handler() {
 		case vb := <-server.voicebroadcast:
 			log.Printf("VoiceBroadcast!")
 			if vb.target == 0 {
+				channel := vb.client.Channel
+				for _, client := range channel.clients {
+					if client != vb.client {
+						client.sendUdp(&Message{
+							buf:    vb.buf,
+							client: client,
+						})
+					}
+				}
 			}
 		}
 	}
@@ -255,6 +262,8 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	server.hmutex.Unlock()
 
 	// Broadcast the the user entered a channel
+	server.root.AddClient(client)
+	log.Printf("server.root = %p", server.root)
 	err = server.broadcastProtoMessage(MessageUserState, &mumbleproto.UserState{
 		Session:   proto.Uint32(client.Session),
 		Name:      proto.String(client.Username),
