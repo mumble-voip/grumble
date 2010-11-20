@@ -65,6 +65,15 @@ type Message struct {
 	address net.Addr
 }
 
+type VoiceBroadcast struct {
+	// The client who is performing the broadcast
+	client *Client
+	// The VoiceTarget identifier.
+	target byte
+	// The voice packet itself.
+	buf []byte
+}
+
 func (server *Server) handleCryptSetup(client *Client, msg *Message) {
 	cs := &mumbleproto.CryptSetup{}
 	err := proto.Unmarshal(msg.buf, cs)

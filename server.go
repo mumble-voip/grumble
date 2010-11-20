@@ -41,9 +41,10 @@ type Server struct {
 	port     int
 	udpconn  *net.UDPConn
 
-	incoming chan *Message
-	outgoing chan *Message
-	udpsend  chan *Message
+	incoming       chan *Message
+	outgoing       chan *Message
+	udpsend        chan *Message
+	voicebroadcast chan *VoiceBroadcast
 
 	// Config-related
 	MaxUsers     int
@@ -90,6 +91,7 @@ func NewServer(addr string, port int) (s *Server, err os.Error) {
 	s.outgoing = make(chan *Message)
 	s.incoming = make(chan *Message)
 	s.udpsend = make(chan *Message)
+	s.voicebroadcast = make(chan *VoiceBroadcast)
 
 	s.MaxBandwidth = 300000
 	s.MaxUsers = 10
@@ -157,13 +159,20 @@ func (server *Server) RemoveClient(client *Client) {
 // to keep server state synchronized.
 func (server *Server) handler() {
 	for {
-		msg := <-server.incoming
-		client := msg.client
-
-		if client.state == StateClientAuthenticated {
-			server.handleIncomingMessage(client, msg)
-		} else if client.state == StateClientSentVersion {
-			server.handleAuthenticate(client, msg)
+		select {
+		// Control channel messages
+		case msg := <-server.incoming:
+			client := msg.client
+			if client.state == StateClientAuthenticated {
+				server.handleIncomingMessage(client, msg)
+			} else if client.state == StateClientSentVersion {
+				server.handleAuthenticate(client, msg)
+			}
+		// Voice broadcast
+		case vb := <-server.voicebroadcast:
+			log.Printf("VoiceBroadcast!")
+			if vb.target == 0 {
+			}
 		}
 	}
 }
@@ -445,7 +454,7 @@ func (s *Server) SendUDP() {
 		} else if msg.address != nil {
 			s.udpconn.WriteTo(msg.buf, msg.address)
 		} else {
-			// Skipping
+		// Skipping
 		}
 	}
 }

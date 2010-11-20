@@ -140,15 +140,23 @@ func (client *Client) udpreceiver() {
 
 			outgoing.PutUint32(client.Session)
 			outgoing.PutBytes(buf[1 : 1+(len(buf)-1)])
+			outbuf[0] = kind
 
-			// Sever loopback
-			if target == 0x1f {
-				outbuf[0] = kind
+			// VoiceTarget
+			if target != 0x1f {
+				client.server.voicebroadcast <- &VoiceBroadcast{
+					client: client,
+					buf:    outbuf[0 : 1+outgoing.Size()],
+					target: target,
+				}
+			// Server loopback
+			} else {
 				client.sendUdp(&Message{
 					buf:    outbuf[0 : 1+outgoing.Size()],
 					client: client,
 				})
 			}
+
 		case UDPMessagePing:
 			client.server.udpsend <- &Message{
 				buf:    buf,
