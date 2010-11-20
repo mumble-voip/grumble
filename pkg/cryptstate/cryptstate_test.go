@@ -97,7 +97,7 @@ func TestEncrypt(t *testing.T) {
 
 	out := make([]byte, 19)
 	cs.SetKey(key[0:], eiv[0:], div[0:])
-	cs.Encrypt(msg[0:], out[0:])
+	cs.Encrypt(out[0:], msg[0:])
 
 	if BlockCompare(out[0:], expected[0:]) == false {
 		t.Errorf("Mismatch in output")
@@ -135,7 +135,7 @@ func TestDecrypt(t *testing.T) {
 
 	out := make([]byte, 15)
 	cs.SetKey(key[0:], div[0:], eiv[0:])
-	cs.Decrypt(crypted[0:], out[0:])
+	cs.Decrypt(out[0:], crypted[0:])
 
 	if BlockCompare(out[0:], expected[0:]) == false {
 		t.Errorf("Mismatch in output")

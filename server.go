@@ -426,7 +426,7 @@ func (s *Server) SendUDP() {
 		if msg.client != nil {
 			// These are to be crypted...
 			crypted := make([]byte, len(msg.buf)+4)
-			msg.client.crypt.Encrypt(msg.buf, crypted)
+			msg.client.crypt.Encrypt(crypted, msg.buf)
 			//s.udpconn.WriteTo(crypted, msg.client.udpaddr)
 			b := make([]byte, 1)
 			s.udpconn.WriteTo(b, msg.client.udpaddr)
@@ -488,7 +488,7 @@ func (server *Server) ListenUDP() {
 			server.hmutex.Lock()
 			client, ok := server.hpclients[udpaddr.String()]
 			if ok {
-				err = client.crypt.Decrypt(buf[0:nread], plain[0:])
+				err = client.crypt.Decrypt(plain[0:], buf[0:nread])
 				if err != nil {
 					log.Panicf("Unable to decrypt incoming packet for client %v (host-port matched)", client)
 				}
@@ -497,25 +497,26 @@ func (server *Server) ListenUDP() {
 				host := udpaddr.IP.String()
 				hostclients := server.hclients[host]
 				for _, client := range hostclients {
-					err = client.crypt.Decrypt(buf[0:nread], plain[0:])
+					err = client.crypt.Decrypt(plain[0:], buf[0:nread])
 					if err != nil {
 						continue
 					} else {
 						match = client
 					}
 				}
+				if match != nil {
+					match.udpaddr = udpaddr
+					server.hpclients[udpaddr.String()] = match
+				}
 			}
 			server.hmutex.Unlock()
 
 			// No client found.
 			if match == nil {
-				log.Printf("No match found for packet. Discarding...")
+				log.Printf("Sender of UDP packet could not be determined. Packet dropped.")
 				continue
 			}
 
-			if match.udpaddr == nil {
-				match.udpaddr = udpaddr
-			}
 			match.udp = true
 			match.udprecv <- plain
 		}
