@@ -20,10 +20,10 @@ import (
 )
 
 // The default port a Murmur server listens on
-const DefaultPort     = 64738
-const UDPPacketSize   = 1024
+const DefaultPort = 64738
+const UDPPacketSize = 1024
 
-const CeltCompatBitstream   = -2147483638
+const CeltCompatBitstream = -2147483638
 
 // Client connection states
 const (
@@ -43,23 +43,23 @@ type Server struct {
 
 	incoming chan *Message
 	outgoing chan *Message
-	udpsend chan *Message
+	udpsend  chan *Message
 
 	// Config-related
-	MaxUsers int
+	MaxUsers     int
 	MaxBandwidth uint32
 
 	// Clients
 	session uint32
-	clients      map[uint32]*Client
+	clients map[uint32]*Client
 
-	hmutex       *sync.RWMutex
+	hmutex    *sync.RWMutex
 	hclients  map[string][]*Client
 	hpclients map[string]*Client
 
 	// Codec information
-	AlphaCodec int32
-	BetaCodec int32
+	AlphaCodec       int32
+	BetaCodec        int32
 	PreferAlphaCodec bool
 
 	root *Channel
@@ -67,12 +67,12 @@ type Server struct {
 
 // A Mumble channel
 type Channel struct {
-	Id int
-	Name string
+	Id          int
+	Name        string
 	Description string
-	Temporary bool
-	Position int
-	Channels *list.List
+	Temporary   bool
+	Position    int
+	Channels    *list.List
 }
 
 // Allocate a new Murmur instance
@@ -96,7 +96,7 @@ func NewServer(addr string, port int) (s *Server, err os.Error) {
 	s.MaxUsers = 10
 
 	s.root = &Channel{
-		Id: 0,
+		Id:   0,
 		Name: "Root",
 	}
 
@@ -186,7 +186,7 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	// Send CryptState information to the client so it can establish an UDP connection,
 	// if it wishes.
 	err = client.sendProtoMessage(MessageCryptSetup, &mumbleproto.CryptSetup{
-		Key: client.crypt.RawKey[0:],
+		Key:         client.crypt.RawKey[0:],
 		ClientNonce: client.crypt.DecryptIV[0:],
 		ServerNonce: client.crypt.EncryptIV[0:],
 	})
@@ -214,9 +214,9 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 
 	// Broadcast the the user entered a channel
 	err = server.broadcastProtoMessage(MessageUserState, &mumbleproto.UserState{
-		Session:    proto.Uint32(client.Session),
-		Name:       proto.String(client.Username),
-		ChannelId:  proto.Uint32(0),
+		Session:   proto.Uint32(client.Session),
+		Name:      proto.String(client.Username),
+		ChannelId: proto.Uint32(0),
 	})
 	if err != nil {
 		client.Panic(err.String())
@@ -225,8 +225,8 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	server.sendUserList(client)
 
 	err = client.sendProtoMessage(MessageServerSync, &mumbleproto.ServerSync{
-		Session:        proto.Uint32(client.Session),
-		MaxBandwidth:   proto.Uint32(server.MaxBandwidth),
+		Session:      proto.Uint32(client.Session),
+		MaxBandwidth: proto.Uint32(server.MaxBandwidth),
 	})
 	if err != nil {
 		client.Panic(err.String())
@@ -234,8 +234,8 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	}
 
 	err = client.sendProtoMessage(MessageServerConfig, &mumbleproto.ServerConfig{
-		AllowHtml: proto.Bool(true),
-		MessageLength: proto.Uint32(1000),
+		AllowHtml:          proto.Bool(true),
+		MessageLength:      proto.Uint32(1000),
 		ImageMessageLength: proto.Uint32(1000),
 	})
 	if err != nil {
@@ -282,7 +282,7 @@ func (server *Server) updateCodecVersions() {
 		server.PreferAlphaCodec = !server.PreferAlphaCodec
 	}
 
-	if (server.PreferAlphaCodec) {
+	if server.PreferAlphaCodec {
 		server.AlphaCodec = winner
 	} else {
 		server.BetaCodec = winner
@@ -330,7 +330,7 @@ func (server *Server) broadcastProtoMessage(kind uint16, msg interface{}) (err o
 		if client.state != StateClientAuthenticated {
 			continue
 		}
-		err :=client.sendProtoMessage(kind, msg)
+		err := client.sendProtoMessage(kind, msg)
 		if err != nil {
 			return
 		}
@@ -454,7 +454,7 @@ func (server *Server) ListenUDP() {
 			_ = binary.Write(buffer, binary.BigEndian, uint32(server.MaxBandwidth))
 
 			server.udpsend <- &Message{
-				buf: buffer.Bytes(),
+				buf:     buffer.Bytes(),
 				address: udpaddr,
 			}
 		} else {

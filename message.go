@@ -51,7 +51,7 @@ const (
 )
 
 type Message struct {
-	buf  []byte
+	buf []byte
 
 	// Kind denotes a message kind for TCP packets. This field
 	// is ignored for UDP packets.
@@ -61,7 +61,7 @@ type Message struct {
 	// If there is no connection established, address must be used.
 	// If the datagram comes from an already-connected client, the
 	// client field should point to that client.
-	client *Client
+	client  *Client
 	address net.Addr
 }
 
@@ -141,7 +141,7 @@ func (server *Server) handleTextMessage(client *Client, msg *Message) {
 		return
 	}
 
-	users := []*Client{};
+	users := []*Client{}
 	for i := 0; i < len(txtmsg.Session); i++ {
 		user, ok := server.clients[txtmsg.Session[i]]
 		if !ok {

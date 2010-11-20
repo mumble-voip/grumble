@@ -19,8 +19,8 @@ import (
 // A client connection
 type Client struct {
 	// Connection-related
-	tcpaddr  *net.TCPAddr
-	udpaddr  *net.UDPAddr
+	tcpaddr *net.TCPAddr
+	udpaddr *net.UDPAddr
 	conn    net.Conn
 	reader  *bufio.Reader
 	writer  *bufio.Writer
@@ -32,9 +32,9 @@ type Client struct {
 
 	disconnected bool
 
-	crypt   *cryptstate.CryptState
-	codecs  []int32
-	udp bool
+	crypt  *cryptstate.CryptState
+	codecs []int32
+	udp    bool
 
 	// Personal
 	Session  uint32
@@ -82,8 +82,8 @@ func (client *Client) readProtoMessage() (msg *Message, err os.Error) {
 	}
 
 	msg = &Message{
-		buf: buf,
-		kind: kind,
+		buf:    buf,
+		kind:   kind,
 		client: client,
 	}
 
@@ -114,44 +114,46 @@ func (client *Client) udpreceiver() {
 			return
 		}
 
-		kind := (buf[0] >> 5) & 0x07;
+		kind := (buf[0] >> 5) & 0x07
 
 		switch kind {
-		case UDPMessageVoiceSpeex: fallthrough;
-		case UDPMessageVoiceCELTAlpha: fallthrough;
+		case UDPMessageVoiceSpeex:
+			fallthrough
+		case UDPMessageVoiceCELTAlpha:
+			fallthrough
 		case UDPMessageVoiceCELTBeta:
 			kind := buf[0] & 0xe0
 			target := buf[0] & 0x1f
 			var counter uint8
 			outbuf := make([]byte, 1024)
 
-			incoming := packetdatastream.New(buf[1:1+(len(buf)-1)])
-			outgoing := packetdatastream.New(outbuf[1:1+(len(outbuf)-1)])
+			incoming := packetdatastream.New(buf[1 : 1+(len(buf)-1)])
+			outgoing := packetdatastream.New(outbuf[1 : 1+(len(outbuf)-1)])
 			_ = incoming.GetUint32()
 
 			for {
 				counter = incoming.Next8()
 				incoming.Skip(int(counter & 0x7f))
-				if !((counter & 0x80) != 0 && incoming.IsValid()) {
+				if !((counter&0x80) != 0 && incoming.IsValid()) {
 					break
 				}
 			}
 
 			outgoing.PutUint32(client.Session)
-			outgoing.PutBytes(buf[1:1+(len(buf)-1)])
+			outgoing.PutBytes(buf[1 : 1+(len(buf)-1)])
 
 			// Sever loopback
 			if target == 0x1f {
 				outbuf[0] = kind
 				client.sendUdp(&Message{
-					buf:      outbuf[0:1+outgoing.Size()],
-					client:   client,
+					buf:    outbuf[0 : 1+outgoing.Size()],
+					client: client,
 				})
 			}
 		case UDPMessagePing:
 			client.server.udpsend <- &Message{
-				buf:      buf,
-				client:   client,
+				buf:    buf,
+				client: client,
 			}
 		}
 	}
@@ -240,8 +242,8 @@ func (client *Client) receiver() {
 		// what version of the protocol it should speak.
 		if client.state == StateClientConnected {
 			client.sendProtoMessage(MessageVersion, &mumbleproto.Version{
-				Version:   proto.Uint32(0x10203),
-				Release:   proto.String("1.2.2"),
+				Version: proto.Uint32(0x10203),
+				Release: proto.String("1.2.2"),
 			})
 			// fixme(mkrautz): Re-add OS information... Does it break anything? It seems like
 			// the client discards the version message if there is no OS information in it.
@@ -280,8 +282,8 @@ func (client *Client) sendChannelList() {
 
 	// Start at the root channel.
 	err := client.sendProtoMessage(MessageChannelState, &mumbleproto.ChannelState{
-		ChannelId:  proto.Uint32(uint32(root.Id)),
-		Name: proto.String(root.Name),
+		ChannelId:   proto.Uint32(uint32(root.Id)),
+		Name:        proto.String(root.Name),
 		Description: proto.String(root.Description),
 	})
 	if err != nil {
@@ -295,8 +297,8 @@ func (client *Client) sendUserList() {
 	server := client.server
 	for _, client := range server.clients {
 		err := client.sendProtoMessage(MessageUserState, &mumbleproto.UserState{
-			Session: proto.Uint32(client.Session),
-			Name: proto.String(client.Username),
+			Session:   proto.Uint32(client.Session),
+			Name:      proto.String(client.Username),
 			ChannelId: proto.Uint32(0),
 		})
 		if err != nil {
@@ -305,4 +307,3 @@ func (client *Client) sendUserList() {
 		}
 	}
 }
-
