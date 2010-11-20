@@ -53,7 +53,7 @@ type Server struct {
 	session uint32
 	clients map[uint32]*Client
 
-	hmutex    *sync.RWMutex
+	hmutex    sync.Mutex
 	hclients  map[string][]*Client
 	hpclients map[string]*Client
 
@@ -84,7 +84,6 @@ func NewServer(addr string, port int) (s *Server, err os.Error) {
 
 	s.clients = make(map[uint32]*Client)
 
-	s.hmutex = new(sync.RWMutex)
 	s.hclients = make(map[string][]*Client)
 	s.hpclients = make(map[string]*Client)
 
@@ -130,6 +129,27 @@ func (server *Server) NewClient(conn net.Conn) (err os.Error) {
 	go client.sender()
 
 	return
+}
+
+// Remove a disconnected client from the server's
+// internal representation.
+func (server *Server) RemoveClient(client *Client) {
+	server.hmutex.Lock()
+	defer server.hmutex.Unlock()
+
+	if client.udpaddr != nil {
+		host := client.udpaddr.IP.String()
+		oldclients := server.hclients[host]
+		newclients := []*Client{}
+		for _, hostclient := range oldclients {
+			if hostclient != client {
+				newclients = append(newclients, hostclient)
+			}
+		}
+		server.hclients[host] = newclients
+		server.hpclients[client.udpaddr.String()] = nil, false
+	}
+	server.clients[client.Session] = nil, false
 }
 
 // This is the synchronous handler goroutine.
@@ -198,7 +218,6 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	server.updateCodecVersions()
 
 	client.sendChannelList()
-
 	client.state = StateClientAuthenticated
 
 	// Add the client to the connected list
@@ -299,7 +318,6 @@ func (server *Server) updateCodecVersions() {
 	}
 
 	log.Printf("CELT codec switch %v %v (PreferAlpha %v)", server.AlphaCodec, server.BetaCodec, server.PreferAlphaCodec)
-
 	return
 }
 
@@ -467,8 +485,7 @@ func (server *Server) ListenUDP() {
 			//
 			// If we don't find any matches, we look in the 'hclients',
 			// which maps a host address to a slice of clients.
-			server.hmutex.RLock()
-			defer server.hmutex.RUnlock()
+			server.hmutex.Lock()
 			client, ok := server.hpclients[udpaddr.String()]
 			if ok {
 				err = client.crypt.Decrypt(buf[0:nread], plain[0:])
@@ -478,7 +495,6 @@ func (server *Server) ListenUDP() {
 				match = client
 			} else {
 				host := udpaddr.IP.String()
-				server.hmutex.RLock()
 				hostclients := server.hclients[host]
 				for _, client := range hostclients {
 					err = client.crypt.Decrypt(buf[0:nread], plain[0:])
@@ -489,6 +505,7 @@ func (server *Server) ListenUDP() {
 					}
 				}
 			}
+			server.hmutex.Unlock()
 
 			// No client found.
 			if match == nil {

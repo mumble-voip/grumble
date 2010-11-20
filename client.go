@@ -44,15 +44,15 @@ type Client struct {
 
 // Something invalid happened on the wire.
 func (client *Client) Panic(reason string) {
-	client.disconnected = true
-	// fixme(mkrautz): we should inform the server "handler" method through a channel of this event,
-	// so it can perform a proper disconnect.
+	client.Disconnect()
 }
 
 func (client *Client) Disconnect() {
 	client.disconnected = true
 	close(client.udprecv)
 	close(client.msgchan)
+
+	client.server.RemoveClient(client)
 }
 
 // Read a protobuf message from a client
