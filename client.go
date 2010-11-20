@@ -108,7 +108,6 @@ func (c *Client) sendProtoMessage(kind uint16, msg interface{}) (err os.Error) {
 // UDP receiver.
 func (client *Client) udpreceiver() {
 	for buf := range client.udprecv {
-
 		// Channel close.
 		if len(buf) == 0 {
 			return

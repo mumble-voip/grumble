@@ -23,7 +23,7 @@ import (
 const DefaultPort = 64738
 const UDPPacketSize = 1024
 
-const CeltCompatBitstream = -2147483638
+const CeltCompatBitstream = -2147483637
 
 // Client connection states
 const (
@@ -214,16 +214,30 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 		client.Panic(err.String())
 	}
 
-	client.codecs = auth.CeltVersions
-	server.updateCodecVersions()
-
-	client.sendChannelList()
-	client.state = StateClientAuthenticated
-
 	// Add the client to the connected list
 	server.session += 1
 	client.Session = server.session
 	server.clients[client.Session] = client
+
+	// Add codecs
+	client.codecs = auth.CeltVersions
+	if len(client.codecs) == 0 {
+		log.Printf("Client %i connected without CELT codecs.", client.Session)
+	}
+	server.updateCodecVersions()
+
+	err = client.sendProtoMessage(MessageCodecVersion, &mumbleproto.CodecVersion{
+		Alpha:       proto.Int32(server.AlphaCodec),
+		Beta:        proto.Int32(server.BetaCodec),
+		PreferAlpha: proto.Bool(server.PreferAlphaCodec),
+	})
+	if err != nil {
+		client.Panic(err.String())
+		return
+	}
+
+	client.sendChannelList()
+	client.state = StateClientAuthenticated
 
 	// Add the client to the host slice for its host address.
 	host := client.tcpaddr.IP.String()
@@ -271,12 +285,11 @@ func (server *Server) updateCodecVersions() {
 	var count int
 
 	for _, client := range server.clients {
-		for i := 0; i < len(client.codecs); i++ {
-			codecusers[client.codecs[i]] += 1
+		for _, codec := range client.codecs {
+			codecusers[codec] += 1
 		}
 	}
 
-	// result?
 	for codec, users := range codecusers {
 		if users > count {
 			count = users
@@ -423,13 +436,12 @@ func (s *Server) SetupUDP() (err os.Error) {
 func (s *Server) SendUDP() {
 	for {
 		msg := <-s.udpsend
+		// Encrypted
 		if msg.client != nil {
-			// These are to be crypted...
 			crypted := make([]byte, len(msg.buf)+4)
 			msg.client.crypt.Encrypt(crypted, msg.buf)
-			//s.udpconn.WriteTo(crypted, msg.client.udpaddr)
-			b := make([]byte, 1)
-			s.udpconn.WriteTo(b, msg.client.udpaddr)
+			s.udpconn.WriteTo(crypted, msg.client.udpaddr)
+		// Non-encrypted
 		} else if msg.address != nil {
 			s.udpconn.WriteTo(msg.buf, msg.address)
 		} else {
