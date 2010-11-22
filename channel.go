@@ -1,3 +1,7 @@
+// Copyright (c) 2010 The Grumble Authors
+// The use of this source code is goverened by a BSD-style
+// license that can be found in the LICENSE-file.
+
 package main
 
 // A Mumble channel
@@ -8,10 +12,17 @@ type Channel struct {
 	Temporary   bool
 	Position    int
 
-	clients     map[uint32]*Client
+	clients map[uint32]*Client
 
-	parent      *Channel
-	children    map[int]*Channel
+	parent   *Channel
+	children map[int]*Channel
+
+	// ACL
+	ACL        []*ChannelACL
+	InheritACL bool
+
+	// Groups
+	Groups map[string]*Group
 }
 
 func NewChannel(id int, name string) (channel *Channel) {
@@ -20,6 +31,8 @@ func NewChannel(id int, name string) (channel *Channel) {
 	channel.Name = name
 	channel.clients = make(map[uint32]*Client)
 	channel.children = make(map[int]*Channel)
+	channel.ACL = []*ChannelACL{}
+	channel.Groups = map[string]*Group{}
 	return
 }
 

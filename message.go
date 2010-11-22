@@ -1,4 +1,3 @@
-// Grumble - an implementation of Murmur in Go
 // Copyright (c) 2010 The Grumble Authors
 // The use of this source code is goverened by a BSD-style
 // license that can be found in the LICENSE-file.
@@ -161,24 +160,47 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	// Has a channel ID
 	if userstate.ChannelId != nil {
 		// Destination channel
-		dstChan := server.channels[int(*userstate.ChannelId)]
-		log.Printf("dstChan = %v", dstChan)
+		dstChan, ok := server.channels[int(*userstate.ChannelId)]
+		if !ok {
+			return
+		}
 
 		// If the user and the actor aren't the same, check whether the actor has the 'move' permission
 		// on the user's channel to move.
+		if actor != user && !server.HasPermission(actor, user.Channel, MovePermission) {
+			client.sendPermissionDenied(actor, user.Channel, MovePermission)
+			return
+		}
 
 		// Check whether the actor has 'move' permissions on dstChan.  Check whether user has 'enter'
 		// permissions on dstChan.
+		if !server.HasPermission(actor, dstChan, MovePermission) && !server.HasPermission(user, dstChan, EnterPermission) {
+			client.sendPermissionDenied(user, dstChan, EnterPermission)
+			return
+		}
 
 		// Check whether the channel is full.
+		// fixme(mkrautz): See above.
 	}
 
 	if userstate.Mute != nil || userstate.Deaf != nil || userstate.Suppress != nil || userstate.PrioritySpeaker != nil {
 		// Disallow for SuperUser
+		if user.UserId == 0 {
+			client.sendPermissionDeniedType("SuperUser")
+			return
+		}
 
 		// Check whether the actor has 'mutedeafen' permission on user's channel.
+		if !server.HasPermission(actor, user.Channel, MuteDeafenPermission) {
+			client.sendPermissionDenied(actor, user.Channel, MuteDeafenPermission)
+			return
+		}
 
 		// Check if this was a suppress operation. Only the server can suppress users.
+		if userstate.Suppress != nil {
+			client.sendPermissionDenied(actor, user.Channel, MuteDeafenPermission)
+			return
+		}
 	}
 
 	// Comment set/clear
@@ -190,8 +212,15 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 		if user != actor {
 			// Check if actor has 'move' permissions on the root channel. It is needed
 			// to clear another user's comment.
+			if !server.HasPermission(actor, server.root, MovePermission) {
+				client.sendPermissionDenied(actor, server.root, MovePermission)
+				return
+			}
 
 			// Only allow empty text.
+			if len(comment) > 0 {
+				return
+			}
 		}
 
 		// Check if the text is allowed.
@@ -209,9 +238,20 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	if userstate.UserId != nil {
 		// If user == actor, check for 'selfregister' permission on root channel.
 		// If user != actor, check for 'register' permission on root channel.
+		permCheck := Permission(NonePermission)
+		uid := *userstate.UserId
+		if user == actor {
+			permCheck = SelfRegisterPermission
+		} else {
+			permCheck = RegisterPermission
+		}
+		if uid >= 0 || !server.HasPermission(actor, server.root, SelfRegisterPermission) {
+			client.sendPermissionDenied(actor, server.root, permCheck)
+			return
+		}
 
-		// Check if the UserId in the message is >= 0. A registration attempt
-		// must use a negative UserId.
+		// If user's hash is empty, deny...
+		// fixme(mkrautz)
 	}
 
 	// Prevent self-targetting state changes to be applied to other users
@@ -226,7 +266,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	if actor != user && (userstate.SelfDeaf != nil || userstate.SelfMute != nil ||
 		userstate.Texture != nil || userstate.PluginContext != nil || userstate.PluginIdentity != nil ||
 		userstate.Recording != nil) {
-			return
+		return
 	}
 
 }
@@ -234,6 +274,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 func (server *Server) handleBanListMessage(client *Client, msg *Message) {
 }
 
+// Broadcast text messages
 func (server *Server) handleTextMessage(client *Client, msg *Message) {
 	txtmsg := &mumbleproto.TextMessage{}
 	err := proto.Unmarshal(msg.buf, txtmsg)
@@ -242,14 +283,49 @@ func (server *Server) handleTextMessage(client *Client, msg *Message) {
 		return
 	}
 
-	users := []*Client{}
-	for i := 0; i < len(txtmsg.Session); i++ {
-		user, ok := server.clients[txtmsg.Session[i]]
-		if !ok {
-			log.Panic("Could not look up client by session")
+	// fixme(mkrautz): Check text message length.
+	// fixme(mkrautz): Sanitize text as well.
+
+	users := make(map[uint32]*Client)
+
+	// Tree
+	for _, chanid := range txtmsg.TreeId {
+		if channel, ok := server.channels[int(chanid)]; ok {
+			if !server.HasPermission(client, channel, TextMessagePermission) {
+				client.sendPermissionDenied(client, channel, TextMessagePermission)
+			}
+			for _, user := range channel.clients {
+				users[user.Session] = user
+			}
 		}
-		users = append(users, user)
 	}
+
+	// Direct-to-channel
+	for _, chanid := range txtmsg.ChannelId {
+		if channel, ok := server.channels[int(chanid)]; ok {
+			if !server.HasPermission(client, channel, TextMessagePermission) {
+				client.sendPermissionDenied(client, channel, TextMessagePermission)
+				return
+			}
+			for _, user := range channel.clients {
+				users[user.Session] = user
+			}
+		}
+	}
+
+	// Direct-to-users
+	for _, session := range txtmsg.Session {
+		if user, ok := server.clients[session]; ok {
+			if !server.HasPermission(client, user.Channel, TextMessagePermission) {
+				client.sendPermissionDenied(client, user.Channel, TextMessagePermission)
+				return
+			}
+			users[session] = user
+		}
+	}
+
+	// Remove ourselves
+	users[client.Session] = nil, false
 
 	for _, user := range users {
 		user.sendProtoMessage(MessageTextMessage, &mumbleproto.TextMessage{
@@ -259,7 +335,214 @@ func (server *Server) handleTextMessage(client *Client, msg *Message) {
 	}
 }
 
+// ACL set/query
 func (server *Server) handleAclMessage(client *Client, msg *Message) {
+	acl := &mumbleproto.ACL{}
+	err := proto.Unmarshal(msg.buf, acl)
+	if err != nil {
+		client.Panic(err.String())
+	}
+
+	// Look up the channel this ACL message operates on.
+	channel, ok := server.channels[int(*acl.ChannelId)]
+	if !ok {
+		return
+	}
+
+	// Does the user have permission to update or look at ACLs?
+	if !server.HasPermission(client, channel, WritePermission) && !(channel.parent != nil && server.HasPermission(client, channel.parent, WritePermission)) {
+		client.sendPermissionDenied(client, channel, WritePermission)
+		return
+	}
+
+	reply := &mumbleproto.ACL{}
+	reply.ChannelId = proto.Uint32(uint32(channel.Id))
+
+	channels := []*Channel{}
+	users := map[int]bool{}
+
+	// Query the current ACL state for the channel
+	if acl.Query != nil && *acl.Query != false {
+		reply.InheritAcls = proto.Bool(channel.InheritACL)
+		// Walk the channel tree to get all relevant channels.
+		// (Stop if we reach a channel that doesn't have the InheritACL flag set)
+		iter := channel
+		for iter != nil {
+			channels = append([]*Channel{iter}, channels...)
+			if iter == channel || iter.InheritACL {
+				iter = iter.parent
+			} else {
+				iter = nil
+			}
+		}
+
+		// Construct the protobuf ChanACL objects corresponding to the ACLs defined
+		// in our channel list.
+		reply.Acls = []*mumbleproto.ACL_ChanACL{}
+		for _, iter := range channels {
+			for _, chanacl := range iter.ACL {
+				if iter == channel || chanacl.ApplySubs {
+					mpacl := &mumbleproto.ACL_ChanACL{}
+					mpacl.Inherited = proto.Bool(iter != channel)
+					mpacl.ApplyHere = proto.Bool(chanacl.ApplyHere)
+					mpacl.ApplySubs = proto.Bool(chanacl.ApplySubs)
+					if chanacl.UserId >= 0 {
+						mpacl.UserId = proto.Uint32(uint32(chanacl.UserId))
+						users[chanacl.UserId] = true
+					} else {
+						mpacl.Group = proto.String(chanacl.Group)
+					}
+					mpacl.Grant = proto.Uint32(uint32(chanacl.Allow))
+					mpacl.Deny = proto.Uint32(uint32(chanacl.Deny))
+					reply.Acls = append(reply.Acls, mpacl)
+				}
+			}
+		}
+
+		parent := channel.parent
+		allnames := channel.GroupNames()
+
+		// Construct the protobuf ChanGroups that we send back to the client.
+		// Also constructs a usermap that is a set user ids from the channel's groups.
+		reply.Groups = []*mumbleproto.ACL_ChanGroup{}
+		for name, _ := range allnames {
+			group := channel.Groups[name]
+			pgroup, ok := parent.Groups[name]
+			if !ok {
+				pgroup = nil
+			}
+
+			mpgroup := &mumbleproto.ACL_ChanGroup{}
+			mpgroup.Name = proto.String(name)
+
+			mpgroup.Inherit = proto.Bool(true)
+			if group != nil {
+				mpgroup.Inherit = proto.Bool(group.Inherit)
+			}
+
+			mpgroup.Inheritable = proto.Bool(true)
+			if group != nil {
+				mpgroup.Inheritable = proto.Bool(group.Inheritable)
+			}
+
+			mpgroup.Inherited = proto.Bool(pgroup != nil && pgroup.Inheritable)
+
+			// Add the set of user ids that this group affects to the user map.
+			// This is used later on in this function to send the client a QueryUsers
+			// message that maps user ids to usernames.
+			if group != nil {
+				toadd := map[int]bool{}
+				for uid, _ := range group.Add {
+					users[uid] = true
+					toadd[uid] = true
+				}
+				for uid, _ := range group.Remove {
+					users[uid] = true
+					toadd[uid] = false, false
+				}
+				for uid, _ := range toadd {
+					mpgroup.Add = append(mpgroup.Add, uint32(uid))
+				}
+			}
+			if pgroup != nil {
+				for uid, _ := range pgroup.Members() {
+					users[uid] = true
+					mpgroup.InheritedMembers = append(mpgroup.InheritedMembers, uint32(uid))
+				}
+			}
+
+			reply.Groups = append(reply.Groups, mpgroup)
+		}
+
+		if err := client.sendProtoMessage(MessageACL, reply); err != nil {
+			client.Panic(err.String())
+		}
+
+		// Map the user ids in the user map to usernames of users.
+		// fixme(mkrautz): This requires a persistent datastore, because it retrieves registered users.
+		queryusers := &mumbleproto.QueryUsers{}
+		for uid, _ := range users {
+			queryusers.Ids = append(queryusers.Ids, uint32(uid))
+			queryusers.Names = append(queryusers.Names, "Unknown")
+		}
+		if len(queryusers.Ids) > 0 {
+			client.sendProtoMessage(MessageQueryUsers, reply)
+		}
+
+		// Set new groups and ACLs
+	} else {
+
+		// Get old temporary members
+		oldtmp := map[string]map[int]bool{}
+		for name, grp := range channel.Groups {
+			oldtmp[name] = grp.Temporary
+		}
+
+		// Clear current ACLs and groups
+		channel.ACL = []*ChannelACL{}
+		channel.Groups = map[string]*Group{}
+
+		// Add the received groups to the channel.
+		channel.InheritACL = *acl.InheritAcls
+		for _, pbgrp := range acl.Groups {
+			changroup := NewGroup(channel, *pbgrp.Name)
+
+			changroup.Inherit = *pbgrp.Inherit
+			changroup.Inheritable = *pbgrp.Inheritable
+			for _, uid := range pbgrp.Add {
+				changroup.Add[int(uid)] = true
+			}
+			for _, uid := range pbgrp.Remove {
+				changroup.Remove[int(uid)] = true
+			}
+			if temp, ok := oldtmp[*pbgrp.Name]; ok {
+				changroup.Temporary = temp
+			}
+
+			channel.Groups[changroup.Name] = changroup
+		}
+		// Add the received ACLs to the channel.
+		for _, pbacl := range acl.Acls {
+			chanacl := NewChannelACL(channel)
+
+			chanacl.ApplyHere = *pbacl.ApplyHere
+			chanacl.ApplySubs = *pbacl.ApplySubs
+			if pbacl.UserId != nil {
+				chanacl.UserId = int(*pbacl.UserId)
+			} else {
+				chanacl.Group = *pbacl.Group
+			}
+			chanacl.Deny = Permission(*pbacl.Deny & AllPermissions)
+			chanacl.Allow = Permission(*pbacl.Grant & AllPermissions)
+
+			channel.ACL = append(channel.ACL, chanacl)
+		}
+
+		// Clear the server's ACL cache
+		server.ClearACLCache()
+
+		// Regular user?
+		if (!server.HasPermission(client, channel, WritePermission) && client.UserId >= 0) || len(client.Hash) > 0 {
+			chanacl := NewChannelACL(channel)
+
+			chanacl.ApplyHere = true
+			chanacl.ApplySubs = false
+			if client.UserId >= 0 {
+				chanacl.UserId = client.UserId
+			} else {
+				chanacl.Group = "$" + client.Hash
+			}
+			chanacl.UserId = client.UserId
+			chanacl.Deny = Permission(NonePermission)
+			chanacl.Allow = Permission(WritePermission | TraversePermission)
+
+			channel.ACL = append(channel.ACL, chanacl)
+
+			server.ClearACLCache()
+		}
+
+		// fixme(mkrautz): Sync channel to datastore
+	}
 }
 
 // User query
@@ -274,5 +557,22 @@ func (server *Server) handleUserStatsMessage(client *Client, msg *Message) {
 	if err != nil {
 		client.Panic(err.String())
 	}
-	log.Printf("UserStatsMessage")
+
+	log.Printf("UserStats")
+}
+
+// Permission query
+func (server *Server) handlePermissionQuery(client *Client, msg *Message) {
+	query := &mumbleproto.PermissionQuery{}
+	err := proto.Unmarshal(msg.buf, query)
+	if err != nil {
+		client.Panic(err.String())
+	}
+
+	if query.ChannelId == nil {
+		return
+	}
+
+	channel := server.channels[int(*query.ChannelId)]
+	server.sendClientPermissions(client, channel)
 }

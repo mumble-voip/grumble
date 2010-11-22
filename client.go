@@ -37,14 +37,17 @@ type Client struct {
 	udp    bool
 
 	// Personal
+	UserId   int
 	Session  uint32
 	Username string
+	Hash     string
 	Tokens   []string
 	Channel  *Channel
 }
 
 // Something invalid happened on the wire.
 func (client *Client) Panic(reason string) {
+	log.Printf("Client panic: %s", reason)
 	client.Disconnect()
 }
 
@@ -53,6 +56,8 @@ func (client *Client) Disconnect() {
 		client.disconnected = true
 		close(client.udprecv)
 		close(client.msgchan)
+
+		client.conn.Close()
 
 		client.server.RemoveClient(client)
 	}
@@ -108,6 +113,49 @@ func (c *Client) sendProtoMessage(kind uint16, msg interface{}) (err os.Error) {
 	return
 }
 
+// Send permission denied by type
+func (c *Client) sendPermissionDeniedType(kind string) {
+	val, ok := mumbleproto.PermissionDenied_DenyType_value[kind]
+	if ok {
+		d, err := proto.Marshal(&mumbleproto.PermissionDenied{
+			Type: mumbleproto.NewPermissionDenied_DenyType(val),
+		})
+		if err != nil {
+			c.Panic(err.String())
+			return
+		}
+		c.msgchan <- &Message{
+			buf:  d,
+			kind: MessagePermissionDenied,
+		}
+	} else {
+		log.Printf("Unknown permission denied type.")
+	}
+}
+
+// Send permission denied by who, what, where
+func (c *Client) sendPermissionDenied(who *Client, where *Channel, what Permission) {
+	d, err := proto.Marshal(&mumbleproto.PermissionDenied{
+		Permission: proto.Uint32(uint32(what)),
+		ChannelId:  proto.Uint32(uint32(where.Id)),
+		Session:    proto.Uint32(who.Session),
+		Type:       mumbleproto.NewPermissionDenied_DenyType(mumbleproto.PermissionDenied_Permission),
+	})
+	if err != nil {
+		c.Panic(err.String())
+	}
+	c.msgchan <- &Message{
+		buf:  d,
+		kind: MessagePermissionDenied,
+	}
+}
+
+// Send permission denied fallback
+func (c *Client) sendPermissionDeniedFallback(kind string, version uint32, text string) {
+	// fixme(mkrautz): Do fallback kind of stuff...
+	c.sendPermissionDeniedType(kind)
+}
+
 // UDP receiver.
 func (client *Client) udpreceiver() {
 	for buf := range client.udprecv {
@@ -152,7 +200,7 @@ func (client *Client) udpreceiver() {
 					buf:    outbuf[0 : 1+outgoing.Size()],
 					target: target,
 				}
-			// Server loopback
+				// Server loopback
 			} else {
 				client.sendUdp(&Message{
 					buf:    outbuf[0 : 1+outgoing.Size()],

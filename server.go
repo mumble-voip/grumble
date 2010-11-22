@@ -63,9 +63,12 @@ type Server struct {
 	PreferAlphaCodec bool
 
 	// Channels
-	chanid     int
-	root *Channel
-	channels   map[int]*Channel
+	chanid   int
+	root     *Channel
+	channels map[int]*Channel
+
+	// ACL cache
+	aclcache ACLCache
 }
 
 // Allocate a new Murmur instance
@@ -93,6 +96,8 @@ func NewServer(addr string, port int) (s *Server, err os.Error) {
 	subChan := s.NewChannel("SubChannel")
 	s.root.AddChild(subChan)
 
+	s.aclcache = NewACLCache()
+
 	go s.handler()
 
 	return
@@ -116,6 +121,8 @@ func (server *Server) NewClient(conn net.Conn) (err os.Error) {
 
 	client.msgchan = make(chan *Message)
 	client.udprecv = make(chan []byte)
+
+	client.UserId = -1
 
 	go client.receiver()
 	go client.udpreceiver()
@@ -149,7 +156,7 @@ func (server *Server) RemoveClient(client *Client) {
 	channel.RemoveClient(client)
 
 	err := server.broadcastProtoMessage(MessageUserRemove, &mumbleproto.UserRemove{
-		Session:   proto.Uint32(client.Session),
+		Session: proto.Uint32(client.Session),
 	})
 	if err != nil {
 		// server panic
@@ -166,7 +173,7 @@ func (server *Server) NewChannel(name string) (channel *Channel) {
 
 // Remove a channel from the server.
 func (server *Server) RemoveChanel(channel *Channel) {
-	if (channel.Id == 0) {
+	if channel.Id == 0 {
 		log.Printf("Attempted to remove root channel.")
 		return
 	}
@@ -284,22 +291,41 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 
 	// Broadcast the the user entered a channel
 	server.root.AddClient(client)
-	err = server.broadcastProtoMessage(MessageUserState, &mumbleproto.UserState{
+
+	if client.Username == "SuperUser" {
+		client.UserId = 0
+	}
+
+	userstate := &mumbleproto.UserState{
 		Session:   proto.Uint32(client.Session),
 		Name:      proto.String(client.Username),
 		ChannelId: proto.Uint32(0),
-	})
-	if err != nil {
+	}
+	if client.UserId >= 0 {
+		userstate.UserId = proto.Uint32(uint32(client.UserId))
+	}
+	if err := client.sendProtoMessage(MessageUserState, userstate); err != nil {
 		client.Panic(err.String())
 	}
 
 	server.sendUserList(client)
 
-	err = client.sendProtoMessage(MessageServerSync, &mumbleproto.ServerSync{
-		Session:      proto.Uint32(client.Session),
-		MaxBandwidth: proto.Uint32(server.MaxBandwidth),
-	})
-	if err != nil {
+	sync := &mumbleproto.ServerSync{}
+	sync.Session = proto.Uint32(client.Session)
+	sync.MaxBandwidth = proto.Uint32(server.MaxBandwidth)
+	if client.UserId == 0 {
+		sync.Permissions = proto.Uint64(uint64(AllPermissions))
+	} else {
+		server.HasPermission(client, server.root, EnterPermission)
+		perm := server.aclcache.GetPermission(client, server.root)
+		if !perm.IsCached() {
+			client.Panic("Corrupt ACL cache")
+			return
+		}
+		perm.ClearCacheBit()
+		sync.Permissions = proto.Uint64(uint64(perm))
+	}
+	if err = client.sendProtoMessage(MessageServerSync, sync); err != nil {
 		client.Panic(err.String())
 		return
 	}
@@ -377,6 +403,9 @@ func (server *Server) sendUserList(client *Client) {
 		if user.state != StateClientAuthenticated {
 			continue
 		}
+		if user == client {
+			continue
+		}
 
 		err := client.sendProtoMessage(MessageUserState, &mumbleproto.UserState{
 			Session:   proto.Uint32(user.Session),
@@ -390,6 +419,26 @@ func (server *Server) sendUserList(client *Client) {
 		}
 	}
 
+}
+
+// Send a client its permissions for channel.
+func (server *Server) sendClientPermissions(client *Client, channel *Channel) {
+	// No caching for SuperUser
+	if client.UserId == 0 {
+		return
+	}
+
+	// Update cache
+	server.HasPermission(client, channel, EnterPermission)
+
+	perm := server.aclcache.GetPermission(client, channel)
+	log.Printf("Permissions = 0x%x", perm)
+
+	// fixme(mkrautz): Cache which permissions we've already sent.
+	client.sendProtoMessage(MessagePermissionQuery, &mumbleproto.PermissionQuery{
+		ChannelId:   proto.Uint32(uint32(channel.Id)),
+		Permissions: proto.Uint32(uint32(perm)),
+	})
 }
 
 func (server *Server) broadcastProtoMessage(kind uint16, msg interface{}) (err os.Error) {
@@ -438,7 +487,7 @@ func (server *Server) handleIncomingMessage(client *Client, msg *Message) {
 	case MessageVoiceTarget:
 		log.Printf("MessageVoiceTarget from client")
 	case MessagePermissionQuery:
-		log.Printf("MessagePermissionQuery from client")
+		server.handlePermissionQuery(msg.client, msg)
 	case MessageCodecVersion:
 		log.Printf("MessageCodecVersion from client")
 	case MessageUserStats:
@@ -470,11 +519,11 @@ func (s *Server) SendUDP() {
 			crypted := make([]byte, len(msg.buf)+4)
 			msg.client.crypt.Encrypt(crypted, msg.buf)
 			s.udpconn.WriteTo(crypted, msg.client.udpaddr)
-		// Non-encrypted
+			// Non-encrypted
 		} else if msg.address != nil {
 			s.udpconn.WriteTo(msg.buf, msg.address)
 		} else {
-		// Skipping
+			// Skipping
 		}
 	}
 }
@@ -562,6 +611,11 @@ func (server *Server) ListenUDP() {
 			match.udprecv <- plain
 		}
 	}
+}
+
+// Clear the ACL cache
+func (s *Server) ClearACLCache() {
+	s.aclcache = NewACLCache()
 }
 
 // The accept loop of the server.

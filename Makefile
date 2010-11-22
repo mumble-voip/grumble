@@ -20,7 +20,9 @@ GOFILES = \
 	tlsserver.go \
 	server.go \
 	client.go \
-	channel.go
+	channel.go \
+	acl.go \
+	group.go
 
 .PHONY: grumble
 grumble: pkg
