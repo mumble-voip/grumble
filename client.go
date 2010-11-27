@@ -37,12 +37,21 @@ type Client struct {
 	udp    bool
 
 	// Personal
-	UserId   int
-	Session  uint32
-	Username string
-	Hash     string
-	Tokens   []string
-	Channel  *Channel
+	UserId          int
+	Session         uint32
+	Username        string
+	Hash            string
+	Tokens          []string
+	Channel         *Channel
+	SelfMute        bool
+	SelfDeaf        bool
+	Mute            bool
+	Deaf            bool
+	Suppress        bool
+	PrioritySpeaker bool
+	Recording       bool
+	PluginContext   []byte
+	PluginIdentity  string
 }
 
 // Something invalid happened on the wire.
@@ -51,16 +60,26 @@ func (client *Client) Panic(reason string) {
 	client.Disconnect()
 }
 
-func (client *Client) Disconnect() {
+// Internal disconnect function
+func (client *Client) disconnect(kicked bool) {
 	if !client.disconnected {
 		client.disconnected = true
 		close(client.udprecv)
 		close(client.msgchan)
 
 		client.conn.Close()
-
-		client.server.RemoveClient(client)
+		client.server.RemoveClient(client, kicked)
 	}
+}
+
+// Disconnect a client (client disconnected)
+func (client *Client) Disconnect() {
+	client.disconnect(false)
+}
+
+// Disconnect a client (kick/ban)
+func (client *Client) ForceDisconnect() {
+	client.disconnect(true)
 }
 
 // Read a protobuf message from a client

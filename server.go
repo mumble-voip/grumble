@@ -7,11 +7,13 @@ package main
 import (
 	"log"
 	"crypto/tls"
+	"crypto/sha1"
 	"os"
 	"net"
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"sync"
 	"goprotobuf.googlecode.com/hg/proto"
 	"mumbleproto"
@@ -133,7 +135,7 @@ func (server *Server) NewClient(conn net.Conn) (err os.Error) {
 
 // Remove a disconnected client from the server's
 // internal representation.
-func (server *Server) RemoveClient(client *Client) {
+func (server *Server) RemoveClient(client *Client, kicked bool) {
 	server.hmutex.Lock()
 	if client.udpaddr != nil {
 		host := client.udpaddr.IP.String()
@@ -153,13 +155,20 @@ func (server *Server) RemoveClient(client *Client) {
 
 	// Remove client from channel
 	channel := client.Channel
-	channel.RemoveClient(client)
+	if channel != nil {
+		channel.RemoveClient(client)
+	}
 
-	err := server.broadcastProtoMessage(MessageUserRemove, &mumbleproto.UserRemove{
-		Session: proto.Uint32(client.Session),
-	})
-	if err != nil {
-		// server panic
+	// If the user was not kicked, broadcast a UserRemove message.
+	// If the user is disconnect via a kick, the UserRemove message has already been sent
+	// at this point.
+	if !kicked {
+		err := server.broadcastProtoMessage(MessageUserRemove, &mumbleproto.UserRemove{
+			Session: proto.Uint32(client.Session),
+		})
+		if err != nil {
+			log.Panic("Unable to broadcast UserRemove message for disconnected client.")
+		}
 	}
 }
 
@@ -235,6 +244,21 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 
 	client.Username = *auth.Username
 
+	// Extract certhash
+	tlsconn, ok := client.conn.(*tls.Conn)
+	if !ok {
+		client.Panic("Type assertion failed")
+		return
+	}
+	certs := tlsconn.PeerCertificates()
+	if len(certs) > 0 {
+		hash := sha1.New()
+		hash.Write(certs[0].Raw)
+		client.Hash = hex.EncodeToString(hash.Sum())
+	}
+
+	log.Printf("hash=%s", client.Hash)
+
 	// Setup the cryptstate for the client.
 	client.crypt, err = cryptstate.New()
 	if err != nil {
@@ -289,9 +313,6 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	server.hclients[host] = append(server.hclients[host], client)
 	server.hmutex.Unlock()
 
-	// Broadcast the the user entered a channel
-	server.root.AddClient(client)
-
 	if client.Username == "SuperUser" {
 		client.UserId = 0
 	}
@@ -304,8 +325,9 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	if client.UserId >= 0 {
 		userstate.UserId = proto.Uint32(uint32(client.UserId))
 	}
-	if err := client.sendProtoMessage(MessageUserState, userstate); err != nil {
-		client.Panic(err.String())
+	server.userEnterChannel(client, server.root, userstate)
+	if err := server.broadcastProtoMessage(MessageUserState, userstate); err != nil {
+		// Server panic?
 	}
 
 	server.sendUserList(client)
@@ -410,8 +432,9 @@ func (server *Server) sendUserList(client *Client) {
 		err := client.sendProtoMessage(MessageUserState, &mumbleproto.UserState{
 			Session:   proto.Uint32(user.Session),
 			Name:      proto.String(user.Username),
-			ChannelId: proto.Uint32(0),
+			ChannelId: proto.Uint32(uint32(user.Channel.Id)),
 		})
+		log.Printf("ChanId = %v", user.Channel.Id)
 
 		if err != nil {
 			// Server panic?
@@ -616,6 +639,34 @@ func (server *Server) ListenUDP() {
 // Clear the ACL cache
 func (s *Server) ClearACLCache() {
 	s.aclcache = NewACLCache()
+}
+
+// Helper method for users entering new channels
+func (server *Server) userEnterChannel(client *Client, channel *Channel, userstate *mumbleproto.UserState) {
+	if client.Channel == channel {
+		return
+	}
+
+	oldchan := client.Channel
+	if oldchan != nil {
+		oldchan.RemoveClient(client)
+	}
+	channel.AddClient(client)
+
+	server.ClearACLCache()
+	// fixme(mkrautz): Set LastChannel for user in datastore
+	// fixme(mkrautz): Remove channel if temporary
+
+	canspeak := server.HasPermission(client, channel, SpeakPermission)
+	if canspeak == client.Suppress {
+		client.Suppress = !canspeak
+		userstate.Suppress = proto.Bool(client.Suppress)
+	}
+
+	server.sendClientPermissions(client, channel)
+	if channel.parent != nil {
+		server.sendClientPermissions(client, channel.parent)
+	}
 }
 
 // The accept loop of the server.

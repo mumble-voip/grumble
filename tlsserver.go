@@ -72,6 +72,7 @@ func NewTLSListener(port int) (rl *tls.Listener) {
 	config.Certificates = make([]tls.Certificate, 1)
 	config.Certificates[0].Certificate = [][]byte{cert.Bytes}
 	config.Certificates[0].PrivateKey = priv
+	config.AuthenticateClient = true
 
 	l, err := net.ListenTCP("tcp", &net.TCPAddr{
 		net.ParseIP("0.0.0.0"),

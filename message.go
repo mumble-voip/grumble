@@ -132,7 +132,48 @@ func (server *Server) handleChannelRemoveMessage(client *Client, msg *Message) {
 func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 }
 
+// Handle a user remove packet. This can either be a client disconnecting, or a
+// user kicking or kick-banning another player.
 func (server *Server) handleUserRemoveMessage(client *Client, msg *Message) {
+	userremove := &mumbleproto.UserRemove{}
+	err := proto.Unmarshal(msg.buf, userremove)
+	if err != nil {
+		client.Panic(err.String())
+	}
+
+	// Get the user to be removed.
+	user, ok := server.clients[*userremove.Session]
+	if !ok {
+		client.Panic("Invalid session in UserRemove message")
+		return
+	}
+
+	ban := false
+	if userremove.Ban != nil {
+		ban = *userremove.Ban
+	}
+
+	// Check user's permissions
+	perm := Permission(KickPermission)
+	if ban {
+		perm = Permission(BanPermission)
+	}
+	if user.UserId == 0 || !server.HasPermission(client, server.root, perm) {
+		client.sendPermissionDenied(client, server.root, perm)
+		return
+	}
+
+	if ban {
+		log.Printf("handleUserRemove: Banning is not yet implemented.")
+	}
+
+	userremove.Actor = proto.Uint32(uint32(client.Session))
+	if err = server.broadcastProtoMessage(MessageUserRemove, userremove); err != nil {
+		log.Panic("Unable to broadcast UserRemove message")
+		return
+	}
+
+	user.ForceDisconnect()
 }
 
 func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
@@ -143,13 +184,19 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 		client.Panic(err.String())
 	}
 
-	if userstate.Session == nil {
-		log.Printf("UserState without session.")
+	actor, ok := server.clients[client.Session]
+	if !ok {
+		log.Printf("handleUserState: !")
 		return
 	}
-
-	actor := server.clients[client.Session]
-	user := server.clients[*userstate.Session]
+	user := actor
+	if userstate.Session != nil {
+		user, ok = server.clients[*userstate.Session]
+		if !ok {
+			log.Printf("Invalid session in UserState message")
+			return
+		}
+	}
 
 	log.Printf("actor = %v", actor)
 	log.Printf("user = %v", user)
@@ -206,7 +253,6 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	// Comment set/clear
 	if userstate.Comment != nil {
 		comment := *userstate.Comment
-		log.Printf("comment = %v", comment)
 
 		// Clearing another user's comment.
 		if user != actor {
@@ -266,9 +312,99 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	if actor != user && (userstate.SelfDeaf != nil || userstate.SelfMute != nil ||
 		userstate.Texture != nil || userstate.PluginContext != nil || userstate.PluginIdentity != nil ||
 		userstate.Recording != nil) {
+		client.Panic("Invalid UserState")
 		return
 	}
 
+	log.Printf("handleUserState: In the out-figuring state")
+
+	broadcast := false
+	if userstate.Texture != nil {
+		broadcast = true
+	}
+
+	if userstate.SelfDeaf != nil {
+		user.SelfDeaf = *userstate.SelfDeaf
+		if user.SelfDeaf {
+			userstate.SelfDeaf = proto.Bool(true)
+			user.SelfMute = true
+		}
+		broadcast = true
+	}
+
+	if userstate.SelfMute != nil {
+		user.SelfMute = *userstate.SelfMute
+		if !user.SelfMute {
+			userstate.SelfDeaf = proto.Bool(false)
+			user.SelfDeaf = false
+		}
+	}
+
+	if userstate.PluginContext != nil {
+		user.PluginContext = userstate.PluginContext
+	}
+
+	if userstate.PluginIdentity != nil {
+		user.PluginIdentity = *userstate.PluginIdentity
+	}
+
+	if userstate.Comment != nil {
+		log.Printf("handleUserState: Comment unhandled")
+		broadcast = true
+	}
+
+	if userstate.Mute != nil || userstate.Deaf != nil || userstate.Suppress != nil || userstate.PrioritySpeaker != nil {
+		if userstate.Deaf != nil {
+			user.Deaf = *userstate.Deaf
+			if user.Deaf {
+				userstate.Mute = proto.Bool(true)
+			}
+		}
+		if userstate.Mute != nil {
+			user.Mute = *userstate.Mute
+			if !user.Mute {
+				userstate.Deaf = proto.Bool(false)
+				user.Deaf = false
+			}
+		}
+		if userstate.Suppress != nil {
+			user.Suppress = *userstate.Suppress
+		}
+		if userstate.PrioritySpeaker != nil {
+			user.PrioritySpeaker = *userstate.PrioritySpeaker
+		}
+		broadcast = true
+	}
+
+	if userstate.Recording != nil && *userstate.Recording != user.Recording {
+		user.Recording = *userstate.Recording
+		// fixme(mkrautz): Notify older clients of recording state change.
+		broadcast = true
+	}
+
+	if userstate.UserId != nil {
+		log.Printf("handleUserState: SelfRegister unhandled")
+		userstate.UserId = nil
+		broadcast = true
+	}
+
+	if userstate.ChannelId != nil {
+		channel, ok := server.channels[int(*userstate.ChannelId)]
+		if ok {
+			server.userEnterChannel(user, channel, userstate)
+			broadcast = true
+		}
+	}
+
+	log.Printf("broadcast = %v", broadcast)
+	if broadcast {
+		log.Printf("sending broadcast!")
+		err := server.broadcastProtoMessage(MessageUserState, userstate)
+		if err != nil {
+			log.Printf("handleUserState: failed to broadcast userstate")
+			log.Panic("Unable to broadcast UserState")
+		}
+	}
 }
 
 func (server *Server) handleBanListMessage(client *Client, msg *Message) {
