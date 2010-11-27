@@ -18,6 +18,7 @@ import (
 
 // A client connection
 type Client struct {
+
 	// Connection-related
 	tcpaddr *net.TCPAddr
 	udpaddr *net.UDPAddr
@@ -35,6 +36,12 @@ type Client struct {
 	crypt  *cryptstate.CryptState
 	codecs []int32
 	udp    bool
+
+	// Version
+	Version    uint32
+	ClientName string
+	OSName     string
+	OSVersion  string
 
 	// Personal
 	UserId          int
@@ -320,7 +327,7 @@ func (client *Client) receiver() {
 		if client.state == StateClientConnected {
 			client.sendProtoMessage(MessageVersion, &mumbleproto.Version{
 				Version: proto.Uint32(0x10203),
-				Release: proto.String("1.2.2"),
+				Release: proto.String("Grumble"),
 			})
 			// fixme(mkrautz): Re-add OS information... Does it break anything? It seems like
 			// the client discards the version message if there is no OS information in it.
@@ -345,7 +352,27 @@ func (client *Client) receiver() {
 				return
 			}
 
-			// Don't really do anything with it...
+			if version.Version != nil {
+				client.Version = *version.Version
+			} else {
+				client.Version = 0x10200
+			}
+
+			if version.Release != nil {
+				client.ClientName = *version.Release
+			}
+
+			if version.Os != nil {
+				client.OSName = *version.Os
+			}
+
+			if version.OsVersion != nil {
+				client.OSVersion = *version.OsVersion
+			}
+
+			log.Printf("version = 0x%x", client.Version)
+			log.Printf("os = %s %s", client.OSName, client.OSVersion)
+			log.Printf("client = %s", client.ClientName)
 
 			client.state = StateClientSentVersion
 		}
