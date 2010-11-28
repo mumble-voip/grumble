@@ -8,6 +8,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"log"
+	"mumbleproto"
+	"goprotobuf.googlecode.com/hg/proto"
 )
 
 var help *bool = flag.Bool("help", false, "Show this help")
@@ -19,12 +22,27 @@ func usage() {
 	flag.PrintDefaults()
 }
 
+// Check that we're using a version of goprotobuf that is able to
+// correctly encode empty byte slices.
+func checkProtoLib() {
+	us := &mumbleproto.UserState{}
+	us.Texture = []byte{}
+	d, _ := proto.Marshal(us)
+	nus := &mumbleproto.UserState{}
+	proto.Unmarshal(d, nus)
+	if nus.Texture == nil {
+		log.Exitf("Unpatched version of goprotobuf. Grumble is refusing to run.")
+	}
+}
+
 func main() {
 	flag.Parse()
 	if *help == true {
 		usage()
 		return
 	}
+
+	checkProtoLib()
 
 	// Create our default server
 	m, err := NewServer(*host, *port)
