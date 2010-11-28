@@ -464,11 +464,11 @@ func (server *Server) sendClientPermissions(client *Client, channel *Channel) {
 	})
 }
 
-type VersionPredicate func(version uint32) bool
+type ClientPredicate func(client *Client) bool
 
-func (server *Server) broadcastProtoMessageWithPredicate(kind uint16, msg interface{}, vercheck VersionPredicate) (err os.Error) {
+func (server *Server) broadcastProtoMessageWithPredicate(kind uint16, msg interface{}, clientcheck ClientPredicate) (err os.Error) {
 	for _, client := range server.clients {
-		if !vercheck(client.Version) {
+		if !clientcheck(client) {
 			continue
 		}
 		if client.state != StateClientAuthenticated {
@@ -484,7 +484,7 @@ func (server *Server) broadcastProtoMessageWithPredicate(kind uint16, msg interf
 }
 
 func (server *Server) broadcastProtoMessage(kind uint16, msg interface{}) (err os.Error) {
-	err = server.broadcastProtoMessageWithPredicate(kind, msg, func(version uint32) bool { return true })
+	err = server.broadcastProtoMessageWithPredicate(kind, msg, func(client *Client) bool { return true })
 	return
 }
 

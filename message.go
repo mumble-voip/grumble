@@ -406,8 +406,8 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 			txtmsg.Message = proto.String(fmt.Sprintf("User '%s' stopped recording", user.Username))
 		}
 
-		server.broadcastProtoMessageWithPredicate(MessageTextMessage, txtmsg, func(version uint32) bool {
-			return version < 0x10203
+		server.broadcastProtoMessageWithPredicate(MessageTextMessage, txtmsg, func(client *Client) bool {
+			return client.Version < 0x10203
 		})
 
 		broadcast = true
@@ -440,8 +440,8 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 			// The sent texture is a new-style texture.  Strip it from the message
 			// we send to pre-1.2.2 clients.
 			userstate.Texture = nil
-			err := server.broadcastProtoMessageWithPredicate(MessageUserState, userstate, func(version uint32) bool {
-				return version < 0x10202
+			err := server.broadcastProtoMessageWithPredicate(MessageUserState, userstate, func(client *Client) bool {
+				return client.Version < 0x10202
 			})
 			if err != nil {
 				log.Panic("Unable to broadcast UserState")
@@ -450,8 +450,8 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 			userstate.Texture = user.Texture
 		} else {
 			// Old style texture.  We can send the message as-is.
-			err := server.broadcastProtoMessageWithPredicate(MessageUserState, userstate, func(version uint32) bool {
-				return version < 0x10202
+			err := server.broadcastProtoMessageWithPredicate(MessageUserState, userstate, func(client *Client) bool {
+				return client.Version < 0x10202
 			})
 			if err != nil {
 				log.Panic("Unable to broadcast UserState")
@@ -471,8 +471,8 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 			userstate.CommentHash = user.CommentHash
 		}
 
-		err := server.broadcastProtoMessageWithPredicate(MessageUserState, userstate, func(version uint32) bool {
-			return version >= 0x10203
+		err := server.broadcastProtoMessageWithPredicate(MessageUserState, userstate, func(client *Client) bool {
+			return client.Version >= 0x10203
 		})
 		if err != nil {
 			log.Panic("Unable to broadcast UserState")
