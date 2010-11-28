@@ -9,7 +9,9 @@ import (
 	"mumbleproto"
 	"goprotobuf.googlecode.com/hg/proto"
 	"net"
+	"crypto/sha1"
 	"cryptstate"
+	"fmt"
 )
 
 // These are the different kinds of messages
@@ -164,6 +166,7 @@ func (server *Server) handleUserRemoveMessage(client *Client, msg *Message) {
 	}
 
 	if ban {
+		// fixme(mkrautz): Implement banning.
 		log.Printf("handleUserRemove: Banning is not yet implemented.")
 	}
 
@@ -176,8 +179,8 @@ func (server *Server) handleUserRemoveMessage(client *Client, msg *Message) {
 	user.ForceDisconnect()
 }
 
+// Handle user state changes
 func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
-	log.Printf("UserState!")
 	userstate := &mumbleproto.UserState{}
 	err := proto.Unmarshal(msg.buf, userstate)
 	if err != nil {
@@ -186,25 +189,22 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 
 	actor, ok := server.clients[client.Session]
 	if !ok {
-		log.Printf("handleUserState: !")
+		log.Panic("Client not found in server's client map.")
 		return
 	}
 	user := actor
 	if userstate.Session != nil {
 		user, ok = server.clients[*userstate.Session]
 		if !ok {
-			log.Printf("Invalid session in UserState message")
+			client.Panic("Invalid session in UserState message")
 			return
 		}
 	}
 
-	log.Printf("actor = %v", actor)
-	log.Printf("user = %v", user)
-
 	userstate.Session = proto.Uint32(user.Session)
 	userstate.Actor = proto.Uint32(actor.Session)
 
-	// Has a channel ID
+	// Does it have a channel ID?
 	if userstate.ChannelId != nil {
 		// Destination channel
 		dstChan, ok := server.channels[int(*userstate.ChannelId)]
@@ -212,22 +212,21 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 			return
 		}
 
-		// If the user and the actor aren't the same, check whether the actor has the 'move' permission
-		// on the user's channel to move.
+		// If the user and the actor aren't the same, check whether the actor has MovePermission on
+		// the user's curent channel.
 		if actor != user && !server.HasPermission(actor, user.Channel, MovePermission) {
 			client.sendPermissionDenied(actor, user.Channel, MovePermission)
 			return
 		}
 
-		// Check whether the actor has 'move' permissions on dstChan.  Check whether user has 'enter'
-		// permissions on dstChan.
+		// Check whether the actor has MovePermission on dstChan.  Check whether user has EnterPermission
+		// on dstChan.
 		if !server.HasPermission(actor, dstChan, MovePermission) && !server.HasPermission(user, dstChan, EnterPermission) {
 			client.sendPermissionDenied(user, dstChan, EnterPermission)
 			return
 		}
 
-		// Check whether the channel is full.
-		// fixme(mkrautz): See above.
+		// fixme(mkrautz): Check whether the channel is full.
 	}
 
 	if userstate.Mute != nil || userstate.Deaf != nil || userstate.Suppress != nil || userstate.PrioritySpeaker != nil {
@@ -265,6 +264,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 
 			// Only allow empty text.
 			if len(comment) > 0 {
+				client.Panic("Cannot clear another user's comment")
 				return
 			}
 		}
@@ -273,6 +273,9 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 
 		// Only set the comment if it is different from the current
 		// user comment.
+		if comment == user.Comment {
+			userstate.Comment = nil
+		}
 	}
 
 	// Texture change
@@ -282,8 +285,8 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 
 	// Registration
 	if userstate.UserId != nil {
-		// If user == actor, check for 'selfregister' permission on root channel.
-		// If user != actor, check for 'register' permission on root channel.
+		// If user == actor, check for SelfRegisterPermission on root channel.
+		// If user != actor, check for RegisterPermission permission on root channel.
 		permCheck := Permission(NonePermission)
 		uid := *userstate.UserId
 		if user == actor {
@@ -296,8 +299,10 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 			return
 		}
 
-		// If user's hash is empty, deny...
-		// fixme(mkrautz)
+		// We can't register a user with an empty hash.
+		if len(user.Hash) == 0 {
+			client.sendPermissionDeniedTypeUser("MissingCertificate", user)
+		}
 	}
 
 	// Prevent self-targetting state changes to be applied to other users
@@ -316,10 +321,17 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 		return
 	}
 
-	log.Printf("handleUserState: In the out-figuring state")
-
 	broadcast := false
+
 	if userstate.Texture != nil {
+		user.Texture = userstate.Texture
+		if len(user.Texture) >= 128 {
+			hash := sha1.New()
+			hash.Write(user.Texture)
+			user.TextureHash = hash.Sum()
+		} else {
+			user.TextureHash = []byte{}
+		}
 		broadcast = true
 	}
 
@@ -349,7 +361,14 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	}
 
 	if userstate.Comment != nil {
-		log.Printf("handleUserState: Comment unhandled")
+		user.Comment = *userstate.Comment
+		if len(user.Comment) >= 128 {
+			hash := sha1.New()
+			hash.Write([]byte(user.Comment))
+			user.CommentHash = hash.Sum()
+		} else {
+			user.CommentHash = []byte{}
+		}
 		broadcast = true
 	}
 
@@ -378,14 +397,26 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 
 	if userstate.Recording != nil && *userstate.Recording != user.Recording {
 		user.Recording = *userstate.Recording
-		// fixme(mkrautz): Notify older clients of recording state change.
+
+		txtmsg := &mumbleproto.TextMessage{}
+		txtmsg.TreeId = append(txtmsg.TreeId, uint32(0))
+		if user.Recording {
+			txtmsg.Message = proto.String(fmt.Sprintf("User '%s' started recording", user.Username))
+		} else {
+			txtmsg.Message = proto.String(fmt.Sprintf("User '%s' stopped recording", user.Username))
+		}
+
+		server.broadcastProtoMessageWithPredicate(MessageTextMessage, txtmsg, func(version uint32) bool {
+			return version < 0x10203
+		})
+
 		broadcast = true
 	}
 
 	if userstate.UserId != nil {
-		log.Printf("handleUserState: SelfRegister unhandled")
+		// fixme(mkrautz): Registration is currently unhandled.
+		log.Printf("handleUserState: (Self)Register not implemented yet!")
 		userstate.UserId = nil
-		broadcast = true
 	}
 
 	if userstate.ChannelId != nil {
@@ -396,12 +427,54 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 		}
 	}
 
-	log.Printf("broadcast = %v", broadcast)
 	if broadcast {
-		log.Printf("sending broadcast!")
-		err := server.broadcastProtoMessage(MessageUserState, userstate)
+		// This variable denotes the length of a zlib-encoded "old-style" texture.
+		// Mumble and Murmur used qCompress and qUncompress from Qt to compress
+		// textures that were sent over the wire. We can use this to determine
+		// whether a texture is a "new style" or an "old style" texture.
+		texlen := uint32(0)
+		if user.Texture != nil && len(user.Texture) > 4 {
+			texlen = uint32(user.Texture[0])<<24 | uint32(user.Texture[1])<<16 | uint32(user.Texture[2])<<8 | uint32(user.Texture[3])
+		}
+		if userstate.Texture != nil && len(user.Texture) > 4 && texlen != 600*60*4 {
+			// The sent texture is a new-style texture.  Strip it from the message
+			// we send to pre-1.2.2 clients.
+			userstate.Texture = nil
+			err := server.broadcastProtoMessageWithPredicate(MessageUserState, userstate, func(version uint32) bool {
+				return version < 0x10202
+			})
+			if err != nil {
+				log.Panic("Unable to broadcast UserState")
+			}
+			// Re-add it to the message, so that 1.2.2+ clients *do* get the new-style texture.
+			userstate.Texture = user.Texture
+		} else {
+			// Old style texture.  We can send the message as-is.
+			err := server.broadcastProtoMessageWithPredicate(MessageUserState, userstate, func(version uint32) bool {
+				return version < 0x10202
+			})
+			if err != nil {
+				log.Panic("Unable to broadcast UserState")
+			}
+		}
+
+		// If a texture hash is set on user, we transmit that instead of
+		// the texture itself. This allows the client to intelligently fetch
+		// the blobs that it does not already have in its local storage.
+		if userstate != nil && len(user.TextureHash) > 0 {
+			userstate.Texture = nil
+			userstate.TextureHash = user.TextureHash
+		}
+		// Ditto for comments.
+		if userstate.Comment != nil && len(user.CommentHash) > 0 {
+			userstate.Comment = nil
+			userstate.CommentHash = user.CommentHash
+		}
+
+		err := server.broadcastProtoMessageWithPredicate(MessageUserState, userstate, func(version uint32) bool {
+			return version >= 0x10203
+		})
 		if err != nil {
-			log.Printf("handleUserState: failed to broadcast userstate")
 			log.Panic("Unable to broadcast UserState")
 		}
 	}
@@ -711,4 +784,55 @@ func (server *Server) handlePermissionQuery(client *Client, msg *Message) {
 
 	channel := server.channels[int(*query.ChannelId)]
 	server.sendClientPermissions(client, channel)
+}
+
+// Request big blobs from the server
+func (server *Server) handleRequestBlob(client *Client, msg *Message) {
+	blobreq := &mumbleproto.RequestBlob{}
+	err := proto.Unmarshal(msg.buf, blobreq)
+	if err != nil {
+		client.Panic(err.String())
+		return
+	}
+
+	userstate := &mumbleproto.UserState{}
+
+	// Request for user textures
+	if len(blobreq.SessionTexture) > 0 {
+		for _, sid := range blobreq.SessionTexture {
+			if user, ok := server.clients[sid]; ok {
+				if len(user.Texture) > 0 {
+					userstate.Reset()
+					userstate.Session = proto.Uint32(uint32(user.Session))
+					userstate.Texture = user.Texture
+					if err := client.sendProtoMessage(MessageUserState, userstate); err != nil {
+						client.Panic(err.String())
+						return
+					}
+				}
+			}
+		}
+	}
+
+	// Request for user comments
+	if len(blobreq.SessionComment) > 0 {
+		for _, sid := range blobreq.SessionComment {
+			if user, ok := server.clients[sid]; ok {
+				if len(user.Comment) > 0 {
+					userstate.Reset()
+					userstate.Session = proto.Uint32(uint32(user.Session))
+					userstate.Comment = proto.String(user.Comment)
+					if err := client.sendProtoMessage(MessageUserState, userstate); err != nil {
+						client.Panic(err.String())
+						return
+					}
+				}
+			}
+		}
+	}
+
+	// Request for channel descriptions
+	if len(blobreq.ChannelDescription) > 0 {
+		log.Printf("No support for ChannelDescriptions in BlobRequest.")
+	}
 }

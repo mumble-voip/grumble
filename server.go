@@ -526,7 +526,7 @@ func (server *Server) handleIncomingMessage(client *Client, msg *Message) {
 	case MessageUserStats:
 		server.handleUserStatsMessage(msg.client, msg)
 	case MessageRequestBlob:
-		log.Printf("MessageRequestBlob from client")
+		server.handleRequestBlob(msg.client, msg)
 	case MessageServerConfig:
 		log.Printf("MessageServerConfig from client")
 	}

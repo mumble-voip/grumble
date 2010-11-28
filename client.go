@@ -43,6 +43,12 @@ type Client struct {
 	OSName     string
 	OSVersion  string
 
+	// Blobs
+	Comment     string
+	CommentHash []byte
+	Texture     []byte
+	TextureHash []byte
+
 	// Personal
 	UserId          int
 	Session         uint32
@@ -141,11 +147,19 @@ func (c *Client) sendProtoMessage(kind uint16, msg interface{}) (err os.Error) {
 
 // Send permission denied by type
 func (c *Client) sendPermissionDeniedType(kind string) {
+	c.sendPermissionDeniedTypeUser(kind, nil)
+}
+
+// Send permission denied by type (and user)
+func (c *Client) sendPermissionDeniedTypeUser(kind string, user *Client) {
 	val, ok := mumbleproto.PermissionDenied_DenyType_value[kind]
 	if ok {
-		d, err := proto.Marshal(&mumbleproto.PermissionDenied{
-			Type: mumbleproto.NewPermissionDenied_DenyType(val),
-		})
+		pd := &mumbleproto.PermissionDenied{}
+		pd.Type = mumbleproto.NewPermissionDenied_DenyType(val)
+		if user != nil {
+			pd.Session = proto.Uint32(uint32(user.Session))
+		}
+		d, err := proto.Marshal(pd)
 		if err != nil {
 			c.Panic(err.String())
 			return
@@ -155,7 +169,7 @@ func (c *Client) sendPermissionDeniedType(kind string) {
 			kind: MessagePermissionDenied,
 		}
 	} else {
-		log.Printf("Unknown permission denied type.")
+		log.Panic("Unknown permission denied type.")
 	}
 }
 
