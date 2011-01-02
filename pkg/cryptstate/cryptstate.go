@@ -144,8 +144,8 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err os.Error) {
 			lost = -1
 			cs.DecryptIV[0] = ivbyte
 			for i := 1; i < AESBlockSize; i++ {
-				cs.DecryptIV[0] -= 1
-				if cs.DecryptIV[0] > 0 {
+				cs.DecryptIV[i] -= 1
+				if cs.DecryptIV[i] > 0 {
 					break
 				}
 			}
@@ -159,8 +159,8 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err os.Error) {
 			lost = int(256 - int(cs.DecryptIV[0]) + int(ivbyte) - 1)
 			cs.DecryptIV[0] = ivbyte
 			for i := 1; i < AESBlockSize; i++ {
-				cs.DecryptIV[0] += 1
-				if cs.DecryptIV[0] > 0 {
+				cs.DecryptIV[i] += 1
+				if cs.DecryptIV[i] > 0 {
 					break
 				}
 			}
