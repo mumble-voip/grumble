@@ -36,10 +36,6 @@ type CryptState struct {
 func New() (cs *CryptState, err os.Error) {
 	cs = new(CryptState)
 
-	for i := 0; i < DecryptHistorySize; i++ {
-		cs.decryptHistory[i] = 0
-	}
-
 	return
 }
 
@@ -212,25 +208,25 @@ func (cs *CryptState) Encrypt(dst, src []byte) {
 	var tag [AESBlockSize]byte
 
 	// First, increase our IV
-	for i := 0; i < AESBlockSize; i++ {
-		cs.EncryptIV[i] += 1;
+	for i := range cs.EncryptIV {
+		cs.EncryptIV[i] += 1
 		if cs.EncryptIV[i] > 0 {
-			break;
+			break
 		}
 	}
 
 	cs.OCBEncrypt(dst[4:], src, cs.EncryptIV[0:], tag[0:])
 
 	dst[0] = cs.EncryptIV[0]
-	dst[1] = tag[0];
-	dst[2] = tag[1];
-	dst[3] = tag[2];
+	dst[1] = tag[0]
+	dst[2] = tag[1]
+	dst[3] = tag[2]
 
 	return
 }
 
 func zeros(block []byte) {
-	for i := 0; i < AESBlockSize; i++ {
+	for i := range block {
 		block[i] = 0
 	}
 }
@@ -336,9 +332,7 @@ func (cs *CryptState) OCBDecrypt(plain []byte, encrypted []byte, nonce []byte, t
 	tmp[AESBlockSize-1] = uint8(num & 0xff)
 	xor(tmp[0:], tmp[0:], delta[0:])
 	cs.cipher.Encrypt(pad[0:], tmp[0:])
-	for i := 0; i < AESBlockSize; i++ {
-		tmp[i] = 0
-	}
+	zeros(tmp[0:])
 	copied := copy(tmp[0:remain], encrypted[off:off+remain])
 	if copied != remain {
 		err = os.NewError("Copy failed")
