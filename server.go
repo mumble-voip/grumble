@@ -381,6 +381,9 @@ func (server *Server) updateCodecVersions() {
 			count = users
 			winner = codec
 		}
+		if users == count && codec > winner {
+			winner = codec
+		}
 	}
 
 	var current int32
@@ -416,7 +419,7 @@ func (server *Server) updateCodecVersions() {
 		return
 	}
 
-	log.Printf("CELT codec switch %v %v (PreferAlpha %v)", server.AlphaCodec, server.BetaCodec, server.PreferAlphaCodec)
+	log.Printf("CELT codec switch %#x %#x (PreferAlpha %v)", uint32(server.AlphaCodec), uint32(server.BetaCodec), server.PreferAlphaCodec)
 	return
 }
 
