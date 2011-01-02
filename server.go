@@ -294,16 +294,6 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	}
 	server.updateCodecVersions()
 
-	err = client.sendProtoMessage(MessageCodecVersion, &mumbleproto.CodecVersion{
-		Alpha:       proto.Int32(server.AlphaCodec),
-		Beta:        proto.Int32(server.BetaCodec),
-		PreferAlpha: proto.Bool(server.PreferAlphaCodec),
-	})
-	if err != nil {
-		client.Panic(err.String())
-		return
-	}
-
 	client.sendChannelList()
 	client.state = StateClientAuthenticated
 
