@@ -6,11 +6,10 @@ package main
 
 // A Mumble channel
 type Channel struct {
-	Id          int
-	Name        string
-	Description string
-	Temporary   bool
-	Position    int
+	Id        int
+	Name      string
+	Temporary bool
+	Position  int
 
 	clients map[uint32]*Client
 
@@ -23,6 +22,13 @@ type Channel struct {
 
 	// Groups
 	Groups map[string]*Group
+
+	// Links
+	Links map[int]*Channel
+
+	// Blobs
+	Description     string
+	DescriptionHash []byte
 }
 
 func NewChannel(id int, name string) (channel *Channel) {

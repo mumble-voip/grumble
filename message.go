@@ -131,7 +131,328 @@ func (server *Server) handleChannelAddMessage(client *Client, msg *Message) {
 func (server *Server) handleChannelRemoveMessage(client *Client, msg *Message) {
 }
 
+// Handle channel state change.
 func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
+	chanstate := &mumbleproto.ChannelState{}
+	err := proto.Unmarshal(msg.buf, chanstate)
+	if err != nil {
+		client.Panic(err.String())
+		return
+	}
+
+	var channel *Channel
+	var parent *Channel
+	var ok bool
+
+	// Lookup channel for channel ID
+	if chanstate.ChannelId != nil {
+		channel, ok = server.channels[int(*chanstate.ChannelId)]
+		if !ok {
+			client.Panic("Invalid channel specified in ChannelState message")
+			return
+		}
+	}
+
+	// Lookup parent
+	if chanstate.Parent != nil {
+		parent, ok = server.channels[int(*chanstate.Parent)]
+		if !ok {
+			client.Panic("Invalid parent channel specified in ChannelState message")
+			return
+		}
+	}
+
+	// The server can't receive links through the links field in the ChannelState message,
+	// because clients are supposed to send modifications to a channel's link state through
+	// the links_add and links_remove fields.
+	// Make sure the links field is clear so we can transmit the channel's link state in our reply.
+	chanstate.Links = nil
+
+	var name string
+	var description string
+
+	// Extract the description and perform sanity checks.
+	if chanstate.Description != nil {
+		description = *chanstate.Description
+		// fixme(mkrautz): Check length
+	}
+
+	// Extract the the name of channel and check whether it's valid.
+	// A valid channel name is a name that:
+	//  a) Isn't already used by a channel at the same level as the channel itself (that is, channels
+	//     that have a common parent can't have the same name.
+	//  b) A name must be a valid name on the server (it must pass the channel name regexp)
+	if chanstate.Name != nil {
+		name = *chanstate.Name
+
+		// We don't allow renames for the root channel.
+		if channel != nil && channel.Id != 0 {
+			// Pick a parent. If the name change is part of a re-parent (a channel move),
+			// we must evaluate the parent variable. Since we're explicitly exlcuding the root
+			// channel from renames, channels that are the target of renames are guaranteed to have
+			// a parent.
+			evalp := parent
+			if evalp == nil {
+				evalp = channel.parent
+			}
+			for _, iter := range evalp.children {
+				if iter.Name == name {
+					client.sendPermissionDeniedType("ChannelName")
+					return
+				}
+			}
+		}
+	}
+
+	// If the channel does not exist already, the ChannelState message is a create operation.
+	if channel == nil {
+		if parent == nil || len(name) == 0 {
+			return
+		}
+
+		// Check whether the client has permission to create the channel in parent.
+		perm := Permission(NonePermission)
+		if *chanstate.Temporary {
+			perm = Permission(TempChannelPermission)
+		} else {
+			perm = Permission(MakeChannelPermission)
+		}
+		if !server.HasPermission(client, parent, perm) {
+			client.sendPermissionDenied(client, parent, perm)
+			return
+		}
+
+		// Only registered users can create channels.
+		if client.UserId < 0 && len(client.Hash) == 0 {
+			client.sendPermissionDeniedTypeUser("MissingCertificate", client)
+			return
+		}
+
+		// We can't add channels to a temporary channel
+		if parent.Temporary {
+			client.sendPermissionDeniedType("TemporaryChannel")
+			return
+		}
+
+		// Add the new channel
+		channel = server.NewChannel(name)
+		channel.Description = description
+		channel.Temporary = *chanstate.Temporary
+		channel.Position = int(*chanstate.Position)
+		parent.AddChild(channel)
+
+		// Generate description hash.
+		if len(channel.Description) >= 128 {
+			hash := sha1.New()
+			hash.Write([]byte(channel.Description))
+			channel.DescriptionHash = hash.Sum()
+		} else {
+			channel.DescriptionHash = []byte{}
+		}
+
+		// Add the creator to the channel's admin group
+		if client.UserId >= 0 {
+			grp := NewGroup(channel, "admin")
+			grp.Add[client.UserId] = true
+			channel.Groups["admin"] = grp
+		}
+
+		// If the client wouldn't have WritePermission in the just-created channel,
+		// add a +write ACL for the user's hash.
+		if !server.HasPermission(client, channel, WritePermission) {
+			acl := NewChannelACL(channel)
+			acl.ApplyHere = true
+			acl.ApplySubs = true
+			if client.UserId >= 0 {
+				acl.UserId = client.UserId
+			} else {
+				acl.Group = "$" + client.Hash
+			}
+			acl.Deny = Permission(NonePermission)
+			acl.Allow = Permission(WritePermission | TraversePermission)
+
+			channel.ACL = append(channel.ACL, acl)
+
+			server.ClearACLCache()
+		}
+
+		chanstate.ChannelId = proto.Uint32(uint32(channel.Id))
+
+		// Broadcast channel add
+		server.broadcastProtoMessageWithPredicate(MessageChannelState, chanstate, func(client *Client) bool {
+			return client.Version < 0x10202
+		})
+		// Remove description if client knows how to handle blobs.
+		if len(channel.DescriptionHash) > 0 {
+			chanstate.Description = nil
+			chanstate.DescriptionHash = channel.DescriptionHash
+		}
+		server.broadcastProtoMessageWithPredicate(MessageChannelState, chanstate, func(client *Client) bool {
+			return client.Version >= 0x10202
+		})
+
+		// If it's a temporary channel, move the creator in there.
+		if channel.Temporary {
+			userstate := &mumbleproto.UserState{}
+			userstate.Session = proto.Uint32(client.Session)
+			userstate.ChannelId = proto.Uint32(uint32(channel.Id))
+			server.userEnterChannel(client, channel, userstate)
+			server.broadcastProtoMessage(MessageUserState, userstate)
+		}
+	} else {
+		// Edit existing channel.
+		// First, check whether the actor has the neccessary permissions.
+
+		// Name change.
+		if chanstate.Name != nil {
+			// The client can only rename the channel if it has WritePermission in the channel.
+			// Also, clients cannot change the name of the root channel.
+			if !server.HasPermission(client, channel, WritePermission) || channel.Id == 0 {
+				client.sendPermissionDenied(client, channel, WritePermission)
+				return
+			}
+		}
+
+		// Description change
+		if chanstate.Description != nil {
+			if !server.HasPermission(client, channel, WritePermission) {
+				client.sendPermissionDenied(client, channel, WritePermission)
+				return
+			}
+		}
+
+		// Position change
+		if chanstate.Position != nil {
+			if !server.HasPermission(client, channel, WritePermission) {
+				client.sendPermissionDenied(client, channel, WritePermission)
+				return
+			}
+		}
+
+		// Parent change (channel move)
+		if parent != nil {
+			// No-op?
+			if parent == channel.parent {
+				return
+			}
+
+			// Make sure that channel we're operating on is not a parent of the new parent.
+			iter := parent
+			for iter != nil {
+				if iter == channel {
+					client.Panic("Illegal channel reparent")
+					return
+				}
+				iter = iter.parent
+			}
+
+			// A temporary channel must not have any subchannels, so deny it.
+			if parent.Temporary {
+				client.sendPermissionDeniedType("TemporaryChannel")
+				return
+			}
+
+			// To move a channel, the user must have WritePermission in the channel
+			if !server.HasPermission(client, channel, WritePermission) {
+				client.sendPermissionDenied(client, channel, WritePermission)
+				return
+			}
+
+			// And the user must also have MakeChannel permission in the new parent
+			if !server.HasPermission(client, parent, MakeChannelPermission) {
+				client.sendPermissionDenied(client, parent, MakeChannelPermission)
+				return
+			}
+
+			// If a sibling of parent already has this name, don't allow it.
+			for _, iter := range parent.children {
+				if iter.Name == channel.Name {
+					client.sendPermissionDeniedType("ChannelName")
+					return
+				}
+			}
+		}
+
+		// Links
+		linkadd := []*Channel{}
+		linkremove := []*Channel{}
+		if len(chanstate.LinksAdd) > 0 || len(chanstate.LinksRemove) > 0 {
+			// Client must have permission to link
+			if !server.HasPermission(client, channel, LinkChannelPermission) {
+				client.sendPermissionDenied(client, channel, LinkChannelPermission)
+				return
+			}
+			// Add any valid channels to linkremove slice
+			for _, cid := range chanstate.LinksRemove {
+				if iter, ok := server.channels[int(cid)]; ok {
+					linkremove = append(linkremove, iter)
+				}
+			}
+			// Add any valid channels to linkadd slice
+			for _, cid := range chanstate.LinksAdd {
+				if iter, ok := server.channels[int(cid)]; ok {
+					if !server.HasPermission(client, iter, LinkChannelPermission) {
+						client.sendPermissionDenied(client, iter, LinkChannelPermission)
+						return
+					}
+					linkadd = append(linkadd, iter)
+				}
+			}
+		}
+
+		// Permission checks done!
+
+		// Channel move
+		if parent != nil {
+			channel.parent.RemoveChild(channel)
+			parent.AddChild(channel)
+		}
+
+		// Rename
+		if chanstate.Name != nil {
+			channel.Name = *chanstate.Name
+		}
+
+		// Description change
+		if chanstate.Description != nil {
+			// Generate description hash.
+			if len(channel.Description) >= 128 {
+				hash := sha1.New()
+				hash.Write([]byte(channel.Description))
+				channel.DescriptionHash = hash.Sum()
+			} else {
+				channel.DescriptionHash = []byte{}
+			}
+		}
+
+		// Position change
+		if chanstate.Position != nil {
+			channel.Position = int(*chanstate.Position)
+		}
+
+		// Add links
+		for _, iter := range linkadd {
+			server.LinkChannels(channel, iter)
+		}
+
+		// Remove links
+		for _, iter := range linkremove {
+			server.UnlinkChannels(channel, iter)
+		}
+
+		// Broadcast the update
+		server.broadcastProtoMessageWithPredicate(MessageChannelState, chanstate, func(client *Client) bool {
+			return client.Version < 0x10202
+		})
+		// Remove description blob when sending to 1.2.2 >= users. Only send the blob hash.
+		if chanstate.Description != nil && len(channel.DescriptionHash) > 0 {
+			chanstate.Description = nil
+			chanstate.DescriptionHash = channel.DescriptionHash
+		}
+		server.broadcastProtoMessageWithPredicate(MessageChannelState, chanstate, func(client *Client) bool {
+			return client.Version >= 0x10202
+		})
+	}
 }
 
 // Handle a user remove packet. This can either be a client disconnecting, or a
@@ -731,7 +1052,7 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 		server.ClearACLCache()
 
 		// Regular user?
-		if (!server.HasPermission(client, channel, WritePermission) && client.UserId >= 0) || len(client.Hash) > 0 {
+		if !server.HasPermission(client, channel, WritePermission) && (client.UserId >= 0 || len(client.Hash) > 0) {
 			chanacl := NewChannelACL(channel)
 
 			chanacl.ApplyHere = true
@@ -831,8 +1152,22 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 		}
 	}
 
+	chanstate := &mumbleproto.ChannelState{}
+
 	// Request for channel descriptions
 	if len(blobreq.ChannelDescription) > 0 {
-		log.Printf("No support for ChannelDescriptions in BlobRequest.")
+		for _, cid := range blobreq.ChannelDescription {
+			if channel, ok := server.channels[int(cid)]; ok {
+				if len(channel.Description) > 0 {
+					chanstate.Reset()
+					chanstate.ChannelId = proto.Uint32(uint32(channel.Id))
+					chanstate.Description = proto.String(channel.Description)
+					if err := client.sendProtoMessage(MessageChannelState, chanstate); err != nil {
+						client.Panic(err.String())
+						return
+					}
+				}
+			}
+		}
 	}
 }

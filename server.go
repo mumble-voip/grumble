@@ -189,6 +189,19 @@ func (server *Server) RemoveChanel(channel *Channel) {
 	server.channels[channel.Id] = nil, false
 }
 
+// Link two channels
+func (server *Server) LinkChannels(channel *Channel, other *Channel) {
+	channel.Links[other.Id] = other
+	other.Links[channel.Id] = channel
+}
+
+// Unlink two channels
+func (server *Server) UnlinkChannels(channel *Channel, other *Channel) {
+	channel.Links[other.Id] = nil, false
+	other.Links[channel.Id] = nil, false
+}
+
+
 // This is the synchronous handler goroutine.
 // Important control channel messages are routed through this Goroutine
 // to keep server state synchronized.
