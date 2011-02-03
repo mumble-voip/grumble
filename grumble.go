@@ -31,7 +31,7 @@ func checkProtoLib() {
 	nus := &mumbleproto.UserState{}
 	proto.Unmarshal(d, nus)
 	if nus.Texture == nil {
-		log.Exitf("Unpatched version of goprotobuf. Grumble is refusing to run.")
+		log.Fatal("Unpatched version of goprotobuf. Grumble is refusing to run.")
 	}
 }
 
