@@ -263,10 +263,10 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 		client.Panic("Type assertion failed")
 		return
 	}
-	certs := tlsconn.PeerCertificates()
-	if len(certs) > 0 {
+	state := tlsconn.ConnectionState()
+	if len(state.PeerCertificates) > 0 {
 		hash := sha1.New()
-		hash.Write(certs[0].Raw)
+		hash.Write(state.PeerCertificates[0].Raw)
 		client.Hash = hex.EncodeToString(hash.Sum())
 	}
 
