@@ -25,8 +25,6 @@ const DefaultPort = 64738
 const UDPPacketSize = 1024
 
 const CeltCompatBitstream = -2147483637
-
-// Client connection states
 const (
 	StateClientConnected = iota
 	StateServerSentVersion
@@ -37,6 +35,7 @@ const (
 
 // A Murmur server instance
 type Server struct {
+	Id       int64
 	listener tls.Listener
 	address  string
 	port     int
@@ -67,16 +66,17 @@ type Server struct {
 	// Channels
 	chanid   int
 	root     *Channel
-	channels map[int]*Channel
+	Channels map[int]*Channel
 
 	// ACL cache
 	aclcache ACLCache
 }
 
 // Allocate a new Murmur instance
-func NewServer(addr string, port int) (s *Server, err os.Error) {
+func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 	s = new(Server)
 
+	s.Id = id
 	s.address = addr
 	s.port = port
 
@@ -92,15 +92,18 @@ func NewServer(addr string, port int) (s *Server, err os.Error) {
 	s.MaxBandwidth = 300000
 	s.MaxUsers = 10
 
-	s.channels = make(map[int]*Channel)
+	s.Channels = make(map[int]*Channel)
 
-	s.root = s.NewChannel("Root")
-	subChan := s.NewChannel("SubChannel")
-	s.root.AddChild(subChan)
+	s.root = s.NewChannel(0, "Root")
+
+	/*
+	err = s.addChannelsFromDB(0)
+	if err != nil {
+		return nil, err
+	}
+	*/
 
 	s.aclcache = NewACLCache()
-
-	go s.handler()
 
 	return
 }
@@ -172,11 +175,28 @@ func (server *Server) RemoveClient(client *Client, kicked bool) {
 	}
 }
 
-// Add a new channel to the server.
-func (server *Server) NewChannel(name string) (channel *Channel) {
+// Add an existing channel to the Server. (Do not arbitrarily pick an ID)
+func (server *Server) NewChannel(id int, name string) (channel *Channel) {
+	_, exists := server.Channels[id]
+	if exists {
+		// fime(mkrautz): Handle duplicates
+		return nil
+	}
+
+	channel = NewChannel(id, name)
+	server.Channels[id] = channel
+
+	if id > server.chanid {
+		server.chanid = id + 1
+	}
+
+	return
+}
+
+// Add a new channel to the server. Automatically assign it a channel ID.
+func (server *Server) AddChannel(name string) (channel *Channel) {
 	channel = NewChannel(server.chanid, name)
-	server.channels[channel.Id] = channel
-	server.chanid += 1
+	server.Channels[channel.Id] = channel
 	return
 }
 
@@ -186,7 +206,7 @@ func (server *Server) RemoveChanel(channel *Channel) {
 		log.Printf("Attempted to remove root channel.")
 		return
 	}
-	server.channels[channel.Id] = nil, false
+	server.Channels[channel.Id] = nil, false
 }
 
 // Link two channels
@@ -687,6 +707,8 @@ func (server *Server) userEnterChannel(client *Client, channel *Channel, usersta
 
 // The accept loop of the server.
 func (s *Server) ListenAndMurmur() {
+	// Launch the event handler goroutine
+	go s.handler()
 
 	// Setup our UDP listener and spawn our reader and writer goroutines
 	s.SetupUDP()

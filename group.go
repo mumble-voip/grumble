@@ -51,10 +51,28 @@ func (group *Group) AddContains(id int) (ok bool) {
 	return
 }
 
+// Get the list of user ids in the Add set.
+func (group *Group) AddUsers() []int {
+	users := []int{}
+	for uid, _ := range group.Add {
+		users = append(users, uid)
+	}
+	return users
+}
+
 // Check whether the Remove set contains id.
 func (group *Group) RemoveContains(id int) (ok bool) {
 	_, ok = group.Remove[id]
 	return
+}
+
+// Get the list of user ids in the Remove set.
+func (group *Group) RemoveUsers() []int {
+	users := []int{}
+	for uid, _ := range group.Remove {
+		users = append(users, uid)
+	}
+	return users
 }
 
 // Check whether the Temporary set contains id.

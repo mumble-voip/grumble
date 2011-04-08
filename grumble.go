@@ -9,53 +9,160 @@ import (
 	"fmt"
 	"os"
 	"log"
-	"mumbleproto"
-	"goprotobuf.googlecode.com/hg/proto"
+	"json"
+	"sqlite"
+	"compress/zlib"
+	"path/filepath"
 )
 
 var help *bool = flag.Bool("help", false, "Show this help")
 var port *int = flag.Int("port", 64738, "Default port to listen on")
 var host *string = flag.String("host", "0.0.0.0", "Default host to listen on")
+var datadir *string = flag.String("datadir", "", "Directory to use for server storage")
+var blobdir *string = flag.String("blobdir", "", "Directory to use for blob storage")
+var sqlitedb *string = flag.String("murmurdb", "", "Path to murmur.sqlite to import server structure from")
+var cleanup *bool = flag.Bool("clean", false, "Clean up existing data dir content before importing Murmur data")
 
-func usage() {
+func Usage() {
 	fmt.Fprintf(os.Stderr, "usage: grumble [options]\n")
 	flag.PrintDefaults()
 }
 
-// Check that we're using a version of goprotobuf that is able to
-// correctly encode empty byte slices.
-func checkProtoLib() {
-	us := &mumbleproto.UserState{}
-	us.Texture = []byte{}
-	d, _ := proto.Marshal(us)
-	nus := &mumbleproto.UserState{}
-	proto.Unmarshal(d, nus)
-	if nus.Texture == nil {
-		log.Fatal("Unpatched version of goprotobuf. Grumble is refusing to run.")
+func MurmurImport(filename string) (err os.Error) {
+	db, err := sqlite.Open(filename)
+	if err != nil {
+		panic(err.String())
 	}
+
+	stmt, err := db.Prepare("SELECT server_id FROM servers")
+	if err != nil {
+		panic(err.String())
+	}
+
+	var servers []int64
+	var sid int64
+	for stmt.Next() {
+		stmt.Scan(&sid)
+		servers = append(servers, sid)
+	}
+
+	log.Printf("Found servers: %v (%v servers)", servers, len(servers))
+
+	for _, sid := range servers {
+		m, err := NewServerFromSQLite(sid, db)
+		if err != nil {
+			log.Printf("Unable to create server: %s", err.String())
+			return
+		}
+
+		f, err := os.Create(filepath.Join(*datadir, fmt.Sprintf("%v", sid)))
+		if err != nil {
+			log.Printf("%s", err.String())
+			return
+		}
+
+		zf, err := zlib.NewWriterLevel(f, zlib.BestCompression)
+
+		enc := json.NewEncoder(zf)
+		err = enc.Encode(m)
+		if err != nil {
+			log.Printf("%s", err.String())
+			return
+		}
+
+		zf.Close()
+		f.Close()
+
+		log.Printf("Successfully imported server %v", sid)
+	}
+
+	return
 }
 
 func main() {
 	flag.Parse()
 	if *help == true {
-		usage()
+		Usage()
 		return
 	}
 
-	checkProtoLib()
+	log.Printf("Grumble - Mumble server written in Go")
 
-	// Create our default server
-	m, err := NewServer(*host, *port)
+	if len(*datadir) == 0 {
+		*datadir = filepath.Join(os.Getenv("HOME"), ".grumble", "data")
+	}
+	log.Printf("Using data directory: %s", *datadir)
+
+	if len(*blobdir) == 0 {
+		*blobdir = filepath.Join(os.Getenv("HOME"), ".grumble", "blob")
+	}
+	log.Printf("Using blob directory: %s", *blobdir)
+
+
+	// Should we import data from a Murmur SQLite file?
+	if len(*sqlitedb) > 0 {
+		f, err := os.Open(*datadir)
+		if err != nil {
+			log.Fatalf("Murmur import failed: %s", err.String())
+		}
+		defer f.Close()
+
+		names, err := f.Readdirnames(-1)
+		if err != nil {
+			log.Fatalf("Murmur import failed: %s", err.String())
+		}
+
+		if !*cleanup && len(names) > 0 {
+			log.Fatalf("Non-empty datadir. Refusing to import Murmur data.")
+		}
+		if *cleanup {
+			log.Printf("Cleaning up existing data directory")
+			for _, name := range names {
+				if err := os.Remove(filepath.Join(*datadir, name)); err != nil {
+					log.Fatalf("Unable to cleanup file: %s", name)
+				}
+			}
+		}
+
+		log.Printf("Importing Murmur data from '%s'", *sqlitedb)
+		if err = MurmurImport(*sqlitedb); err != nil {
+			log.Fatalf("Murmur import failed: %s", err.String())
+		}
+
+		log.Printf("Import from Murmur SQLite database succeeded.")
+		log.Printf("Please restart Grumble to make use of the imported data.")
+
+		return
+	}
+
+	f, err := os.Open(*datadir)
 	if err != nil {
-		return
+			log.Fatalf("Murmur import failed: %s", err.String())
+	}
+	defer f.Close()
+
+	names, err := f.Readdirnames(-1)
+	if err != nil {
+		log.Fatalf("Murmur import failed: %s", err.String())
 	}
 
-	// And launch it.
-	go m.ListenAndMurmur()
+	servers := make(map[int64]*Server)
+	for _, name := range names {
+		log.Printf("Loading server %v", name)
+		s, err := NewServerFromGrumbleDesc(filepath.Join(*datadir, name))
+		if err != nil {
+			log.Fatalf("Unable to load server: %s", err.String())
+		}
 
-	// Listen forever
-	sleeper := make(chan int)
-	zzz := <-sleeper
-	if zzz > 0 {
+		servers[s.Id] = s
+		go s.ListenAndMurmur()
+	}
+
+	if len(servers) > 0 {
+		// Sleep.
+		sleeper := make(chan int)
+		zzz := <-sleeper
+		if zzz > 0 {
+		}
 	}
 }

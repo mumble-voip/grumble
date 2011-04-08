@@ -146,7 +146,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 
 	// Lookup channel for channel ID
 	if chanstate.ChannelId != nil {
-		channel, ok = server.channels[int(*chanstate.ChannelId)]
+		channel, ok = server.Channels[int(*chanstate.ChannelId)]
 		if !ok {
 			client.Panic("Invalid channel specified in ChannelState message")
 			return
@@ -155,7 +155,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 
 	// Lookup parent
 	if chanstate.Parent != nil {
-		parent, ok = server.channels[int(*chanstate.Parent)]
+		parent, ok = server.Channels[int(*chanstate.Parent)]
 		if !ok {
 			client.Panic("Invalid parent channel specified in ChannelState message")
 			return
@@ -235,7 +235,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 		}
 
 		// Add the new channel
-		channel = server.NewChannel(name)
+		channel = server.AddChannel(name)
 		channel.Description = description
 		channel.Temporary = *chanstate.Temporary
 		channel.Position = int(*chanstate.Position)
@@ -384,13 +384,13 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 			}
 			// Add any valid channels to linkremove slice
 			for _, cid := range chanstate.LinksRemove {
-				if iter, ok := server.channels[int(cid)]; ok {
+				if iter, ok := server.Channels[int(cid)]; ok {
 					linkremove = append(linkremove, iter)
 				}
 			}
 			// Add any valid channels to linkadd slice
 			for _, cid := range chanstate.LinksAdd {
-				if iter, ok := server.channels[int(cid)]; ok {
+				if iter, ok := server.Channels[int(cid)]; ok {
 					if !server.HasPermission(client, iter, LinkChannelPermission) {
 						client.sendPermissionDenied(client, iter, LinkChannelPermission)
 						return
@@ -528,7 +528,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	// Does it have a channel ID?
 	if userstate.ChannelId != nil {
 		// Destination channel
-		dstChan, ok := server.channels[int(*userstate.ChannelId)]
+		dstChan, ok := server.Channels[int(*userstate.ChannelId)]
 		if !ok {
 			return
 		}
@@ -741,7 +741,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	}
 
 	if userstate.ChannelId != nil {
-		channel, ok := server.channels[int(*userstate.ChannelId)]
+		channel, ok := server.Channels[int(*userstate.ChannelId)]
 		if ok {
 			server.userEnterChannel(user, channel, userstate)
 			broadcast = true
@@ -820,7 +820,7 @@ func (server *Server) handleTextMessage(client *Client, msg *Message) {
 
 	// Tree
 	for _, chanid := range txtmsg.TreeId {
-		if channel, ok := server.channels[int(chanid)]; ok {
+		if channel, ok := server.Channels[int(chanid)]; ok {
 			if !server.HasPermission(client, channel, TextMessagePermission) {
 				client.sendPermissionDenied(client, channel, TextMessagePermission)
 			}
@@ -832,7 +832,7 @@ func (server *Server) handleTextMessage(client *Client, msg *Message) {
 
 	// Direct-to-channel
 	for _, chanid := range txtmsg.ChannelId {
-		if channel, ok := server.channels[int(chanid)]; ok {
+		if channel, ok := server.Channels[int(chanid)]; ok {
 			if !server.HasPermission(client, channel, TextMessagePermission) {
 				client.sendPermissionDenied(client, channel, TextMessagePermission)
 				return
@@ -874,7 +874,7 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 	}
 
 	// Look up the channel this ACL message operates on.
-	channel, ok := server.channels[int(*acl.ChannelId)]
+	channel, ok := server.Channels[int(*acl.ChannelId)]
 	if !ok {
 		return
 	}
@@ -1103,7 +1103,7 @@ func (server *Server) handlePermissionQuery(client *Client, msg *Message) {
 		return
 	}
 
-	channel := server.channels[int(*query.ChannelId)]
+	channel := server.Channels[int(*query.ChannelId)]
 	server.sendClientPermissions(client, channel)
 }
 
@@ -1157,7 +1157,7 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 	// Request for channel descriptions
 	if len(blobreq.ChannelDescription) > 0 {
 		for _, cid := range blobreq.ChannelDescription {
-			if channel, ok := server.channels[int(cid)]; ok {
+			if channel, ok := server.Channels[int(cid)]; ok {
 				if len(channel.Description) > 0 {
 					chanstate.Reset()
 					chanstate.ChannelId = proto.Uint32(uint32(channel.Id))

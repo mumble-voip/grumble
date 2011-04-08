@@ -9,10 +9,20 @@ TARG = grumble
 PACKAGES = \
 	pkg/packetdatastream \
 	pkg/cryptstate \
-	pkg/mumbleproto
+	pkg/mumbleproto \
+	pkg/sqlite
 
-GCFLAGS = -Ipkg/cryptstate/_obj -Ipkg/packetdatastream/_obj -Ipkg/mumbleproto/_obj
-LDFLAGS = -Lpkg/cryptstate/_obj -Lpkg/packetdatastream/_obj -Lpkg/mumbleproto/_obj
+GCFLAGS = \
+	-Ipkg/cryptstate/_obj \
+	-Ipkg/packetdatastream/_obj \
+	-Ipkg/mumbleproto/_obj \
+	-Ipkg/sqlite/_obj
+
+LDFLAGS = \
+	-Lpkg/cryptstate/_obj \
+	-Lpkg/packetdatastream/_obj \
+	-Lpkg/mumbleproto/_obj \
+	-Lpkg/sqlite/_obj
 
 GOFILES = \
 	grumble.go \
@@ -22,7 +32,9 @@ GOFILES = \
 	client.go \
 	channel.go \
 	acl.go \
-	group.go
+	group.go \
+	murmurdb.go \
+	json.go
 
 .PHONY: grumble
 grumble: pkg
