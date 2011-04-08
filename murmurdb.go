@@ -306,7 +306,7 @@ func populateUsers(server *Server, db *sqlite.Conn) (err os.Error) {
 		}
 
 		if UserId == 0 {
-			server.superUserPassword = "sha1" + SHA1Password
+			server.superUserPassword = "sha1$$" + SHA1Password
 			continue
 		}
 

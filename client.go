@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Grumble Authors
+// Copyright (c) 2010-2011 The Grumble Authors
 // The use of this source code is goverened by a BSD-style
 // license that can be found in the LICENSE-file.
 
@@ -93,6 +93,21 @@ func (client *Client) Disconnect() {
 // Disconnect a client (kick/ban)
 func (client *Client) ForceDisconnect() {
 	client.disconnect(true)
+}
+
+// Reject an authentication attempt
+func (client *Client) RejectAuth(kind, reason string) {
+	var reasonString *string = nil
+	if len(reason) > 0 {
+		reasonString = proto.String(reason)
+	}
+
+	client.sendProtoMessage(MessageReject, &mumbleproto.Reject{
+		Type:    mumbleproto.NewReject_RejectType(mumbleproto.Reject_RejectType_value[kind]),
+		Reason:  reasonString,
+	})
+
+	client.ForceDisconnect()
 }
 
 // Read a protobuf message from a client

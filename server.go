@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Grumble Authors
+// Copyright (c) 2010-2011 The Grumble Authors
 // The use of this source code is goverened by a BSD-style
 // license that can be found in the LICENSE-file.
 
@@ -18,6 +18,8 @@ import (
 	"goprotobuf.googlecode.com/hg/proto"
 	"mumbleproto"
 	"cryptstate"
+	"hash"
+	"strings"
 )
 
 // The default port a Murmur server listens on
@@ -115,6 +117,42 @@ func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 	s.aclcache = NewACLCache()
 
 	return
+}
+
+// Check whether password matches the set SuperUser password.
+func (server *Server) CheckSuperUserPassword(password string) bool {
+	parts := strings.Split(server.superUserPassword, "$", -1)
+	if len(parts) != 3  {
+		return false
+	}
+
+	if len(parts[2]) == 0 {
+		return false
+	}
+
+	var h hash.Hash
+	switch parts[0] {
+	case "sha1":
+		h = sha1.New()
+	default:
+		// no such hash
+		return false
+	}
+
+	// salt
+	if len(parts[1]) > 0 {
+		h.Write([]byte(parts[1]))
+	}
+
+	// password
+	h.Write([]byte(password))
+
+	sum := hex.EncodeToString(h.Sum())
+	if parts[2] == sum {
+		return true
+	}
+
+	return false
 }
 
 // Called by the server to initiate a new client connection.
@@ -345,8 +383,20 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	server.hclients[host] = append(server.hclients[host], client)
 	server.hmutex.Unlock()
 
+	// SuperUser login check
 	if client.Username == "SuperUser" {
-		client.UserId = 0
+		// No password specified
+		if auth.Password == nil {
+			client.RejectAuth("WrongUserPW", "")
+			return
+		} else {
+			if server.CheckSuperUserPassword(*auth.Password) {
+				client.UserId = 0
+			} else {
+				client.RejectAuth("WrongUserPW", "")
+				return
+			}
+		}
 	}
 
 	userstate := &mumbleproto.UserState{
