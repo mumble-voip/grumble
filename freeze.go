@@ -1,9 +1,9 @@
 package main
 
 import (
-	"json"
+	"compress/gzip"
+	"gob"
 	"os"
-	"compress/zlib"
 )
 
 type frozenServer struct {
@@ -134,13 +134,13 @@ func NewServerFromFrozen(filename string) (s *Server, err os.Error) {
 	}
 	defer descFile.Close()
 
-	zr, err := zlib.NewReader(descFile)
+	zr, err := gzip.NewReader(descFile)
 	if err != nil {
 		return nil, err
 	}
 
 	fs := new(frozenServer)
-	decoder := json.NewDecoder(zr)
+	decoder := gob.NewDecoder(zr)
 	decoder.Decode(&fs)
 
 	s, err = NewServer(int64(fs.Id), "", int(DefaultPort+fs.Id-1))

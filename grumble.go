@@ -5,13 +5,13 @@
 package main
 
 import (
+	"compress/gzip"
 	"flag"
 	"fmt"
+	"gob"
 	"os"
 	"log"
-	"json"
 	"sqlite"
-	"compress/zlib"
 	"path/filepath"
 )
 
@@ -61,14 +61,14 @@ func MurmurImport(filename string) (err os.Error) {
 			return
 		}
 
-		zf, err := zlib.NewWriterLevel(f, zlib.BestCompression)
+		zf, err := gzip.NewWriterLevel(f, gzip.BestCompression)
 
 		fz, err := m.Freeze()
 		if err != nil {
 			log.Fatalf("Unable to freeze server: %s", err.String())
 		}
 
-		enc := json.NewEncoder(zf)
+		enc := gob.NewEncoder(zf)
 		err = enc.Encode(fz)
 		if err != nil {
 			log.Printf("%s", err.String())

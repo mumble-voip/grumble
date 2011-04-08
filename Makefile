@@ -34,7 +34,7 @@ GOFILES = \
 	acl.go \
 	group.go \
 	murmurdb.go \
-	json.go
+	freeze.go
 
 .PHONY: grumble
 grumble: pkg
