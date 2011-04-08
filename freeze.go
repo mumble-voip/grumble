@@ -1,3 +1,7 @@
+// Copyright (c) 2011 The Grumble Authors
+// The use of this source code is goverened by a BSD-style
+// license that can be found in the LICENSE-file.
+
 package main
 
 import (
@@ -7,9 +11,22 @@ import (
 )
 
 type frozenServer struct {
-	Id       int             "id"
-	MaxUsers int             "max_user"
-	Channels []frozenChannel "channels"
+	Id                int             "id"
+	MaxUsers          int             "max_user"
+	SuperUserPassword string          "super_user_password"
+	Channels          []frozenChannel "channels"
+	Users             []frozenUser    "users"
+}
+
+type frozenUser struct {
+	Id            uint32 "id"
+	Name          string "name"
+	CertHash      string "cert_hash"
+	Email         string "email"
+	TextureBlob   string "texture_blob"
+	CommentBlob   string "comment_blob"
+	LastChannelId int    "last_channel_id"
+	LastActive    uint64 "last_active"
 }
 
 type frozenChannel struct {
@@ -21,8 +38,7 @@ type frozenChannel struct {
 	Links           []int         "links"
 	ACL             []frozenACL   "acl"
 	Groups          []frozenGroup "groups"
-	Description     string        "description"
-	DescriptionHash []byte        "description_hash"
+	DescriptionBlob string        "description_blob"
 }
 
 type frozenACL struct {
@@ -45,6 +61,7 @@ type frozenGroup struct {
 // Freeze a server
 func (server *Server) Freeze() (fs frozenServer, err os.Error) {
 	fs.Id = int(server.Id)
+	fs.SuperUserPassword = server.superUserPassword
 	fs.MaxUsers = server.MaxUsers
 
 	channels := []frozenChannel{}
@@ -56,6 +73,16 @@ func (server *Server) Freeze() (fs frozenServer, err os.Error) {
 		channels = append(channels, fc)
 	}
 	fs.Channels = channels
+
+	users := []frozenUser{}
+	for _, u := range server.Users {
+		fu, err := u.Freeze()
+		if err != nil {
+			return
+		}
+		users = append(users, fu)
+	}
+	fs.Users = users
 
 	return
 }
@@ -71,8 +98,6 @@ func (channel *Channel) Freeze() (fc frozenChannel, err os.Error) {
 	}
 	fc.Position = int64(channel.Position)
 	fc.InheritACL = channel.InheritACL
-	fc.Description = channel.Description
-	fc.DescriptionHash = channel.DescriptionHash
 
 	acls := []frozenACL{}
 	for _, acl := range channel.ACL {
@@ -99,6 +124,20 @@ func (channel *Channel) Freeze() (fc frozenChannel, err os.Error) {
 		links = append(links, cid)
 	}
 	fc.Links = links
+
+	return
+}
+
+// Freeze a User
+func (user *User) Freeze() (fu frozenUser, err os.Error) {
+	fu.Id = user.Id
+	fu.Name = user.Name
+	fu.CertHash = user.CertHash
+	fu.Email = user.Email
+	fu.TextureBlob = user.TextureBlob
+	fu.CommentBlob = user.CommentBlob
+	fu.LastChannelId = user.LastChannelId
+	fu.LastActive = user.LastActive
 
 	return
 }
@@ -148,14 +187,15 @@ func NewServerFromFrozen(filename string) (s *Server, err os.Error) {
 		return nil, err
 	}
 
+	s.superUserPassword = fs.SuperUserPassword
+
 	// Add all channels, but don't hook up parent/child relationships
 	// until all of them are loaded.
 	for _, jc := range fs.Channels {
 		c := NewChannel(jc.Id, jc.Name)
 		c.Position = int(jc.Position)
 		c.InheritACL = jc.InheritACL
-		c.Description = jc.Description
-		c.DescriptionHash = jc.DescriptionHash
+		c.DescriptionHash = []byte{} // fixme
 
 		for _, jacl := range jc.ACL {
 			acl := NewChannelACL(c)
@@ -200,6 +240,25 @@ func NewServerFromFrozen(filename string) (s *Server, err os.Error) {
 	}
 
 	s.root = s.Channels[0]
+
+	// Add all users
+	for _, ju := range fs.Users {
+		u, err := NewUser(ju.Id, ju.Name)
+		if err != nil {
+			return nil, err
+		}
+
+		u.CertHash = ju.CertHash
+		u.Email = ju.Email
+		u.TextureBlob = ju.TextureBlob
+		u.CommentBlob = ju.CommentBlob
+		u.LastChannelId = ju.LastChannelId
+		u.LastActive = ju.LastActive
+
+		s.Users[u.Id] = u
+		s.UserNameMap[u.Name] = u
+		s.UserCertMap[u.CertHash] = u
+	}
 
 	return s, nil
 }

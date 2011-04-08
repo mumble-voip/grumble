@@ -68,6 +68,12 @@ type Server struct {
 	root     *Channel
 	Channels map[int]*Channel
 
+	// Users
+	superUserPassword string
+	Users             map[uint32]*User
+	UserCertMap       map[string]*User
+	UserNameMap       map[string]*User
+
 	// ACL cache
 	aclcache ACLCache
 }
@@ -81,6 +87,9 @@ func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 	s.port = port
 
 	s.clients = make(map[uint32]*Client)
+	s.Users = make(map[uint32]*User)
+	s.UserCertMap = make(map[string]*User)
+	s.UserNameMap = make(map[string]*User)
 
 	s.hclients = make(map[string][]*Client)
 	s.hpclients = make(map[string]*Client)

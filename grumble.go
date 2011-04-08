@@ -51,28 +51,25 @@ func MurmurImport(filename string) (err os.Error) {
 	for _, sid := range servers {
 		m, err := NewServerFromSQLite(sid, db)
 		if err != nil {
-			log.Printf("Unable to create server: %s", err.String())
-			return
+			return err
 		}
 
 		f, err := os.Create(filepath.Join(*datadir, fmt.Sprintf("%v", sid)))
 		if err != nil {
-			log.Printf("%s", err.String())
-			return
+			return err
 		}
 
 		zf, err := gzip.NewWriterLevel(f, gzip.BestCompression)
 
 		fz, err := m.Freeze()
 		if err != nil {
-			log.Fatalf("Unable to freeze server: %s", err.String())
+			return err
 		}
 
 		enc := gob.NewEncoder(zf)
 		err = enc.Encode(fz)
 		if err != nil {
-			log.Printf("%s", err.String())
-			return
+			return err
 		}
 
 		zf.Close()

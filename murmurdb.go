@@ -1,3 +1,7 @@
+// Copyright (c) 2011 The Grumble Authors
+// The use of this source code is goverened by a BSD-style
+// license that can be found in the LICENSE-file.
+
 package main
 
 // This file implements a Server that can be created from a Murmur SQLite file.
@@ -38,6 +42,11 @@ func NewServerFromSQLite(id int64, db *sqlite.Conn) (s *Server, err os.Error) {
 	}
 
 	err = populateChannelLinkInfo(s, db)
+	if err != nil {
+		return nil, err
+	}
+
+	err = populateUsers(s, db)
 	if err != nil {
 		return nil, err
 	}
@@ -268,3 +277,96 @@ func populateChannelLinkInfo(server *Server, db *sqlite.Conn) (err os.Error) {
 
 	return nil
 }
+
+func populateUsers(server *Server, db *sqlite.Conn) (err os.Error) {
+	// Populate the server with regular user data
+	stmt, err := db.Prepare("SELECT user_id, name, pw, lastchannel, texture, strftime('%s', last_active) FROM users WHERE server_id=?")
+	if err != nil {
+		return
+	}
+
+	err = stmt.Exec(server.Id)
+	if err != nil {
+		return
+	}
+
+	for stmt.Next() {
+		var (
+			UserId int64
+			UserName string
+			SHA1Password string
+			LastChannel int
+			Texture []byte
+			LastActive int64
+		)
+
+		err = stmt.Scan(&UserId, &UserName, &SHA1Password, &LastChannel, &Texture, &LastActive)
+		if err != nil {
+			continue
+		}
+
+		if UserId == 0 {
+			server.superUserPassword = "sha1" + SHA1Password
+			continue
+		}
+
+		user, err := NewUser(uint32(UserId), UserName)
+		if err != nil {
+			return err
+		}
+
+		user.LastActive = uint64(LastActive)
+		user.LastChannelId = LastChannel
+
+		server.Users[user.Id] = user
+	}
+
+	stmt, err = db.Prepare("SELECT key, value FROM user_info WHERE server_id=? AND user_id=?")
+	if err != nil {
+		return
+	}
+
+	// Populate users with any new-style UserInfo records
+	for uid, user := range server.Users {
+		err = stmt.Reset()
+		if err != nil {
+			return err
+		}
+
+		err = stmt.Exec(server.Id, uid)
+		if err != nil {
+			return err
+		}
+
+		for stmt.Next() {
+			var (
+				Key int
+				Value string
+			)
+
+			err = stmt.Scan(&Key, &Value)
+			if err != nil {
+				return err
+			}
+
+			switch Key {
+			case UserInfoEmail:
+				user.Email = Value
+			case UserInfoComment:
+				// unhandled
+			case UserInfoHash:
+				user.CertHash = "sha1-" + Value
+			case UserInfoLastActive:
+				// not a kv-pair (trigger)
+			case UserInfoPassword:
+				// not a kv-pair
+			case UserInfoName:
+				// not a kv-pair
+			}
+		}
+	}
+
+
+	return
+}
+

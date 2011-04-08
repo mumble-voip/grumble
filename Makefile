@@ -33,6 +33,7 @@ GOFILES = \
 	channel.go \
 	acl.go \
 	group.go \
+	user.go \
 	murmurdb.go \
 	freeze.go
 
