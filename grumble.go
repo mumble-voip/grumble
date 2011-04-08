@@ -63,8 +63,13 @@ func MurmurImport(filename string) (err os.Error) {
 
 		zf, err := zlib.NewWriterLevel(f, zlib.BestCompression)
 
+		fz, err := m.Freeze()
+		if err != nil {
+			log.Fatalf("Unable to freeze server: %s", err.String())
+		}
+
 		enc := json.NewEncoder(zf)
-		err = enc.Encode(m)
+		err = enc.Encode(fz)
 		if err != nil {
 			log.Printf("%s", err.String())
 			return
@@ -149,7 +154,7 @@ func main() {
 	servers := make(map[int64]*Server)
 	for _, name := range names {
 		log.Printf("Loading server %v", name)
-		s, err := NewServerFromGrumbleDesc(filepath.Join(*datadir, name))
+		s, err := NewServerFromFrozen(filepath.Join(*datadir, name))
 		if err != nil {
 			log.Fatalf("Unable to load server: %s", err.String())
 		}

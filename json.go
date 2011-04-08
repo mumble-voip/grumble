@@ -6,25 +6,26 @@ import (
 	"compress/zlib"
 )
 
-type jsonServer struct {
-	Id       int           "id"
-	MaxUsers int           "max_user"
-	Channels []jsonChannel "channels"
+type frozenServer struct {
+	Id       int             "id"
+	MaxUsers int             "max_user"
+	Channels []frozenChannel "channels"
 }
 
-type jsonChannel struct {
-	Id         int         "id"
-	Name       string      "name"
-	ParentId   int         "parent_id"
-	Position   int64       "position"
-	InheritACL bool        "inherit_acl"
-	ACL        []jsonACL   "acl"
-	Groups     []jsonGroup "groups"
-	Description string     "description"
-	DescriptionHash []byte "description_hash"
+type frozenChannel struct {
+	Id              int           "id"
+	Name            string        "name"
+	ParentId        int           "parent_id"
+	Position        int64         "position"
+	InheritACL      bool          "inherit_acl"
+	Links           []int         "links"
+	ACL             []frozenACL   "acl"
+	Groups          []frozenGroup "groups"
+	Description     string        "description"
+	DescriptionHash []byte        "description_hash"
 }
 
-type jsonACL struct {
+type frozenACL struct {
 	UserId    int    "user_id"
 	Group     string "group"
 	ApplyHere bool   "apply_here"
@@ -33,7 +34,7 @@ type jsonACL struct {
 	Deny      uint32 "deny"
 }
 
-type jsonGroup struct {
+type frozenGroup struct {
 	Name        string "name"
 	Inherit     bool   "inherit"
 	Inheritable bool   "inheritable"
@@ -41,78 +42,92 @@ type jsonGroup struct {
 	Remove      []int  "remove"
 }
 
-// Marshal a server into a JSON object
-func (server *Server) MarshalJSON() (buf []byte, err os.Error) {
-	obj := make(map[string]interface{})
-	obj["id"] = server.Id
-	obj["max_user"] = server.MaxUsers
+// Freeze a server
+func (server *Server) Freeze() (fs frozenServer, err os.Error) {
+	fs.Id = int(server.Id)
+	fs.MaxUsers = server.MaxUsers
 
-	channels := []interface{}{}
+	channels := []frozenChannel{}
 	for _, c := range server.Channels {
-		channels = append(channels, c)
+		fc, err := c.Freeze()
+		if err != nil {
+			return
+		}
+		channels = append(channels, fc)
 	}
-	obj["channels"] = channels
+	fs.Channels = channels
 
-	return json.Marshal(obj)
+	return
 }
 
-// Marshal a Channel into a JSON object
-func (channel *Channel) MarshalJSON() (buf []byte, err os.Error) {
-	obj := make(map[string]interface{})
-
-	obj["id"] = channel.Id
-	obj["name"] = channel.Name
+// Freeze a channel
+func (channel *Channel) Freeze() (fc frozenChannel, err os.Error) {
+	fc.Id = channel.Id
+	fc.Name = channel.Name
 	if channel.parent != nil {
-		obj["parent_id"] = channel.parent.Id
+		fc.ParentId = channel.parent.Id
 	} else {
-		obj["parent_id"] = -1
+		fc.ParentId = -1
 	}
+	fc.Position = int64(channel.Position)
+	fc.InheritACL = channel.InheritACL
+	fc.Description = channel.Description
+	fc.DescriptionHash = channel.DescriptionHash
 
-	obj["position"] = channel.Position
-	obj["inherit_acl"] = channel.InheritACL
-	obj["description"] = channel.Description
-	obj["description_hash"] = channel.DescriptionHash
+	acls := []frozenACL{}
+	for _, acl := range channel.ACL {
+		facl, err := acl.Freeze()
+		if err != nil {
+			return
+		}
+		acls = append(acls, facl)
+	}
+	fc.ACL = acls
 
-	obj["acl"] = channel.ACL
-
-	groups := []*Group{}
+	groups := []frozenGroup{}
 	for _, grp := range channel.Groups {
-		groups = append(groups, grp)
+		fgrp, err := grp.Freeze()
+		if err != nil {
+			return
+		}
+		groups = append(groups, fgrp)
 	}
-	obj["groups"] = groups
+	fc.Groups = groups
+
 	links := []int{}
 	for cid, _ := range channel.Links {
 		links = append(links, cid)
 	}
+	fc.Links = links
 
-	return json.Marshal(obj)
+	return
 }
 
-func (acl *ChannelACL) MarshalJSON() (buf []byte, err os.Error) {
-	obj := make(map[string]interface{})
-	obj["user_id"] = acl.UserId
-	obj["group"] = acl.Group
-	obj["apply_here"] = acl.ApplyHere
-	obj["apply_subs"] = acl.ApplySubs
-	obj["allow"] = acl.Allow
-	obj["deny"] = acl.Deny
+// Freeze a ChannelACL
+func (acl *ChannelACL) Freeze() (facl frozenACL, err os.Error) {
+	facl.UserId = acl.UserId
+	facl.Group = acl.Group
+	facl.ApplyHere = acl.ApplyHere
+	facl.ApplySubs = acl.ApplySubs
+	facl.Allow = uint32(acl.Allow)
+	facl.Deny = uint32(acl.Deny)
 
-	return json.Marshal(obj)
+	return
 }
 
-func (group *Group) MarshalJSON() (buf []byte, err os.Error) {
-	obj := make(map[string]interface{})
-	obj["name"] = group.Name
-	obj["inherit"] = group.Inherit
-	obj["inheritable"] = group.Inheritable
-	obj["add"] = group.AddUsers()
-	obj["remove"] = group.RemoveUsers()
+// Freeze a Group
+func (group *Group) Freeze() (fgrp frozenGroup, err os.Error) {
+	fgrp.Name = group.Name
+	fgrp.Inherit = group.Inherit
+	fgrp.Inheritable = group.Inheritable
+	fgrp.Add = group.AddUsers()
+	fgrp.Remove = group.RemoveUsers()
 
-	return json.Marshal(obj)
+	return
 }
 
-// Create a new Server from a Grumble zlib-compressed JSON description
-func NewServerFromGrumbleDesc(filename string) (s *Server, err os.Error) {
+// Create a new Server from a frozen server
+func NewServerFromFrozen(filename string) (s *Server, err os.Error) {
 	descFile, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -124,18 +139,18 @@ func NewServerFromGrumbleDesc(filename string) (s *Server, err os.Error) {
 		return nil, err
 	}
 
-	srv := new(jsonServer)
+	fs := new(frozenServer)
 	decoder := json.NewDecoder(zr)
-	decoder.Decode(&srv)
+	decoder.Decode(&fs)
 
-	s, err = NewServer(int64(srv.Id), "", int(DefaultPort+srv.Id-1))
+	s, err = NewServer(int64(fs.Id), "", int(DefaultPort+fs.Id-1))
 	if err != nil {
 		return nil, err
 	}
 
 	// Add all channels, but don't hook up parent/child relationships
 	// until all of them are loaded.
-	for _, jc := range srv.Channels {
+	for _, jc := range fs.Channels {
 		c := NewChannel(jc.Id, jc.Name)
 		c.Position = int(jc.Position)
 		c.InheritACL = jc.InheritACL
@@ -169,7 +184,7 @@ func NewServerFromGrumbleDesc(filename string) (s *Server, err os.Error) {
 	}
 
 	// Hook up children with their parents.
-	for _, jc := range srv.Channels {
+	for _, jc := range fs.Channels {
 		if jc.Id == 0 {
 			continue
 		}
