@@ -191,30 +191,30 @@ func NewServerFromFrozen(filename string) (s *Server, err os.Error) {
 
 	// Add all channels, but don't hook up parent/child relationships
 	// until all of them are loaded.
-	for _, jc := range fs.Channels {
-		c := NewChannel(jc.Id, jc.Name)
-		c.Position = int(jc.Position)
-		c.InheritACL = jc.InheritACL
+	for _, fc := range fs.Channels {
+		c := NewChannel(fc.Id, fc.Name)
+		c.Position = int(fc.Position)
+		c.InheritACL = fc.InheritACL
 		c.DescriptionHash = []byte{} // fixme
 
-		for _, jacl := range jc.ACL {
+		for _, facl := range fc.ACL {
 			acl := NewChannelACL(c)
-			acl.ApplyHere = jacl.ApplyHere
-			acl.ApplySubs = jacl.ApplySubs
-			acl.UserId = jacl.UserId
-			acl.Group = jacl.Group
-			acl.Deny = Permission(jacl.Deny)
-			acl.Allow = Permission(jacl.Allow)
+			acl.ApplyHere = facl.ApplyHere
+			acl.ApplySubs = facl.ApplySubs
+			acl.UserId = facl.UserId
+			acl.Group = facl.Group
+			acl.Deny = Permission(facl.Deny)
+			acl.Allow = Permission(facl.Allow)
 			c.ACL = append(c.ACL, acl)
 		}
-		for _, jgrp := range jc.Groups {
-			g := NewGroup(c, jgrp.Name)
-			g.Inherit = jgrp.Inherit
-			g.Inheritable = jgrp.Inheritable
-			for _, uid := range jgrp.Add {
+		for _, fgrp := range fc.Groups {
+			g := NewGroup(c, fgrp.Name)
+			g.Inherit = fgrp.Inherit
+			g.Inheritable = fgrp.Inheritable
+			for _, uid := range fgrp.Add {
 				g.Add[uid] = true
 			}
-			for _, uid := range jgrp.Remove {
+			for _, uid := range fgrp.Remove {
 				g.Remove[uid] = true
 			}
 			c.Groups[g.Name] = g
@@ -224,15 +224,15 @@ func NewServerFromFrozen(filename string) (s *Server, err os.Error) {
 	}
 
 	// Hook up children with their parents.
-	for _, jc := range fs.Channels {
-		if jc.Id == 0 {
+	for _, fc := range fs.Channels {
+		if fc.Id == 0 {
 			continue
 		}
-		childChan, exists := s.Channels[jc.Id]
+		childChan, exists := s.Channels[fc.Id]
 		if !exists {
 			return nil, os.NewError("Non-existant child channel")
 		}
-		parentChan, exists := s.Channels[jc.ParentId]
+		parentChan, exists := s.Channels[fc.ParentId]
 		if !exists {
 			return nil, os.NewError("Non-existant parent channel")
 		}
@@ -242,18 +242,18 @@ func NewServerFromFrozen(filename string) (s *Server, err os.Error) {
 	s.root = s.Channels[0]
 
 	// Add all users
-	for _, ju := range fs.Users {
-		u, err := NewUser(ju.Id, ju.Name)
+	for _, fu := range fs.Users {
+		u, err := NewUser(fu.Id, fu.Name)
 		if err != nil {
 			return nil, err
 		}
 
-		u.CertHash = ju.CertHash
-		u.Email = ju.Email
-		u.TextureBlob = ju.TextureBlob
-		u.CommentBlob = ju.CommentBlob
-		u.LastChannelId = ju.LastChannelId
-		u.LastActive = ju.LastActive
+		u.CertHash = fu.CertHash
+		u.Email = fu.Email
+		u.TextureBlob = fu.TextureBlob
+		u.CommentBlob = fu.CommentBlob
+		u.LastChannelId = fu.LastChannelId
+		u.LastActive = fu.LastActive
 
 		s.Users[u.Id] = u
 		s.UserNameMap[u.Name] = u
