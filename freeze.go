@@ -182,7 +182,7 @@ func NewServerFromFrozen(filename string) (s *Server, err os.Error) {
 	decoder := gob.NewDecoder(zr)
 	decoder.Decode(&fs)
 
-	s, err = NewServer(int64(fs.Id), "", int(DefaultPort+fs.Id-1))
+	s, err = NewServer(int64(fs.Id), "0.0.0.0", int(DefaultPort+fs.Id-1))
 	if err != nil {
 		return nil, err
 	}

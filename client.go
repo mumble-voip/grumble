@@ -37,6 +37,15 @@ type Client struct {
 	codecs []int32
 	udp    bool
 
+	// If the client is a registered user on the server,
+	// the user field will point to the registration record.
+	user *User
+
+	// If the client has SuperUser privileges, superUser will be true.
+	// Note that Grumble doesn't store credentials of the SuperUser in
+	// the user data store, so we have to keep track of it separately.
+	superUser bool
+
 	// Version
 	Version    uint32
 	ClientName string
@@ -50,10 +59,9 @@ type Client struct {
 	TextureHash []byte
 
 	// Personal
-	UserId          int
-	Session         uint32
 	Username        string
-	Hash            string
+	Session         uint32
+	CertHash        string
 	Tokens          []string
 	Channel         *Channel
 	SelfMute        bool
@@ -65,6 +73,40 @@ type Client struct {
 	Recording       bool
 	PluginContext   []byte
 	PluginIdentity  string
+}
+
+// Is the client a registered user?
+func (client *Client) IsRegistered() bool {
+	return client.user != nil || client.IsSuperUser()
+}
+
+// Does the client have a certificate?
+func (client *Client) HasCertificate() bool {
+	return len(client.CertHash) > 0
+}
+
+// Is the client the SuperUser?
+func (client *Client) IsSuperUser() bool {
+	return client.superUser
+}
+
+// Get the User ID of this client.
+// Returns -1 if the client is not a registered user.
+func (client *Client) UserId() int {
+	if client.user == nil {
+		return -1
+	} else if client.superUser {
+		return 0
+	}
+	return int(client.user.Id)
+}
+
+// Get the client's shown name.
+func (client *Client) ShownName() string {
+	if client.IsRegistered() {
+		return client.user.Name
+	}
+	return client.Username
 }
 
 // Something invalid happened on the wire.
@@ -103,8 +145,8 @@ func (client *Client) RejectAuth(kind, reason string) {
 	}
 
 	client.sendProtoMessage(MessageReject, &mumbleproto.Reject{
-		Type:    mumbleproto.NewReject_RejectType(mumbleproto.Reject_RejectType_value[kind]),
-		Reason:  reasonString,
+		Type:   mumbleproto.NewReject_RejectType(mumbleproto.Reject_RejectType_value[kind]),
+		Reason: reasonString,
 	})
 
 	client.ForceDisconnect()

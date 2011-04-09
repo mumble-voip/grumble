@@ -31,7 +31,7 @@ const (
 
 // Create a new Server from a Murmur SQLite database
 func NewServerFromSQLite(id int64, db *sqlite.Conn) (s *Server, err os.Error) {
-	s, err = NewServer(id, "", int(DefaultPort + id - 1))
+	s, err = NewServer(id, "", int(DefaultPort+id-1))
 	if err != nil {
 		return nil, err
 	}
@@ -73,8 +73,8 @@ func populateChannelsFromDatabase(server *Server, db *sqlite.Conn, parentId int)
 
 	for stmt.Next() {
 		var (
-			name string
-			chanid int
+			name    string
+			chanid  int
 			inherit bool
 		)
 		err = stmt.Scan(&chanid, &name, &inherit)
@@ -139,12 +139,12 @@ func populateChannelsFromDatabase(server *Server, db *sqlite.Conn, parentId int)
 
 		for stmt.Next() {
 			var (
-				UserId string
-				Group string
+				UserId    string
+				Group     string
 				ApplyHere bool
-				ApplySub bool
-				Allow int64
-				Deny int64
+				ApplySub  bool
+				Allow     int64
+				Deny      int64
 			)
 			if err := stmt.Scan(&UserId, &Group, &ApplyHere, &ApplySub, &Allow, &Deny); err != nil {
 				return err
@@ -184,9 +184,9 @@ func populateChannelsFromDatabase(server *Server, db *sqlite.Conn, parentId int)
 
 		for stmt.Next() {
 			var (
-				GroupId int64
-				Name string
-				Inherit bool
+				GroupId     int64
+				Name        string
+				Inherit     bool
 				Inheritable bool
 			)
 
@@ -216,7 +216,7 @@ func populateChannelsFromDatabase(server *Server, db *sqlite.Conn, parentId int)
 		for stmt.Next() {
 			var (
 				UserId int64
-				Add bool
+				Add    bool
 			)
 
 			if err := stmt.Scan(&UserId, &Add); err != nil {
@@ -256,7 +256,7 @@ func populateChannelLinkInfo(server *Server, db *sqlite.Conn) (err os.Error) {
 	for stmt.Next() {
 		var (
 			ChannelId int
-			LinkId int
+			LinkId    int
 		)
 		if err := stmt.Scan(&ChannelId, &LinkId); err != nil {
 			return err
@@ -292,12 +292,12 @@ func populateUsers(server *Server, db *sqlite.Conn) (err os.Error) {
 
 	for stmt.Next() {
 		var (
-			UserId int64
-			UserName string
+			UserId       int64
+			UserName     string
 			SHA1Password string
-			LastChannel int
-			Texture []byte
-			LastActive int64
+			LastChannel  int
+			Texture      []byte
+			LastActive   int64
 		)
 
 		err = stmt.Scan(&UserId, &UserName, &SHA1Password, &LastChannel, &Texture, &LastActive)
@@ -340,7 +340,7 @@ func populateUsers(server *Server, db *sqlite.Conn) (err os.Error) {
 
 		for stmt.Next() {
 			var (
-				Key int
+				Key   int
 				Value string
 			)
 
@@ -355,7 +355,7 @@ func populateUsers(server *Server, db *sqlite.Conn) (err os.Error) {
 			case UserInfoComment:
 				// unhandled
 			case UserInfoHash:
-				user.CertHash = "sha1-" + Value
+				user.CertHash = Value
 			case UserInfoLastActive:
 				// not a kv-pair (trigger)
 			case UserInfoPassword:
@@ -366,7 +366,5 @@ func populateUsers(server *Server, db *sqlite.Conn) (err os.Error) {
 		}
 	}
 
-
 	return
 }
-

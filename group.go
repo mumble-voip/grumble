@@ -198,7 +198,7 @@ func GroupMemberCheck(current *Channel, aclchan *Channel, name string, client *C
 		// The user is part of the auth group is he is authenticated. That is,
 		// his UserId is >= 0.
 	} else if name == "auth" {
-		member = client.UserId >= 0
+		member = client.IsRegistered()
 		// The user is part of the strong group if he is authenticated to the server
 		// via a strong certificate (i.e. non-self-signed).
 	} else if name == "strong" {
@@ -329,10 +329,10 @@ func GroupMemberCheck(current *Channel, aclchan *Channel, name string, client *C
 		}
 
 		for _, group := range groups {
-			if group.AddContains(client.UserId) || group.TemporaryContains(client.UserId) || group.TemporaryContains(-int(client.Session)) {
+			if group.AddContains(client.UserId()) || group.TemporaryContains(client.UserId()) || group.TemporaryContains(-int(client.Session)) {
 				member = true
 			}
-			if group.RemoveContains(client.UserId) {
+			if group.RemoveContains(client.UserId()) {
 				member = false
 			}
 		}

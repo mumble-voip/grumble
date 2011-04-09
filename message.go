@@ -223,7 +223,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 		}
 
 		// Only registered users can create channels.
-		if client.UserId < 0 && len(client.Hash) == 0 {
+		if !client.IsRegistered() && !client.HasCertificate() {
 			client.sendPermissionDeniedTypeUser("MissingCertificate", client)
 			return
 		}
@@ -251,9 +251,9 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 		}
 
 		// Add the creator to the channel's admin group
-		if client.UserId >= 0 {
+		if client.IsRegistered() {
 			grp := NewGroup(channel, "admin")
-			grp.Add[client.UserId] = true
+			grp.Add[client.UserId()] = true
 			channel.Groups["admin"] = grp
 		}
 
@@ -263,10 +263,10 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 			acl := NewChannelACL(channel)
 			acl.ApplyHere = true
 			acl.ApplySubs = true
-			if client.UserId >= 0 {
-				acl.UserId = client.UserId
+			if client.IsRegistered() {
+				acl.UserId = client.UserId()
 			} else {
-				acl.Group = "$" + client.Hash
+				acl.Group = "$" + client.CertHash
 			}
 			acl.Deny = Permission(NonePermission)
 			acl.Allow = Permission(WritePermission | TraversePermission)
@@ -464,8 +464,8 @@ func (server *Server) handleUserRemoveMessage(client *Client, msg *Message) {
 		client.Panic(err.String())
 	}
 
-	// Get the user to be removed.
-	user, ok := server.clients[*userremove.Session]
+	// Get the client to be removed.
+	removeClient, ok := server.clients[*userremove.Session]
 	if !ok {
 		client.Panic("Invalid session in UserRemove message")
 		return
@@ -476,12 +476,13 @@ func (server *Server) handleUserRemoveMessage(client *Client, msg *Message) {
 		ban = *userremove.Ban
 	}
 
-	// Check user's permissions
+	// Check client's permissions
 	perm := Permission(KickPermission)
 	if ban {
 		perm = Permission(BanPermission)
 	}
-	if user.UserId == 0 || !server.HasPermission(client, server.root, perm) {
+
+	if removeClient.IsSuperUser() || !server.HasPermission(client, server.root, perm) {
 		client.sendPermissionDenied(client, server.root, perm)
 		return
 	}
@@ -497,7 +498,7 @@ func (server *Server) handleUserRemoveMessage(client *Client, msg *Message) {
 		return
 	}
 
-	user.ForceDisconnect()
+	removeClient.ForceDisconnect()
 }
 
 // Handle user state changes
@@ -513,16 +514,16 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 		log.Panic("Client not found in server's client map.")
 		return
 	}
-	user := actor
+	target := actor
 	if userstate.Session != nil {
-		user, ok = server.clients[*userstate.Session]
+		target, ok = server.clients[*userstate.Session]
 		if !ok {
 			client.Panic("Invalid session in UserState message")
 			return
 		}
 	}
 
-	userstate.Session = proto.Uint32(user.Session)
+	userstate.Session = proto.Uint32(target.Session)
 	userstate.Actor = proto.Uint32(actor.Session)
 
 	// Does it have a channel ID?
@@ -535,15 +536,15 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 
 		// If the user and the actor aren't the same, check whether the actor has MovePermission on
 		// the user's curent channel.
-		if actor != user && !server.HasPermission(actor, user.Channel, MovePermission) {
-			client.sendPermissionDenied(actor, user.Channel, MovePermission)
+		if actor != target && !server.HasPermission(actor, target.Channel, MovePermission) {
+			client.sendPermissionDenied(actor, target.Channel, MovePermission)
 			return
 		}
 
 		// Check whether the actor has MovePermission on dstChan.  Check whether user has EnterPermission
 		// on dstChan.
-		if !server.HasPermission(actor, dstChan, MovePermission) && !server.HasPermission(user, dstChan, EnterPermission) {
-			client.sendPermissionDenied(user, dstChan, EnterPermission)
+		if !server.HasPermission(actor, dstChan, MovePermission) && !server.HasPermission(target, dstChan, EnterPermission) {
+			client.sendPermissionDenied(target, dstChan, EnterPermission)
 			return
 		}
 
@@ -552,20 +553,20 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 
 	if userstate.Mute != nil || userstate.Deaf != nil || userstate.Suppress != nil || userstate.PrioritySpeaker != nil {
 		// Disallow for SuperUser
-		if user.UserId == 0 {
+		if target.IsSuperUser() {
 			client.sendPermissionDeniedType("SuperUser")
 			return
 		}
 
 		// Check whether the actor has 'mutedeafen' permission on user's channel.
-		if !server.HasPermission(actor, user.Channel, MuteDeafenPermission) {
-			client.sendPermissionDenied(actor, user.Channel, MuteDeafenPermission)
+		if !server.HasPermission(actor, target.Channel, MuteDeafenPermission) {
+			client.sendPermissionDenied(actor, target.Channel, MuteDeafenPermission)
 			return
 		}
 
 		// Check if this was a suppress operation. Only the server can suppress users.
 		if userstate.Suppress != nil {
-			client.sendPermissionDenied(actor, user.Channel, MuteDeafenPermission)
+			client.sendPermissionDenied(actor, target.Channel, MuteDeafenPermission)
 			return
 		}
 	}
@@ -575,7 +576,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 		comment := *userstate.Comment
 
 		// Clearing another user's comment.
-		if user != actor {
+		if target != actor {
 			// Check if actor has 'move' permissions on the root channel. It is needed
 			// to clear another user's comment.
 			if !server.HasPermission(actor, server.root, MovePermission) {
@@ -594,7 +595,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 
 		// Only set the comment if it is different from the current
 		// user comment.
-		if comment == user.Comment {
+		if comment == target.Comment {
 			userstate.Comment = nil
 		}
 	}
@@ -610,7 +611,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 		// If user != actor, check for RegisterPermission permission on root channel.
 		permCheck := Permission(NonePermission)
 		uid := *userstate.UserId
-		if user == actor {
+		if target == actor {
 			permCheck = SelfRegisterPermission
 		} else {
 			permCheck = RegisterPermission
@@ -621,8 +622,8 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 		}
 
 		// We can't register a user with an empty hash.
-		if len(user.Hash) == 0 {
-			client.sendPermissionDeniedTypeUser("MissingCertificate", user)
+		if len(target.CertHash) == 0 {
+			client.sendPermissionDeniedTypeUser("MissingCertificate", target)
 		}
 	}
 
@@ -635,7 +636,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	//      - PluginContext
 	//      - PluginIdentity
 	//      - Recording
-	if actor != user && (userstate.SelfDeaf != nil || userstate.SelfMute != nil ||
+	if actor != target && (userstate.SelfDeaf != nil || userstate.SelfMute != nil ||
 		userstate.Texture != nil || userstate.PluginContext != nil || userstate.PluginIdentity != nil ||
 		userstate.Recording != nil) {
 		client.Panic("Invalid UserState")
@@ -645,86 +646,86 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	broadcast := false
 
 	if userstate.Texture != nil {
-		user.Texture = userstate.Texture
-		if len(user.Texture) >= 128 {
+		target.Texture = userstate.Texture
+		if len(target.Texture) >= 128 {
 			hash := sha1.New()
-			hash.Write(user.Texture)
-			user.TextureHash = hash.Sum()
+			hash.Write(target.Texture)
+			target.TextureHash = hash.Sum()
 		} else {
-			user.TextureHash = []byte{}
+			target.TextureHash = []byte{}
 		}
 		broadcast = true
 	}
 
 	if userstate.SelfDeaf != nil {
-		user.SelfDeaf = *userstate.SelfDeaf
-		if user.SelfDeaf {
+		target.SelfDeaf = *userstate.SelfDeaf
+		if target.SelfDeaf {
 			userstate.SelfDeaf = proto.Bool(true)
-			user.SelfMute = true
+			target.SelfMute = true
 		}
 		broadcast = true
 	}
 
 	if userstate.SelfMute != nil {
-		user.SelfMute = *userstate.SelfMute
-		if !user.SelfMute {
+		target.SelfMute = *userstate.SelfMute
+		if !target.SelfMute {
 			userstate.SelfDeaf = proto.Bool(false)
-			user.SelfDeaf = false
+			target.SelfDeaf = false
 		}
 	}
 
 	if userstate.PluginContext != nil {
-		user.PluginContext = userstate.PluginContext
+		target.PluginContext = userstate.PluginContext
 	}
 
 	if userstate.PluginIdentity != nil {
-		user.PluginIdentity = *userstate.PluginIdentity
+		target.PluginIdentity = *userstate.PluginIdentity
 	}
 
 	if userstate.Comment != nil {
-		user.Comment = *userstate.Comment
-		if len(user.Comment) >= 128 {
+		target.Comment = *userstate.Comment
+		if len(target.Comment) >= 128 {
 			hash := sha1.New()
-			hash.Write([]byte(user.Comment))
-			user.CommentHash = hash.Sum()
+			hash.Write([]byte(target.Comment))
+			target.CommentHash = hash.Sum()
 		} else {
-			user.CommentHash = []byte{}
+			target.CommentHash = []byte{}
 		}
 		broadcast = true
 	}
 
 	if userstate.Mute != nil || userstate.Deaf != nil || userstate.Suppress != nil || userstate.PrioritySpeaker != nil {
 		if userstate.Deaf != nil {
-			user.Deaf = *userstate.Deaf
-			if user.Deaf {
+			target.Deaf = *userstate.Deaf
+			if target.Deaf {
 				userstate.Mute = proto.Bool(true)
 			}
 		}
 		if userstate.Mute != nil {
-			user.Mute = *userstate.Mute
-			if !user.Mute {
+			target.Mute = *userstate.Mute
+			if !target.Mute {
 				userstate.Deaf = proto.Bool(false)
-				user.Deaf = false
+				target.Deaf = false
 			}
 		}
 		if userstate.Suppress != nil {
-			user.Suppress = *userstate.Suppress
+			target.Suppress = *userstate.Suppress
 		}
 		if userstate.PrioritySpeaker != nil {
-			user.PrioritySpeaker = *userstate.PrioritySpeaker
+			target.PrioritySpeaker = *userstate.PrioritySpeaker
 		}
 		broadcast = true
 	}
 
-	if userstate.Recording != nil && *userstate.Recording != user.Recording {
-		user.Recording = *userstate.Recording
+	if userstate.Recording != nil && *userstate.Recording != target.Recording {
+		target.Recording = *userstate.Recording
 
 		txtmsg := &mumbleproto.TextMessage{}
 		txtmsg.TreeId = append(txtmsg.TreeId, uint32(0))
-		if user.Recording {
-			txtmsg.Message = proto.String(fmt.Sprintf("User '%s' started recording", user.Username))
+		if target.Recording {
+			txtmsg.Message = proto.String(fmt.Sprintf("User '%s' started recording", target.Username))
 		} else {
-			txtmsg.Message = proto.String(fmt.Sprintf("User '%s' stopped recording", user.Username))
+			txtmsg.Message = proto.String(fmt.Sprintf("User '%s' stopped recording", target.Username))
 		}
 
 		server.broadcastProtoMessageWithPredicate(MessageTextMessage, txtmsg, func(client *Client) bool {
@@ -743,7 +744,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	if userstate.ChannelId != nil {
 		channel, ok := server.Channels[int(*userstate.ChannelId)]
 		if ok {
-			server.userEnterChannel(user, channel, userstate)
+			server.userEnterChannel(target, channel, userstate)
 			broadcast = true
 		}
 	}
@@ -754,10 +755,10 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 		// textures that were sent over the wire. We can use this to determine
 		// whether a texture is a "new style" or an "old style" texture.
 		texlen := uint32(0)
-		if user.Texture != nil && len(user.Texture) > 4 {
-			texlen = uint32(user.Texture[0])<<24 | uint32(user.Texture[1])<<16 | uint32(user.Texture[2])<<8 | uint32(user.Texture[3])
+		if target.Texture != nil && len(target.Texture) > 4 {
+			texlen = uint32(target.Texture[0])<<24 | uint32(target.Texture[1])<<16 | uint32(target.Texture[2])<<8 | uint32(target.Texture[3])
 		}
-		if userstate.Texture != nil && len(user.Texture) > 4 && texlen != 600*60*4 {
+		if userstate.Texture != nil && len(target.Texture) > 4 && texlen != 600*60*4 {
 			// The sent texture is a new-style texture.  Strip it from the message
 			// we send to pre-1.2.2 clients.
 			userstate.Texture = nil
@@ -768,7 +769,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 				log.Panic("Unable to broadcast UserState")
 			}
 			// Re-add it to the message, so that 1.2.2+ clients *do* get the new-style texture.
-			userstate.Texture = user.Texture
+			userstate.Texture = target.Texture
 		} else {
 			// Old style texture.  We can send the message as-is.
 			err := server.broadcastProtoMessageWithPredicate(MessageUserState, userstate, func(client *Client) bool {
@@ -782,14 +783,14 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 		// If a texture hash is set on user, we transmit that instead of
 		// the texture itself. This allows the client to intelligently fetch
 		// the blobs that it does not already have in its local storage.
-		if userstate != nil && len(user.TextureHash) > 0 {
+		if userstate != nil && len(target.TextureHash) > 0 {
 			userstate.Texture = nil
-			userstate.TextureHash = user.TextureHash
+			userstate.TextureHash = target.TextureHash
 		}
 		// Ditto for comments.
-		if userstate.Comment != nil && len(user.CommentHash) > 0 {
+		if userstate.Comment != nil && len(target.CommentHash) > 0 {
 			userstate.Comment = nil
-			userstate.CommentHash = user.CommentHash
+			userstate.CommentHash = target.CommentHash
 		}
 
 		err := server.broadcastProtoMessageWithPredicate(MessageUserState, userstate, func(client *Client) bool {
@@ -816,7 +817,7 @@ func (server *Server) handleTextMessage(client *Client, msg *Message) {
 	// fixme(mkrautz): Check text message length.
 	// fixme(mkrautz): Sanitize text as well.
 
-	users := make(map[uint32]*Client)
+	clients := make(map[uint32]*Client)
 
 	// Tree
 	for _, chanid := range txtmsg.TreeId {
@@ -824,8 +825,8 @@ func (server *Server) handleTextMessage(client *Client, msg *Message) {
 			if !server.HasPermission(client, channel, TextMessagePermission) {
 				client.sendPermissionDenied(client, channel, TextMessagePermission)
 			}
-			for _, user := range channel.clients {
-				users[user.Session] = user
+			for _, target := range channel.clients {
+				clients[target.Session] = target
 			}
 		}
 	}
@@ -837,28 +838,28 @@ func (server *Server) handleTextMessage(client *Client, msg *Message) {
 				client.sendPermissionDenied(client, channel, TextMessagePermission)
 				return
 			}
-			for _, user := range channel.clients {
-				users[user.Session] = user
+			for _, target := range channel.clients {
+				clients[target.Session] = target
 			}
 		}
 	}
 
-	// Direct-to-users
+	// Direct-to-clients
 	for _, session := range txtmsg.Session {
-		if user, ok := server.clients[session]; ok {
-			if !server.HasPermission(client, user.Channel, TextMessagePermission) {
-				client.sendPermissionDenied(client, user.Channel, TextMessagePermission)
+		if target, ok := server.clients[session]; ok {
+			if !server.HasPermission(client, target.Channel, TextMessagePermission) {
+				client.sendPermissionDenied(client, target.Channel, TextMessagePermission)
 				return
 			}
-			users[session] = user
+			clients[session] = target
 		}
 	}
 
 	// Remove ourselves
-	users[client.Session] = nil, false
+	clients[client.Session] = nil, false
 
-	for _, user := range users {
-		user.sendProtoMessage(MessageTextMessage, &mumbleproto.TextMessage{
+	for _, target := range clients {
+		target.sendProtoMessage(MessageTextMessage, &mumbleproto.TextMessage{
 			Actor:   proto.Uint32(client.Session),
 			Message: txtmsg.Message,
 		})
@@ -1052,17 +1053,16 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 		server.ClearACLCache()
 
 		// Regular user?
-		if !server.HasPermission(client, channel, WritePermission) && (client.UserId >= 0 || len(client.Hash) > 0) {
+		if !server.HasPermission(client, channel, WritePermission) && client.IsRegistered() || client.HasCertificate() {
 			chanacl := NewChannelACL(channel)
 
 			chanacl.ApplyHere = true
 			chanacl.ApplySubs = false
-			if client.UserId >= 0 {
-				chanacl.UserId = client.UserId
-			} else {
-				chanacl.Group = "$" + client.Hash
+			if client.IsRegistered() {
+				chanacl.UserId = client.UserId()
+			} else if client.HasCertificate() {
+				chanacl.Group = "$" + client.CertHash
 			}
-			chanacl.UserId = client.UserId
 			chanacl.Deny = Permission(NonePermission)
 			chanacl.Allow = Permission(WritePermission | TraversePermission)
 
@@ -1121,11 +1121,11 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 	// Request for user textures
 	if len(blobreq.SessionTexture) > 0 {
 		for _, sid := range blobreq.SessionTexture {
-			if user, ok := server.clients[sid]; ok {
-				if len(user.Texture) > 0 {
+			if target, ok := server.clients[sid]; ok {
+				if len(target.Texture) > 0 {
 					userstate.Reset()
-					userstate.Session = proto.Uint32(uint32(user.Session))
-					userstate.Texture = user.Texture
+					userstate.Session = proto.Uint32(uint32(target.Session))
+					userstate.Texture = target.Texture
 					if err := client.sendProtoMessage(MessageUserState, userstate); err != nil {
 						client.Panic(err.String())
 						return
@@ -1138,11 +1138,11 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 	// Request for user comments
 	if len(blobreq.SessionComment) > 0 {
 		for _, sid := range blobreq.SessionComment {
-			if user, ok := server.clients[sid]; ok {
-				if len(user.Comment) > 0 {
+			if target, ok := server.clients[sid]; ok {
+				if len(target.Comment) > 0 {
 					userstate.Reset()
-					userstate.Session = proto.Uint32(uint32(user.Session))
-					userstate.Comment = proto.String(user.Comment)
+					userstate.Session = proto.Uint32(uint32(target.Session))
+					userstate.Comment = proto.String(target.Comment)
 					if err := client.sendProtoMessage(MessageUserState, userstate); err != nil {
 						client.Panic(err.String())
 						return

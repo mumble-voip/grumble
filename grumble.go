@@ -100,7 +100,6 @@ func main() {
 	}
 	log.Printf("Using blob directory: %s", *blobdir)
 
-
 	// Should we import data from a Murmur SQLite file?
 	if len(*sqlitedb) > 0 {
 		f, err := os.Open(*datadir)
@@ -139,7 +138,7 @@ func main() {
 
 	f, err := os.Open(*datadir)
 	if err != nil {
-			log.Fatalf("Murmur import failed: %s", err.String())
+		log.Fatalf("Murmur import failed: %s", err.String())
 	}
 	defer f.Close()
 

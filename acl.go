@@ -143,7 +143,7 @@ func NewChannelACL(channel *Channel) *ChannelACL {
 // and not a combination of permissions.
 func (server *Server) HasPermission(client *Client, channel *Channel, perm Permission) bool {
 	// SuperUser can't speak or whisper, but everything else is OK	
-	if client.UserId == 0 {
+	if client.IsSuperUser() {
 		if perm == SpeakPermission || perm == WhisperPermission {
 			return false
 		}
@@ -193,7 +193,7 @@ func (server *Server) HasPermission(client *Client, channel *Channel, perm Permi
 			//
 			// If it's a group ACL, we have to parse and interpret the group string in the
 			// current context to determine membership. For that we use GroupMemberCheck.
-			matchUser := acl.IsUserACL() && acl.UserId == client.UserId
+			matchUser := acl.IsUserACL() && acl.UserId == client.UserId()
 			matchGroup := GroupMemberCheck(channel, iter, acl.Group, client)
 			if matchUser || matchGroup {
 				if acl.Allow.IsSet(TraversePermission) {

@@ -104,16 +104,7 @@ func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 	s.MaxUsers = 10
 
 	s.Channels = make(map[int]*Channel)
-
 	s.root = s.NewChannel(0, "Root")
-
-	/*
-	err = s.addChannelsFromDB(0)
-	if err != nil {
-		return nil, err
-	}
-	*/
-
 	s.aclcache = NewACLCache()
 
 	return
@@ -122,7 +113,7 @@ func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 // Check whether password matches the set SuperUser password.
 func (server *Server) CheckSuperUserPassword(password string) bool {
 	parts := strings.Split(server.superUserPassword, "$", -1)
-	if len(parts) != 3  {
+	if len(parts) != 3 {
 		return false
 	}
 
@@ -174,7 +165,7 @@ func (server *Server) NewClient(conn net.Conn) (err os.Error) {
 	client.msgchan = make(chan *Message)
 	client.udprecv = make(chan []byte)
 
-	client.UserId = -1
+	client.user = nil
 
 	go client.receiver()
 	go client.udpreceiver()
@@ -334,10 +325,47 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	if len(state.PeerCertificates) > 0 {
 		hash := sha1.New()
 		hash.Write(state.PeerCertificates[0].Raw)
-		client.Hash = hex.EncodeToString(hash.Sum())
+		sum := hash.Sum()
+		client.CertHash = hex.EncodeToString(sum)
 	}
 
-	log.Printf("hash=%s", client.Hash)
+	if client.Username == "SuperUser" {
+		if auth.Password == nil {
+			client.RejectAuth("WrongUserPW", "")
+			return
+		} else {
+			if server.CheckSuperUserPassword(*auth.Password) {
+				client.superUser = true
+			} else {
+				client.RejectAuth("WrongUserPW", "")
+				return
+			}
+		}
+	} else {
+		// First look up registration by name.
+		user, exists := server.UserNameMap[client.Username]
+		if exists {
+			if user.CertHash == client.CertHash {
+				client.user = user
+			} else {
+				client.Panic("Invalid cert hash for user")
+				return
+			}
+		}
+
+		// Name matching didn't do.  Try matching by certificate.
+		if client.user == nil {
+			user, exists := server.UserCertMap[client.CertHash]
+			if exists {
+				client.user = user
+			}
+		}
+
+		// Found a user for this guy
+		if client.user != nil {
+			log.Printf("Client authenticated as %v", client.user.Name)
+		}
+	}
 
 	// Setup the cryptstate for the client.
 	client.crypt, err = cryptstate.New()
@@ -383,29 +411,13 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	server.hclients[host] = append(server.hclients[host], client)
 	server.hmutex.Unlock()
 
-	// SuperUser login check
-	if client.Username == "SuperUser" {
-		// No password specified
-		if auth.Password == nil {
-			client.RejectAuth("WrongUserPW", "")
-			return
-		} else {
-			if server.CheckSuperUserPassword(*auth.Password) {
-				client.UserId = 0
-			} else {
-				client.RejectAuth("WrongUserPW", "")
-				return
-			}
-		}
-	}
-
 	userstate := &mumbleproto.UserState{
 		Session:   proto.Uint32(client.Session),
 		Name:      proto.String(client.Username),
 		ChannelId: proto.Uint32(0),
 	}
-	if client.UserId >= 0 {
-		userstate.UserId = proto.Uint32(uint32(client.UserId))
+	if client.IsRegistered() {
+		userstate.UserId = proto.Uint32(uint32(client.UserId()))
 	}
 	server.userEnterChannel(client, server.root, userstate)
 	if err := server.broadcastProtoMessage(MessageUserState, userstate); err != nil {
@@ -417,7 +429,7 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	sync := &mumbleproto.ServerSync{}
 	sync.Session = proto.Uint32(client.Session)
 	sync.MaxBandwidth = proto.Uint32(server.MaxBandwidth)
-	if client.UserId == 0 {
+	if client.IsSuperUser() {
 		sync.Permissions = proto.Uint64(uint64(AllPermissions))
 	} else {
 		server.HasPermission(client, server.root, EnterPermission)
@@ -532,7 +544,7 @@ func (server *Server) sendUserList(client *Client) {
 // Send a client its permissions for channel.
 func (server *Server) sendClientPermissions(client *Client, channel *Channel) {
 	// No caching for SuperUser
-	if client.UserId == 0 {
+	if client.IsSuperUser() {
 		return
 	}
 
