@@ -413,7 +413,7 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 
 	userstate := &mumbleproto.UserState{
 		Session:   proto.Uint32(client.Session),
-		Name:      proto.String(client.Username),
+		Name:      proto.String(client.ShownName()),
 		ChannelId: proto.Uint32(0),
 	}
 	if client.IsRegistered() {
