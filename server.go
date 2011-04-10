@@ -32,6 +32,7 @@ const (
 	StateServerSentVersion
 	StateClientSentVersion
 	StateClientAuthenticated
+	StateClientReady
 	StateClientDead
 )
 
@@ -46,6 +47,10 @@ type Server struct {
 	incoming       chan *Message
 	udpsend        chan *Message
 	voicebroadcast chan *VoiceBroadcast
+	usercheck      chan *userCheck
+	// Signals to the server that a client has been successfully
+	// authenticated.
+	clientAuthenticated chan *Client
 
 	// Config-related
 	MaxUsers     int
@@ -80,6 +85,12 @@ type Server struct {
 	aclcache ACLCache
 }
 
+type userCheck struct {
+	done   chan bool
+	UserId int
+	Addr   string
+}
+
 // Allocate a new Murmur instance
 func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 	s = new(Server)
@@ -99,6 +110,8 @@ func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 	s.incoming = make(chan *Message)
 	s.udpsend = make(chan *Message)
 	s.voicebroadcast = make(chan *VoiceBroadcast)
+	s.usercheck = make(chan *userCheck)
+	s.clientAuthenticated = make(chan *Client)
 
 	s.MaxBandwidth = 300000
 	s.MaxUsers = 10
@@ -169,6 +182,8 @@ func (server *Server) NewClient(conn net.Conn) (err os.Error) {
 
 	go client.receiver()
 	go client.udpreceiver()
+
+	client.doneSending = make(chan bool)
 	go client.sender()
 
 	return
@@ -203,7 +218,7 @@ func (server *Server) RemoveClient(client *Client, kicked bool) {
 	// If the user was not kicked, broadcast a UserRemove message.
 	// If the user is disconnect via a kick, the UserRemove message has already been sent
 	// at this point.
-	if !kicked {
+	if !kicked && client.state > StateClientAuthenticated {
 		err := server.broadcastProtoMessage(MessageUserRemove, &mumbleproto.UserRemove{
 			Session: proto.Uint32(client.Session),
 		})
@@ -269,11 +284,7 @@ func (server *Server) handler() {
 		// Control channel messages
 		case msg := <-server.incoming:
 			client := msg.client
-			if client.state == StateClientAuthenticated {
-				server.handleIncomingMessage(client, msg)
-			} else if client.state == StateClientSentVersion {
-				server.handleAuthenticate(client, msg)
-			}
+			server.handleIncomingMessage(client, msg)
 		// Voice broadcast
 		case vb := <-server.voicebroadcast:
 			log.Printf("VoiceBroadcast!")
@@ -288,11 +299,34 @@ func (server *Server) handler() {
 					}
 				}
 			}
+		// Finish client authentication. Send post-authentication
+		// server info.
+		case client := <-server.clientAuthenticated:
+			server.finishAuthenticate(client)
+		// User checking
+		case checker := <-server.usercheck:
+			found := false
+			for _, client := range server.clients {
+				if client.UserId() == checker.UserId {
+					checker.Addr = client.tcpaddr.String()
+					checker.done <- true
+					found = true
+					break
+				}
+			}
+			if !found {
+				checker.done <- false
+			}
 		}
 	}
 }
 
-// Handle a Authenticate protobuf message.
+// Handle an Authenticate protobuf message.  This is handled in a separate
+// goroutine to allow for remote authenticators that are slow to respond.
+//
+// Once a user has been authenticated, it will ping the server's handler
+// routine, which will call the finishAuthenticate method on Server which
+// will send the channel tree, user list, etc. to the client.
 func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	// Is this message not an authenticate message? If not, discard it...
 	if msg.kind != MessageAuthenticate {
@@ -309,7 +343,7 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 
 	// Did we get a username?
 	if auth.Username == nil {
-		client.Panic("No username in auth message...")
+		client.RejectAuth("InvalidUsername", "Please specify a username to log in")
 		return
 	}
 
@@ -318,7 +352,7 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	// Extract certhash
 	tlsconn, ok := client.conn.(*tls.Conn)
 	if !ok {
-		client.Panic("Type assertion failed")
+		client.Panic("Invalid connection")
 		return
 	}
 	state := tlsconn.ConnectionState()
@@ -363,7 +397,20 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 
 		// Found a user for this guy
 		if client.user != nil {
-			log.Printf("Client authenticated as %v", client.user.Name)
+			// Ask the server whether someone's already connecting using that user.
+			// This is a request to the Server's synchronous handler routine (the
+			// only routine that is guaranteed correct access to the internal client
+			// data).
+			checker := &userCheck{make(chan bool), int(client.user.Id), ""}
+			server.usercheck <- checker
+			foundUser := <-checker.done
+			if foundUser {
+				// todo(mkrautz): Murmur allows reconnects from same IP. That's pretty useful.
+				client.RejectAuth("UsernameInUse", "Someone else is already connected as this user")
+				return
+			} else {
+				log.Printf("Client authenticated as %v", client.user.Name)
+			}
 		}
 	}
 
@@ -390,20 +437,28 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 		client.Panic(err.String())
 	}
 
-	// Add the client to the connected list
-	server.session += 1
-	client.Session = server.session
-	server.clients[client.Session] = client
-
 	// Add codecs
 	client.codecs = auth.CeltVersions
 	if len(client.codecs) == 0 {
 		log.Printf("Client %i connected without CELT codecs.", client.Session)
 	}
+
+	client.state = StateClientAuthenticated
+	server.clientAuthenticated <- client
+}
+
+func (server *Server) finishAuthenticate(client *Client) {
+	// Add the client to the connected list
+	client.Session = server.session
+	server.clients[client.Session] = client
+	log.Printf("Assigned client session=%v", client.Session)
+	server.session += 1
+
+	// First, check whether we need to tell the other connected
+	// clients to switch to a codec so the new guy can actually speak.
 	server.updateCodecVersions()
 
 	client.sendChannelList()
-	client.state = StateClientAuthenticated
 
 	// Add the client to the host slice for its host address.
 	host := client.tcpaddr.IP.String()
@@ -441,12 +496,12 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 		perm.ClearCacheBit()
 		sync.Permissions = proto.Uint64(uint64(perm))
 	}
-	if err = client.sendProtoMessage(MessageServerSync, sync); err != nil {
+	if err := client.sendProtoMessage(MessageServerSync, sync); err != nil {
 		client.Panic(err.String())
 		return
 	}
 
-	err = client.sendProtoMessage(MessageServerConfig, &mumbleproto.ServerConfig{
+	err := client.sendProtoMessage(MessageServerConfig, &mumbleproto.ServerConfig{
 		AllowHtml:          proto.Bool(true),
 		MessageLength:      proto.Uint32(1000),
 		ImageMessageLength: proto.Uint32(1000),
@@ -456,7 +511,8 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 		return
 	}
 
-	client.state = StateClientAuthenticated
+	client.state = StateClientReady
+	client.clientReady <- true
 }
 
 func (server *Server) updateCodecVersions() {
@@ -519,7 +575,7 @@ func (server *Server) updateCodecVersions() {
 
 func (server *Server) sendUserList(client *Client) {
 	for _, user := range server.clients {
-		if user.state != StateClientAuthenticated {
+		if user.state != StateClientReady {
 			continue
 		}
 		if user == client {
@@ -568,7 +624,7 @@ func (server *Server) broadcastProtoMessageWithPredicate(kind uint16, msg interf
 		if !clientcheck(client) {
 			continue
 		}
-		if client.state != StateClientAuthenticated {
+		if client.state < StateClientAuthenticated {
 			continue
 		}
 		err := client.sendProtoMessage(kind, msg)

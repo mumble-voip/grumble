@@ -28,8 +28,9 @@ type Client struct {
 	state   int
 	server  *Server
 
-	msgchan chan *Message
-	udprecv chan []byte
+	msgchan     chan *Message
+	udprecv     chan []byte
+	doneSending chan bool
 
 	disconnected bool
 
@@ -45,6 +46,13 @@ type Client struct {
 	// Note that Grumble doesn't store credentials of the SuperUser in
 	// the user data store, so we have to keep track of it separately.
 	superUser bool
+
+	// The clientReady channel signals the client's reciever routine that
+	// the client has been successfully authenticated and that it has been
+	// sent the necessary information to be a participant on the server.
+	// When this signal is received, the client has transitioned into the
+	// 'ready' state.
+	clientReady chan bool
 
 	// Version
 	Version    uint32
@@ -123,6 +131,23 @@ func (client *Client) disconnect(kicked bool) {
 	if !client.disconnected {
 		client.disconnected = true
 		close(client.udprecv)
+
+		// If the client paniced during authentication, before reaching
+		// the ready state, the receiver goroutine will be waiting for
+		// a signal telling it that the client is ready to receive 'real'
+		// messages from the server.
+		//
+		// In case of a premature disconnect, close the channel so the
+		// receiver routine can exit correctly.
+		if client.state == StateClientSentVersion || client.state == StateClientAuthenticated {
+			close(client.clientReady)
+		}
+
+		// Cleanly shut down the sender goroutine. This should be non-blocking
+		// since we're writing to a bufio.Writer.
+		// todo(mkrautz): Check whether that's the case? We do a flush, so maybe not.
+		client.msgchan <- nil
+		<-client.doneSending
 		close(client.msgchan)
 
 		client.conn.Close()
@@ -259,7 +284,8 @@ func (c *Client) sendPermissionDeniedFallback(kind string, version uint32, text 
 // UDP receiver.
 func (client *Client) udpreceiver() {
 	for buf := range client.udprecv {
-		// Channel close.
+		// Received a zero-valued buffer. This means that the udprecv
+		// channel was closed, so exit cleanly.
 		if len(buf) == 0 {
 			return
 		}
@@ -328,42 +354,60 @@ func (client *Client) sendUdp(msg *Message) {
 	}
 }
 
+// Send a Message to the client.  The Message in msg to the client's
+// buffered writer and flushes it when done.
+//
+// This method should only be called from within the client's own
+// sender goroutine, since it serializes access to the underlying
+// buffered writer.
+func (client *Client) sendMessage(msg *Message) os.Error {
+	// Write message kind
+	err := binary.Write(client.writer, binary.BigEndian, msg.kind)
+	if err != nil {
+		return err
+	}
 
+	// Message length
+	err = binary.Write(client.writer, binary.BigEndian, uint32(len(msg.buf)))
+	if err != nil {
+		return err
+	}
+
+	// Message buffer itself
+	_, err = client.writer.Write(msg.buf)
+	if err != nil {
+		return err
+	}
+
+	// Flush it, no need to keep it in the buffer for any longer.
+	err = client.writer.Flush()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Sender Goroutine.  The sender goroutine will initiate shutdown
+// if it receives a nil Message.
 //
-// Sender Goroutine
-//
+// On shutdown, it will send a true boolean value on the client's
+// doneSending channel.  This allows the client to send all the messages
+// that remain in it's buffer when the server has to force a disconnect.
 func (client *Client) sender() {
+	defer func() {
+		client.doneSending <- true
+	}()
+
 	for msg := range client.msgchan {
-		// Check for channel close.
-		if len(msg.buf) == 0 {
+		if msg == nil {
 			return
 		}
 
-		// First, we write out the message type as a big-endian uint16
-		err := binary.Write(client.writer, binary.BigEndian, msg.kind)
+		err := client.sendMessage(msg)
 		if err != nil {
-			client.Panic("Unable to write message type to client")
-			return
-		}
-
-		// Then the length of the protobuf message
-		err = binary.Write(client.writer, binary.BigEndian, uint32(len(msg.buf)))
-		if err != nil {
-			client.Panic("Unable to write message length to client")
-			return
-		}
-
-		// At last, write the buffer itself
-		_, err = client.writer.Write(msg.buf)
-		if err != nil {
-			client.Panic("Unable to write message content to client")
-			return
-		}
-
-		// Flush the write buffer
-		err = client.writer.Flush()
-		if err != nil {
-			client.Panic("Unable to flush client write buffer")
+			// fixme(mkrautz): This is a deadlock waiting to happen.
+			client.Panic("Unable to send message to client")
 			return
 		}
 	}
@@ -372,8 +416,9 @@ func (client *Client) sender() {
 // Receiver Goroutine
 func (client *Client) receiver() {
 	for {
-		// The version handshake is done. Forward this message to the synchronous request handler.
-		if client.state == StateClientAuthenticated || client.state == StateClientSentVersion {
+		// The version handshake is done, the client has been authenticated and it has received
+		// all necessary information regarding the server.  Now we're ready to roll!
+		if client.state == StateClientReady {
 			// Try to read the next message in the pool
 			msg, err := client.readProtoMessage()
 			if err != nil {
@@ -393,6 +438,30 @@ func (client *Client) receiver() {
 			} else {
 				client.server.incoming <- msg
 			}
+		}
+
+		// The client has responded to our version query. It will try to authenticate.
+		if client.state == StateClientSentVersion {
+			// Try to read the next message in the pool
+			msg, err := client.readProtoMessage()
+			if err != nil {
+				client.Panic(err.String())
+				return
+			}
+
+			client.clientReady = make(chan bool)
+			go client.server.handleAuthenticate(client, msg)
+			<-client.clientReady
+
+			// It's possible that the client has disconnected in the meantime.
+			// In that case, step out of the receiver, since there's nothing left
+			// to receive.
+			if client.disconnected {
+				return
+			}
+
+			close(client.clientReady)
+			client.clientReady = nil
 		}
 
 		// The client has just connected. Before it sends its authentication
