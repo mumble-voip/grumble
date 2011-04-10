@@ -585,20 +585,19 @@ func (server *Server) updateCodecVersions() {
 }
 
 func (server *Server) sendUserList(client *Client) {
-	for _, user := range server.clients {
-		if user.state != StateClientReady {
+	for _, connectedClient := range server.clients {
+		if connectedClient.state != StateClientReady {
 			continue
 		}
-		if user == client {
+		if connectedClient == client {
 			continue
 		}
 
 		err := client.sendProtoMessage(MessageUserState, &mumbleproto.UserState{
-			Session:   proto.Uint32(user.Session),
-			Name:      proto.String(user.Username),
-			ChannelId: proto.Uint32(uint32(user.Channel.Id)),
+			Session:   proto.Uint32(connectedClient.Session),
+			Name:      proto.String(connectedClient.ShownName()),
+			ChannelId: proto.Uint32(uint32(connectedClient.Channel.Id)),
 		})
-		log.Printf("ChanId = %v", user.Channel.Id)
 
 		if err != nil {
 			// Server panic?

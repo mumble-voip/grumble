@@ -547,19 +547,3 @@ func (client *Client) sendChannelTree(channel *Channel) {
 		client.sendChannelTree(subchannel)
 	}
 }
-
-// Send the userlist to a client.
-func (client *Client) sendUserList() {
-	server := client.server
-	for _, client := range server.clients {
-		err := client.sendProtoMessage(MessageUserState, &mumbleproto.UserState{
-			Session:   proto.Uint32(client.Session),
-			Name:      proto.String(client.Username),
-			ChannelId: proto.Uint32(0),
-		})
-		if err != nil {
-			log.Printf("Unable to send UserList")
-			continue
-		}
-	}
-}

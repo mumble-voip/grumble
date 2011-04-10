@@ -723,9 +723,9 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 		txtmsg := &mumbleproto.TextMessage{}
 		txtmsg.TreeId = append(txtmsg.TreeId, uint32(0))
 		if target.Recording {
-			txtmsg.Message = proto.String(fmt.Sprintf("User '%s' started recording", target.Username))
+			txtmsg.Message = proto.String(fmt.Sprintf("User '%s' started recording", target.ShownName()))
 		} else {
-			txtmsg.Message = proto.String(fmt.Sprintf("User '%s' stopped recording", target.Username))
+			txtmsg.Message = proto.String(fmt.Sprintf("User '%s' stopped recording", target.ShownName()))
 		}
 
 		server.broadcastProtoMessageWithPredicate(MessageTextMessage, txtmsg, func(client *Client) bool {
