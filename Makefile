@@ -10,18 +10,21 @@ PACKAGES = \
 	pkg/packetdatastream \
 	pkg/cryptstate \
 	pkg/mumbleproto \
+	pkg/blobstore \
 	pkg/sqlite
 
 GCFLAGS = \
 	-Ipkg/cryptstate/_obj \
 	-Ipkg/packetdatastream/_obj \
 	-Ipkg/mumbleproto/_obj \
+	-Ipkg/blobstore/_obj \
 	-Ipkg/sqlite/_obj
 
 LDFLAGS = \
 	-Lpkg/cryptstate/_obj \
 	-Lpkg/packetdatastream/_obj \
 	-Lpkg/mumbleproto/_obj \
+	-Ipkg/blobstore/_obj \
 	-Lpkg/sqlite/_obj
 
 GOFILES = \
