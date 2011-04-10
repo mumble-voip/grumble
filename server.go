@@ -47,7 +47,7 @@ type Server struct {
 	incoming       chan *Message
 	udpsend        chan *Message
 	voicebroadcast chan *VoiceBroadcast
-	usercheck      chan *userCheck
+
 	// Signals to the server that a client has been successfully
 	// authenticated.
 	clientAuthenticated chan *Client
@@ -85,12 +85,6 @@ type Server struct {
 	aclcache ACLCache
 }
 
-type userCheck struct {
-	done   chan bool
-	UserId int
-	Addr   string
-}
-
 // Allocate a new Murmur instance
 func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 	s = new(Server)
@@ -110,7 +104,6 @@ func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 	s.incoming = make(chan *Message)
 	s.udpsend = make(chan *Message)
 	s.voicebroadcast = make(chan *VoiceBroadcast)
-	s.usercheck = make(chan *userCheck)
 	s.clientAuthenticated = make(chan *Client)
 
 	s.MaxBandwidth = 300000
@@ -303,20 +296,6 @@ func (server *Server) handler() {
 		// server info.
 		case client := <-server.clientAuthenticated:
 			server.finishAuthenticate(client)
-		// User checking
-		case checker := <-server.usercheck:
-			found := false
-			for _, client := range server.clients {
-				if client.UserId() == checker.UserId {
-					checker.Addr = client.tcpaddr.String()
-					checker.done <- true
-					found = true
-					break
-				}
-			}
-			if !found {
-				checker.done <- false
-			}
 		}
 	}
 }
@@ -394,24 +373,6 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 				client.user = user
 			}
 		}
-
-		// Found a user for this guy
-		if client.user != nil {
-			// Ask the server whether someone's already connecting using that user.
-			// This is a request to the Server's synchronous handler routine (the
-			// only routine that is guaranteed correct access to the internal client
-			// data).
-			checker := &userCheck{make(chan bool), int(client.user.Id), ""}
-			server.usercheck <- checker
-			foundUser := <-checker.done
-			if foundUser {
-				// todo(mkrautz): Murmur allows reconnects from same IP. That's pretty useful.
-				client.RejectAuth("UsernameInUse", "Someone else is already connected as this user")
-				return
-			} else {
-				log.Printf("Client authenticated as %v", client.user.Name)
-			}
-		}
 	}
 
 	// Setup the cryptstate for the client.
@@ -447,7 +408,33 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	server.clientAuthenticated <- client
 }
 
+// The last part of authentication runs in the server's synchronous handler.
 func (server *Server) finishAuthenticate(client *Client) {
+	// If the client succeeded in proving to the server that it should be granted
+	// the credentials of a registered user, do some sanity checking to make sure
+	// that user isn't already connected.
+	//
+	// If the user is already connected, try to check whether this new client is
+	// connecting from the same IP address. If that's the case, disconnect the
+	// previous client and let the new guy in.
+	if client.user != nil {
+		found := false
+		for _, connectedClient := range server.clients {
+			if connectedClient.UserId() == client.UserId() {
+				found = true
+				break
+			}
+		}
+		// The user is already present on the server.
+		if found {
+			// todo(mkrautz): Do the address checking.
+			client.RejectAuth("UsernameInUse", "A client is already connected using those credentials.")
+			return
+		}
+
+		// No, that user isn't already connected. Move along.
+	}
+
 	// Add the client to the connected list
 	client.Session = server.session
 	server.clients[client.Session] = client
