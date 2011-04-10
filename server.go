@@ -19,6 +19,7 @@ import (
 	"mumbleproto"
 	"cryptstate"
 	"hash"
+	"rand"
 	"strings"
 )
 
@@ -57,7 +58,6 @@ type Server struct {
 	MaxBandwidth uint32
 
 	// Clients
-	session uint32
 	clients map[uint32]*Client
 
 	// Host, host/port -> client mapping
@@ -267,6 +267,32 @@ func (server *Server) UnlinkChannels(channel *Channel, other *Channel) {
 	other.Links[channel.Id] = nil, false
 }
 
+// Generate a random, valid session ID.
+// The returned session ID is guaranteed not to currently be in use
+// on the server, and not to be the zero-value for integers (0).
+func (server *Server) GenSessionId() (session uint32) {
+	for {
+		session = rand.Uint32()
+
+		// The 0 session is disallowed in Grumble. 0 is the zero-value for
+		// integer types, and as such, an uninitialized session id could
+		// point to a valid client if we allowed the 0 session id.
+		if session == 0 {
+			continue
+		}
+
+		// Is there already a client on the sever with the generated id?
+		// Give us a new one, please.
+		if _, exists := server.clients[session]; exists {
+			continue
+		}
+
+		break
+	}
+
+	return
+}
+
 
 // This is the synchronous handler goroutine.
 // Important control channel messages are routed through this Goroutine
@@ -436,10 +462,8 @@ func (server *Server) finishAuthenticate(client *Client) {
 	}
 
 	// Add the client to the connected list
-	client.Session = server.session
+	client.Session = server.GenSessionId()
 	server.clients[client.Session] = client
-	log.Printf("Assigned client session=%v", client.Session)
-	server.session += 1
 
 	// First, check whether we need to tell the other connected
 	// clients to switch to a codec so the new guy can actually speak.
@@ -581,7 +605,6 @@ func (server *Server) sendUserList(client *Client) {
 			continue
 		}
 	}
-
 }
 
 // Send a client its permissions for channel.
