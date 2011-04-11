@@ -309,15 +309,12 @@ func populateUsers(server *Server, db *sqlite.Conn) (err os.Error) {
 			continue
 		}
 
-		if UserId == 0 {
-			server.superUserPassword = "sha1$$" + SHA1Password
-			continue
-		}
-
 		user, err := NewUser(uint32(UserId), UserName)
 		if err != nil {
 			return err
 		}
+
+		user.Password = "sha1$$" + SHA1Password
 
 		key, err := globalBlobstore.Put(Texture)
 		if err != nil {

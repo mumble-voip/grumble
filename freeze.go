@@ -13,7 +13,6 @@ import (
 type frozenServer struct {
 	Id                int             "id"
 	MaxUsers          int             "max_user"
-	SuperUserPassword string          "super_user_password"
 	Channels          []frozenChannel "channels"
 	Users             []frozenUser    "users"
 }
@@ -21,6 +20,7 @@ type frozenServer struct {
 type frozenUser struct {
 	Id            uint32 "id"
 	Name          string "name"
+	Password      string "password"
 	CertHash      string "cert_hash"
 	Email         string "email"
 	TextureBlob   string "texture_blob"
@@ -61,7 +61,6 @@ type frozenGroup struct {
 // Freeze a server
 func (server *Server) Freeze() (fs frozenServer, err os.Error) {
 	fs.Id = int(server.Id)
-	fs.SuperUserPassword = server.superUserPassword
 	fs.MaxUsers = server.MaxUsers
 
 	channels := []frozenChannel{}
@@ -132,6 +131,7 @@ func (channel *Channel) Freeze() (fc frozenChannel, err os.Error) {
 func (user *User) Freeze() (fu frozenUser, err os.Error) {
 	fu.Id = user.Id
 	fu.Name = user.Name
+	fu.Password = user.Password
 	fu.CertHash = user.CertHash
 	fu.Email = user.Email
 	fu.TextureBlob = user.TextureBlob
@@ -186,8 +186,6 @@ func NewServerFromFrozen(filename string) (s *Server, err os.Error) {
 	if err != nil {
 		return nil, err
 	}
-
-	s.superUserPassword = fs.SuperUserPassword
 
 	// Add all channels, but don't hook up parent/child relationships
 	// until all of them are loaded.
@@ -248,6 +246,7 @@ func NewServerFromFrozen(filename string) (s *Server, err os.Error) {
 			return nil, err
 		}
 
+		u.Password = fu.Password
 		u.CertHash = fu.CertHash
 		u.Email = fu.Email
 		u.TextureBlob = fu.TextureBlob

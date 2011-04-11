@@ -43,11 +43,6 @@ type Client struct {
 	// the user field will point to the registration record.
 	user *User
 
-	// If the client has SuperUser privileges, superUser will be true.
-	// Note that Grumble doesn't store credentials of the SuperUser in
-	// the user data store, so we have to keep track of it separately.
-	superUser bool
-
 	// The clientReady channel signals the client's reciever routine that
 	// the client has been successfully authenticated and that it has been
 	// sent the necessary information to be a participant on the server.
@@ -80,7 +75,7 @@ type Client struct {
 
 // Is the client a registered user?
 func (client *Client) IsRegistered() bool {
-	return client.user != nil || client.IsSuperUser()
+	return client.user != nil
 }
 
 // Does the client have a certificate?
@@ -90,7 +85,10 @@ func (client *Client) HasCertificate() bool {
 
 // Is the client the SuperUser?
 func (client *Client) IsSuperUser() bool {
-	return client.superUser
+	if client.user == nil {
+		return false
+	}
+	return client.user.Id == 0
 }
 
 // Get the User ID of this client.
@@ -98,8 +96,6 @@ func (client *Client) IsSuperUser() bool {
 func (client *Client) UserId() int {
 	if client.user == nil {
 		return -1
-	} else if client.superUser {
-		return 0
 	}
 	return int(client.user.Id)
 }

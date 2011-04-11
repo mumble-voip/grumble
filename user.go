@@ -16,6 +16,7 @@ import (
 type User struct {
 	Id            uint32
 	Name          string
+	Password      string
 	CertHash      string
 	Email         string
 	TextureBlob   string
@@ -29,7 +30,7 @@ func NewUser(id uint32, name string) (user *User, err os.Error) {
 	if id < 0 {
 		return nil, os.NewError("Invalid user id")
 	}
-	if len(name) == 0 || name == "SuperUser" {
+	if len(name) == 0 {
 		return nil, os.NewError("Invalid username")
 	}
 

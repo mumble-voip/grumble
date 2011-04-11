@@ -76,7 +76,6 @@ type Server struct {
 	Channels map[int]*Channel
 
 	// Users
-	superUserPassword string
 	Users             map[uint32]*User
 	UserCertMap       map[string]*User
 	UserNameMap       map[string]*User
@@ -118,7 +117,12 @@ func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 
 // Check whether password matches the set SuperUser password.
 func (server *Server) CheckSuperUserPassword(password string) bool {
-	parts := strings.Split(server.superUserPassword, "$", -1)
+	superUser, exists := server.Users[0]
+	if !exists {
+		log.Panicf("Fatal error: No SuperUser for server %v", server.Id)
+	}
+
+	parts := strings.Split(superUser.Password, "$", -1)
 	if len(parts) != 3 {
 		return false
 	}
@@ -374,7 +378,11 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 			return
 		} else {
 			if server.CheckSuperUserPassword(*auth.Password) {
-				client.superUser = true
+				client.user, ok = server.UserNameMap[client.Username]
+				if !ok {
+					client.RejectAuth("InvalidUsername", "")
+					return
+				}
 			} else {
 				client.RejectAuth("WrongUserPW", "")
 				return
