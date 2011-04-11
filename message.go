@@ -1122,6 +1122,9 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 	if len(blobreq.SessionTexture) > 0 {
 		for _, sid := range blobreq.SessionTexture {
 			if target, ok := server.clients[sid]; ok {
+				if target.user == nil {
+					continue
+				}
 				if target.user.HasTexture() {
 					buf, err := globalBlobstore.Get(target.user.TextureBlob)
 					if err != nil {
@@ -1143,6 +1146,9 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 	if len(blobreq.SessionComment) > 0 {
 		for _, sid := range blobreq.SessionComment {
 			if target, ok := server.clients[sid]; ok {
+				if target.user == nil {
+					continue
+				}
 				if target.user.HasComment() {
 					buf, err := globalBlobstore.Get(target.user.CommentBlob)
 					if err != nil {
