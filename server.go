@@ -351,7 +351,7 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	}
 
 	// Did we get a username?
-	if auth.Username == nil {
+	if auth.Username == nil || len(*auth.Username) == 0 {
 		client.RejectAuth("InvalidUsername", "Please specify a username to log in")
 		return
 	}
@@ -392,16 +392,16 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 		// First look up registration by name.
 		user, exists := server.UserNameMap[client.Username]
 		if exists {
-			if user.CertHash == client.CertHash {
+			if len(client.CertHash) > 0 && user.CertHash == client.CertHash {
 				client.user = user
 			} else {
-				client.Panic("Invalid cert hash for user")
+				client.RejectAuth("WrongUserPW", "Wrong certificate hash")
 				return
 			}
 		}
 
 		// Name matching didn't do.  Try matching by certificate.
-		if client.user == nil {
+		if client.user == nil && len(client.CertHash) > 0 {
 			user, exists := server.UserCertMap[client.CertHash]
 			if exists {
 				client.user = user
