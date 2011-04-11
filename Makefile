@@ -24,7 +24,7 @@ LDFLAGS = \
 	-Lpkg/cryptstate/_obj \
 	-Lpkg/packetdatastream/_obj \
 	-Lpkg/mumbleproto/_obj \
-	-Ipkg/blobstore/_obj \
+	-Lpkg/blobstore/_obj \
 	-Lpkg/sqlite/_obj
 
 GOFILES = \

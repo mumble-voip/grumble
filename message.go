@@ -9,7 +9,6 @@ import (
 	"mumbleproto"
 	"goprotobuf.googlecode.com/hg/proto"
 	"net"
-	"crypto/sha1"
 	"cryptstate"
 	"fmt"
 )
@@ -234,21 +233,20 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 			return
 		}
 
+		key := ""
+		if len(description) > 0 {
+			key, err = globalBlobstore.Put([]byte(description))
+			if err != nil {
+				log.Panicf("Blobstore error: %v", err.String())
+			}
+		}
+
 		// Add the new channel
 		channel = server.AddChannel(name)
-		channel.Description = description
+		channel.DescriptionBlob = key
 		channel.Temporary = *chanstate.Temporary
 		channel.Position = int(*chanstate.Position)
 		parent.AddChild(channel)
-
-		// Generate description hash.
-		if len(channel.Description) >= 128 {
-			hash := sha1.New()
-			hash.Write([]byte(channel.Description))
-			channel.DescriptionHash = hash.Sum()
-		} else {
-			channel.DescriptionHash = []byte{}
-		}
 
 		// Add the creator to the channel's admin group
 		if client.IsRegistered() {
@@ -282,10 +280,11 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 		server.broadcastProtoMessageWithPredicate(MessageChannelState, chanstate, func(client *Client) bool {
 			return client.Version < 0x10202
 		})
+
 		// Remove description if client knows how to handle blobs.
-		if len(channel.DescriptionHash) > 0 {
+		if chanstate.Description != nil && channel.HasDescription() {
 			chanstate.Description = nil
-			chanstate.DescriptionHash = channel.DescriptionHash
+			chanstate.DescriptionHash = channel.DescriptionBlobHashBytes()
 		}
 		server.broadcastProtoMessageWithPredicate(MessageChannelState, chanstate, func(client *Client) bool {
 			return client.Version >= 0x10202
@@ -415,14 +414,11 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 
 		// Description change
 		if chanstate.Description != nil {
-			// Generate description hash.
-			if len(channel.Description) >= 128 {
-				hash := sha1.New()
-				hash.Write([]byte(channel.Description))
-				channel.DescriptionHash = hash.Sum()
-			} else {
-				channel.DescriptionHash = []byte{}
+			key, err := globalBlobstore.Put([]byte(*chanstate.Description))
+			if err != nil {
+				log.Panicf("Blobstore error: %v", err.String())
 			}
+			channel.DescriptionBlob = key
 		}
 
 		// Position change
@@ -444,11 +440,13 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 		server.broadcastProtoMessageWithPredicate(MessageChannelState, chanstate, func(client *Client) bool {
 			return client.Version < 0x10202
 		})
+
 		// Remove description blob when sending to 1.2.2 >= users. Only send the blob hash.
-		if chanstate.Description != nil && len(channel.DescriptionHash) > 0 {
+		if channel.HasDescription() {
 			chanstate.Description = nil
-			chanstate.DescriptionHash = channel.DescriptionHash
+			chanstate.DescriptionHash = channel.DescriptionBlobHashBytes()
 		}
+		chanstate.DescriptionHash = channel.DescriptionBlobHashBytes()
 		server.broadcastProtoMessageWithPredicate(MessageChannelState, chanstate, func(client *Client) bool {
 			return client.Version >= 0x10202
 		})
@@ -591,13 +589,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 			}
 		}
 
-		// Check if the text is allowed.
-
-		// Only set the comment if it is different from the current
-		// user comment.
-		if comment == target.Comment {
-			userstate.Comment = nil
-		}
+		// todo(mkrautz): Check if the text is allowed.
 	}
 
 	// Texture change
@@ -646,14 +638,17 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	broadcast := false
 
 	if userstate.Texture != nil {
-		target.Texture = userstate.Texture
-		if len(target.Texture) >= 128 {
-			hash := sha1.New()
-			hash.Write(target.Texture)
-			target.TextureHash = hash.Sum()
-		} else {
-			target.TextureHash = []byte{}
+		key, err := globalBlobstore.Put(userstate.Texture)
+		if err != nil {
+			log.Panicf("Blobstore error: %v", err.String())
 		}
+
+		if target.user.TextureBlob != key {
+			target.user.TextureBlob = key
+		} else {
+			userstate.Texture = nil
+		}
+
 		broadcast = true
 	}
 
@@ -683,14 +678,17 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	}
 
 	if userstate.Comment != nil {
-		target.Comment = *userstate.Comment
-		if len(target.Comment) >= 128 {
-			hash := sha1.New()
-			hash.Write([]byte(target.Comment))
-			target.CommentHash = hash.Sum()
-		} else {
-			target.CommentHash = []byte{}
+		key, err := globalBlobstore.Put([]byte(*userstate.Comment))
+		if err != nil {
+			log.Panicf("Blobstore error: %v", err.String())
 		}
+
+		if target.user.CommentBlob != key {
+			target.user.CommentBlob = key
+		} else {
+			userstate.Comment = nil
+		}
+
 		broadcast = true
 	}
 
@@ -754,11 +752,12 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 		// Mumble and Murmur used qCompress and qUncompress from Qt to compress
 		// textures that were sent over the wire. We can use this to determine
 		// whether a texture is a "new style" or an "old style" texture.
+		texture := userstate.Texture
 		texlen := uint32(0)
-		if target.Texture != nil && len(target.Texture) > 4 {
-			texlen = uint32(target.Texture[0])<<24 | uint32(target.Texture[1])<<16 | uint32(target.Texture[2])<<8 | uint32(target.Texture[3])
+		if texture != nil && len(texture) > 4 {
+			texlen = uint32(texture[0])<<24 | uint32(texture[1])<<16 | uint32(texture[2])<<8 | uint32(texture[3])
 		}
-		if userstate.Texture != nil && len(target.Texture) > 4 && texlen != 600*60*4 {
+		if texture != nil && len(texture) > 4 && texlen != 600*60*4 {
 			// The sent texture is a new-style texture.  Strip it from the message
 			// we send to pre-1.2.2 clients.
 			userstate.Texture = nil
@@ -769,7 +768,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 				log.Panic("Unable to broadcast UserState")
 			}
 			// Re-add it to the message, so that 1.2.2+ clients *do* get the new-style texture.
-			userstate.Texture = target.Texture
+			userstate.Texture = texture
 		} else {
 			// Old style texture.  We can send the message as-is.
 			err := server.broadcastProtoMessageWithPredicate(MessageUserState, userstate, func(client *Client) bool {
@@ -783,14 +782,15 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 		// If a texture hash is set on user, we transmit that instead of
 		// the texture itself. This allows the client to intelligently fetch
 		// the blobs that it does not already have in its local storage.
-		if userstate != nil && len(target.TextureHash) > 0 {
+		if userstate.Texture != nil && target.user.HasTexture() {
 			userstate.Texture = nil
-			userstate.TextureHash = target.TextureHash
+			userstate.TextureHash = target.user.TextureBlobHashBytes()
 		}
+
 		// Ditto for comments.
-		if userstate.Comment != nil && len(target.CommentHash) > 0 {
+		if userstate.Comment != nil && target.user.HasComment() {
 			userstate.Comment = nil
-			userstate.CommentHash = target.CommentHash
+			userstate.CommentHash = target.user.CommentBlobHashBytes()
 		}
 
 		err := server.broadcastProtoMessageWithPredicate(MessageUserState, userstate, func(client *Client) bool {
@@ -1122,10 +1122,14 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 	if len(blobreq.SessionTexture) > 0 {
 		for _, sid := range blobreq.SessionTexture {
 			if target, ok := server.clients[sid]; ok {
-				if len(target.Texture) > 0 {
+				if target.user.HasTexture() {
+					buf, err := globalBlobstore.Get(target.user.TextureBlob)
+					if err != nil {
+						log.Panicf("Blobstore error: %v", err.String())
+					}
 					userstate.Reset()
 					userstate.Session = proto.Uint32(uint32(target.Session))
-					userstate.Texture = target.Texture
+					userstate.Texture = buf
 					if err := client.sendProtoMessage(MessageUserState, userstate); err != nil {
 						client.Panic(err.String())
 						return
@@ -1139,10 +1143,14 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 	if len(blobreq.SessionComment) > 0 {
 		for _, sid := range blobreq.SessionComment {
 			if target, ok := server.clients[sid]; ok {
-				if len(target.Comment) > 0 {
+				if target.user.HasComment() {
+					buf, err := globalBlobstore.Get(target.user.CommentBlob)
+					if err != nil {
+						log.Panicf("Blobstore error: %v", err.String())
+					}
 					userstate.Reset()
 					userstate.Session = proto.Uint32(uint32(target.Session))
-					userstate.Comment = proto.String(target.Comment)
+					userstate.Comment = proto.String(string(buf))
 					if err := client.sendProtoMessage(MessageUserState, userstate); err != nil {
 						client.Panic(err.String())
 						return
@@ -1158,10 +1166,14 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 	if len(blobreq.ChannelDescription) > 0 {
 		for _, cid := range blobreq.ChannelDescription {
 			if channel, ok := server.Channels[int(cid)]; ok {
-				if len(channel.Description) > 0 {
+				if channel.HasDescription() {
 					chanstate.Reset()
+					buf, err := globalBlobstore.Get(channel.DescriptionBlob)
+					if err != nil {
+						log.Panicf("Blobstore error: %v", err.String())
+					}
 					chanstate.ChannelId = proto.Uint32(uint32(channel.Id))
-					chanstate.Description = proto.String(channel.Description)
+					chanstate.Description = proto.String(string(buf))
 					if err := client.sendProtoMessage(MessageChannelState, chanstate); err != nil {
 						client.Panic(err.String())
 						return

@@ -5,6 +5,7 @@
 package main
 
 import (
+	"blobstore"
 	"compress/gzip"
 	"flag"
 	"fmt"
@@ -22,6 +23,8 @@ var datadir *string = flag.String("datadir", "", "Directory to use for server st
 var blobdir *string = flag.String("blobdir", "", "Directory to use for blob storage")
 var sqlitedb *string = flag.String("murmurdb", "", "Path to murmur.sqlite to import server structure from")
 var cleanup *bool = flag.Bool("clean", false, "Clean up existing data dir content before importing Murmur data")
+
+var globalBlobstore *blobstore.BlobStore
 
 func Usage() {
 	fmt.Fprintf(os.Stderr, "usage: grumble [options]\n")
@@ -82,6 +85,7 @@ func MurmurImport(filename string) (err os.Error) {
 }
 
 func main() {
+	var err os.Error
 	flag.Parse()
 	if *help == true {
 		Usage()
@@ -98,7 +102,12 @@ func main() {
 	if len(*blobdir) == 0 {
 		*blobdir = filepath.Join(os.Getenv("HOME"), ".grumble", "blob")
 	}
+
 	log.Printf("Using blob directory: %s", *blobdir)
+	globalBlobstore, err = blobstore.NewBlobStore(*blobdir, true)
+	if err != nil {
+		log.Fatalf("Unable to initialize blobstore: %v", err.String())
+	}
 
 	// Should we import data from a Murmur SQLite file?
 	if len(*sqlitedb) > 0 {

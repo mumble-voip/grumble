@@ -105,7 +105,11 @@ func populateChannelsFromDatabase(server *Server, db *sqlite.Conn, parentId int)
 				return err
 			}
 
-			c.Description = description
+			key, err := globalBlobstore.Put([]byte(description))
+			if err != nil {
+				return err
+			}
+			c.DescriptionBlob = key
 		}
 
 		if err := stmt.Reset(); err != nil {
@@ -315,6 +319,12 @@ func populateUsers(server *Server, db *sqlite.Conn) (err os.Error) {
 			return err
 		}
 
+		key, err := globalBlobstore.Put(Texture)
+		if err != nil {
+			return err
+		}
+		user.TextureBlob = key
+
 		user.LastActive = uint64(LastActive)
 		user.LastChannelId = LastChannel
 
@@ -353,7 +363,11 @@ func populateUsers(server *Server, db *sqlite.Conn) (err os.Error) {
 			case UserInfoEmail:
 				user.Email = Value
 			case UserInfoComment:
-				// unhandled
+				key, err := globalBlobstore.Put([]byte(Value))
+				if err != nil {
+					return err
+				}
+				user.CommentBlob = key
 			case UserInfoHash:
 				user.CertHash = Value
 			case UserInfoLastActive:

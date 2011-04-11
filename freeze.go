@@ -195,7 +195,7 @@ func NewServerFromFrozen(filename string) (s *Server, err os.Error) {
 		c := NewChannel(fc.Id, fc.Name)
 		c.Position = int(fc.Position)
 		c.InheritACL = fc.InheritACL
-		c.DescriptionHash = []byte{} // fixme
+		c.DescriptionBlob = fc.DescriptionBlob
 
 		for _, facl := range fc.ACL {
 			acl := NewChannelACL(c)

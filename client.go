@@ -60,12 +60,6 @@ type Client struct {
 	OSName     string
 	OSVersion  string
 
-	// Blobs
-	Comment     string
-	CommentHash []byte
-	Texture     []byte
-	TextureHash []byte
-
 	// Personal
 	Username        string
 	Session         uint32
@@ -527,15 +521,24 @@ func (client *Client) sendChannelList() {
 }
 
 func (client *Client) sendChannelTree(channel *Channel) {
-	// Start at the root channel.
-	log.Printf("sending channel ID=%i, NAME=%s", channel.Id, channel.Name)
 	chanstate := &mumbleproto.ChannelState{
 		ChannelId:   proto.Uint32(uint32(channel.Id)),
 		Name:        proto.String(channel.Name),
-		Description: proto.String(channel.Description),
 	}
 	if channel.parent != nil {
 		chanstate.Parent = proto.Uint32(uint32(channel.parent.Id))
+	}
+
+	if channel.HasDescription() {
+		if client.Version >= 0x10202 {
+			chanstate.DescriptionHash = channel.DescriptionBlobHashBytes()
+		} else {
+			buf, err := globalBlobstore.Get(channel.DescriptionBlob)
+			if err != nil {
+				panic("Blobstore error.")
+			}
+			chanstate.Description = proto.String(string(buf))
+		}
 	}
 
 	err := client.sendProtoMessage(MessageChannelState, chanstate)

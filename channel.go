@@ -4,6 +4,10 @@
 
 package main
 
+import (
+	"encoding/hex"
+)
+
 // A Mumble channel
 type Channel struct {
 	Id        int
@@ -27,8 +31,7 @@ type Channel struct {
 	Links map[int]*Channel
 
 	// Blobs
-	Description     string
-	DescriptionHash []byte
+	DescriptionBlob string
 }
 
 func NewChannel(id int, name string) (channel *Channel) {
@@ -64,4 +67,19 @@ func (channel *Channel) AddClient(client *Client) {
 func (channel *Channel) RemoveClient(client *Client) {
 	channel.clients[client.Session] = nil, false
 	client.Channel = nil
+}
+
+// Does the channel have a description?
+func (channel *Channel) HasDescription() bool {
+	return len(channel.DescriptionBlob) > 0
+}
+
+// Get the channel's blob hash as a byte slice for sending via a protobuf message.
+// Returns nil if there is no blob.
+func (channel *Channel) DescriptionBlobHashBytes() (buf []byte) {
+	buf, err := hex.DecodeString(channel.DescriptionBlob)
+	if err != nil {
+		return nil
+	}
+	return buf
 }

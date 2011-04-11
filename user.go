@@ -5,6 +5,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"os"
 )
 
@@ -36,4 +37,34 @@ func NewUser(id uint32, name string) (user *User, err os.Error) {
 		Id:   id,
 		Name: name,
 	},nil
+}
+
+// Does the channel have comment?
+func (user *User) HasComment() bool {
+	return len(user.CommentBlob) > 0
+}
+
+// Get the hash of the user's comment blob as a byte slice for transmitting via a protobuf message.
+// Returns nil if there is no such blob.
+func (user *User) CommentBlobHashBytes() (buf []byte) {
+	buf, err := hex.DecodeString(user.CommentBlob)
+	if err != nil {
+		return nil
+	}
+	return buf
+}
+
+// Does the user have a texture?
+func (user *User) HasTexture() bool {
+	return len(user.TextureBlob) > 0
+}
+
+// Get the hash of the user's texture blob as a byte slice for transmitting via a protobuf message.
+// Returns nil if there is no such blob.
+func (user *User) TextureBlobHashBytes() (buf []byte) {
+	buf, err := hex.DecodeString(user.TextureBlob)
+	if err != nil {
+		return nil
+	}
+	return buf
 }
