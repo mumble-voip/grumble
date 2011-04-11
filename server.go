@@ -484,7 +484,34 @@ func (server *Server) finishAuthenticate(client *Client) {
 	}
 	if client.IsRegistered() {
 		userstate.UserId = proto.Uint32(uint32(client.UserId()))
+
+		if client.user.HasTexture() {
+			// Does the client support blobs?
+			if client.Version >= 0x10203 {
+				userstate.TextureHash = client.user.TextureBlobHashBytes()
+			} else {
+				buf, err := globalBlobstore.Get(client.user.TextureBlob)
+				if err != nil {
+					log.Panicf("Blobstore error: %v", err.String())
+				}
+				userstate.Texture = buf
+			}
+		}
+
+		if client.user.HasComment() {
+			// Does the client support blobs?
+			if client.Version >= 0x10203 {
+				userstate.CommentHash = client.user.CommentBlobHashBytes()
+			} else {
+				buf, err := globalBlobstore.Get(client.user.CommentBlob)
+				if err != nil {
+					log.Panicf("Blobstore error: %v", err.String())
+				}
+				userstate.Comment = proto.String(string(buf))
+			}
+		}
 	}
+
 	server.userEnterChannel(client, server.root, userstate)
 	if err := server.broadcastProtoMessage(MessageUserState, userstate); err != nil {
 		// Server panic?
@@ -593,12 +620,72 @@ func (server *Server) sendUserList(client *Client) {
 			continue
 		}
 
-		err := client.sendProtoMessage(MessageUserState, &mumbleproto.UserState{
+		userstate := &mumbleproto.UserState{
 			Session:   proto.Uint32(connectedClient.Session),
 			Name:      proto.String(connectedClient.ShownName()),
 			ChannelId: proto.Uint32(uint32(connectedClient.Channel.Id)),
-		})
+		}
 
+		if connectedClient.IsRegistered() {
+			userstate.UserId = proto.Uint32(uint32(connectedClient.UserId()))
+
+			if connectedClient.user.HasTexture() {
+				// Does the client support blobs?
+				if client.Version >= 0x10203 {
+					userstate.TextureHash = connectedClient.user.TextureBlobHashBytes()
+				} else {
+					buf, err := globalBlobstore.Get(connectedClient.user.TextureBlob)
+					if err != nil {
+						log.Panicf("Blobstore error: %v", err.String())
+					}
+					userstate.Texture = buf
+				}
+			}
+
+			if connectedClient.user.HasComment() {
+				// Does the client support blobs?
+				if client.Version >= 0x10203 {
+					userstate.CommentHash = connectedClient.user.CommentBlobHashBytes()
+				} else {
+					buf, err := globalBlobstore.Get(connectedClient.user.CommentBlob)
+					if err != nil {
+						log.Panicf("Blobstore error: %v", err.String())
+					}
+					userstate.Comment = proto.String(string(buf))
+				}
+			}
+
+			if len(connectedClient.user.CertHash) > 0 {
+				userstate.Hash = proto.String(connectedClient.user.CertHash)
+			}
+		}
+
+		if connectedClient.Mute {
+			userstate.Mute = proto.Bool(true)
+		}
+		if connectedClient.Suppress {
+			userstate.Suppress = proto.Bool(true)
+		}
+		if connectedClient.SelfMute {
+			userstate.SelfMute = proto.Bool(true)
+		}
+		if connectedClient.SelfDeaf {
+			userstate.SelfDeaf = proto.Bool(true)
+		}
+		if connectedClient.PrioritySpeaker {
+			userstate.PrioritySpeaker = proto.Bool(true)
+		}
+		if connectedClient.Recording {
+			userstate.Recording = proto.Bool(true)
+		}
+		if connectedClient.PluginContext != nil || len(connectedClient.PluginContext) > 0 {
+			userstate.PluginContext = connectedClient.PluginContext
+		}
+		if len(connectedClient.PluginIdentity) > 0 {
+			userstate.PluginIdentity = proto.String(connectedClient.PluginIdentity)
+		}
+
+		err := client.sendProtoMessage(MessageUserState, userstate)
 		if err != nil {
 			// Server panic?
 			continue
