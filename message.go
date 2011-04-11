@@ -943,10 +943,13 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 		// Also constructs a usermap that is a set user ids from the channel's groups.
 		reply.Groups = []*mumbleproto.ACL_ChanGroup{}
 		for name, _ := range allnames {
-			group := channel.Groups[name]
-			pgroup, ok := parent.Groups[name]
-			if !ok {
-				pgroup = nil
+			var (
+				group *Group
+				pgroup *Group
+			)
+			group = channel.Groups[name]
+			if parent != nil {
+				pgroup = parent.Groups[name]
 			}
 
 			mpgroup := &mumbleproto.ACL_ChanGroup{}
