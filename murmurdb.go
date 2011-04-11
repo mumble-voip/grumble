@@ -36,6 +36,21 @@ func NewServerFromSQLite(id int64, db *sqlite.Conn) (s *Server, err os.Error) {
 		return nil, err
 	}
 
+	err = populateChannelInfoFromDatabase(s, s.root, db)
+	if err != nil {
+		return nil, err
+	}
+
+	err = populateChannelACLFromDatabase(s, s.root, db)
+	if err != nil {
+		return nil, err
+	}
+
+	err = populateChannelGroupsFromDatabase(s, s.root, db)
+	if err != nil {
+		return nil, err
+	}
+
 	err = populateChannelsFromDatabase(s, db, 0)
 	if err != nil {
 		return nil, err
@@ -52,6 +67,160 @@ func NewServerFromSQLite(id int64, db *sqlite.Conn) (s *Server, err os.Error) {
 	}
 
 	return
+}
+
+// Add channel metadata (channel_info table from SQLite) by reading the SQLite database.
+func populateChannelInfoFromDatabase(server *Server, c *Channel, db *sqlite.Conn) os.Error {
+	stmt, err := db.Prepare("SELECT value FROM channel_info WHERE server_id=? AND channel_id=? AND key=?")
+	if err != nil {
+		return err
+	}
+
+	// Fetch description
+	if err := stmt.Exec(server.Id, c.Id, ChannelInfoDescription); err != nil {
+		return err
+	}
+	for stmt.Next() {
+		var description string
+		err = stmt.Scan(&description)
+		if err != nil {
+			return err
+		}
+
+		key, err := globalBlobstore.Put([]byte(description))
+		if err != nil {
+			return err
+		}
+		c.DescriptionBlob = key
+	}
+
+	if err := stmt.Reset(); err != nil {
+		return err
+	}
+
+	// Fetch position
+	if err := stmt.Exec(server.Id, c.Id, ChannelInfoPosition); err != nil {
+		return err
+	}
+	for stmt.Next() {
+		var pos int
+		if err := stmt.Scan(&pos); err != nil {
+			return err
+		}
+
+		c.Position = pos
+	}
+
+	return nil
+}
+
+// Populate channel with its ACLs by reading the SQLite databse.
+func populateChannelACLFromDatabase(server *Server, c *Channel, db *sqlite.Conn) os.Error {
+	stmt, err := db.Prepare("SELECT user_id, group_name, apply_here, apply_sub, grantpriv, revokepriv FROM acl WHERE server_id=? AND channel_id=? ORDER BY priority")
+	if err != nil {
+		return err
+	}
+
+	if err := stmt.Exec(server.Id, c.Id); err != nil {
+		return err
+	}
+
+	for stmt.Next() {
+		var (
+			UserId    string
+			Group     string
+			ApplyHere bool
+			ApplySub  bool
+			Allow     int64
+			Deny      int64
+		)
+		if err := stmt.Scan(&UserId, &Group, &ApplyHere, &ApplySub, &Allow, &Deny); err != nil {
+			return err
+		}
+
+		acl := NewChannelACL(c)
+		acl.ApplyHere = ApplyHere
+		acl.ApplySubs = ApplySub
+		if len(UserId) > 0 {
+			acl.UserId, err = strconv.Atoi(UserId)
+			if err != nil {
+				return err
+			}
+		} else if len(Group) > 0 {
+			acl.Group = Group
+		} else {
+			return os.NewError("Invalid ACL: Neither Group or UserId specified")
+		}
+
+		acl.Deny = Permission(Deny)
+		acl.Allow = Permission(Allow)
+		c.ACL = append(c.ACL, acl)
+	}
+
+	return nil
+}
+
+// Populate channel with groups by reading the SQLite database.
+func populateChannelGroupsFromDatabase(server *Server, c *Channel, db *sqlite.Conn) os.Error {
+	stmt, err := db.Prepare("SELECT group_id, name, inherit, inheritable FROM groups WHERE server_id=? AND channel_id=?")
+	if err != nil {
+		return err
+	}
+
+	if err := stmt.Exec(server.Id, c.Id); err != nil {
+		return err
+	}
+
+	groups := make(map[int64]*Group)
+
+	for stmt.Next() {
+		var (
+			GroupId     int64
+			Name        string
+			Inherit     bool
+			Inheritable bool
+		)
+
+		if err := stmt.Scan(&GroupId, &Name, &Inherit, &Inheritable); err != nil {
+			return err
+		}
+
+		g := NewGroup(c, Name)
+		g.Inherit = Inherit
+		g.Inheritable = Inheritable
+		c.Groups[g.Name] = g
+		groups[GroupId] = g
+	}
+
+	stmt, err = db.Prepare("SELECT user_id, addit FROM group_members WHERE server_id=? AND group_id=?")
+	if err != nil {
+		return err
+	}
+
+	for gid, grp := range groups {
+		if err = stmt.Exec(server.Id, gid); err != nil {
+			return err
+		}
+
+		for stmt.Next() {
+			var (
+				UserId int64
+				Add    bool
+			)
+
+			if err := stmt.Scan(&UserId, &Add); err != nil {
+				return err
+			}
+
+			if Add {
+				grp.Add[int(UserId)] = true
+			} else {
+				grp.Remove[int(UserId)] = true
+			}
+		}
+	}
+
+	return nil
 }
 
 // Populate the Server with Channels from the database.
@@ -89,149 +258,25 @@ func populateChannelsFromDatabase(server *Server, db *sqlite.Conn, parentId int)
 
 	// Add channel_info
 	for _, c := range parent.children {
-		stmt, err = db.Prepare("SELECT value FROM channel_info WHERE server_id=? AND channel_id=? AND key=?")
+		err = populateChannelInfoFromDatabase(server, c, db)
 		if err != nil {
 			return err
-		}
-
-		// Fetch description
-		if err := stmt.Exec(server.Id, c.Id, ChannelInfoDescription); err != nil {
-			return err
-		}
-		for stmt.Next() {
-			var description string
-			err = stmt.Scan(&description)
-			if err != nil {
-				return err
-			}
-
-			key, err := globalBlobstore.Put([]byte(description))
-			if err != nil {
-				return err
-			}
-			c.DescriptionBlob = key
-		}
-
-		if err := stmt.Reset(); err != nil {
-			return err
-		}
-
-		// Fetch position
-		if err := stmt.Exec(server.Id, c.Id, ChannelInfoPosition); err != nil {
-			return err
-		}
-		for stmt.Next() {
-			var pos int
-			if err := stmt.Scan(&pos); err != nil {
-				return err
-			}
-
-			c.Position = pos
 		}
 	}
 
 	// Add ACLs
 	for _, c := range parent.children {
-		stmt, err = db.Prepare("SELECT user_id, group_name, apply_here, apply_sub, grantpriv, revokepriv FROM acl WHERE server_id=? AND channel_id=? ORDER BY priority")
+		err = populateChannelACLFromDatabase(server, c, db)
 		if err != nil {
 			return err
-		}
-
-		if err := stmt.Exec(server.Id, c.Id); err != nil {
-			return err
-		}
-
-		for stmt.Next() {
-			var (
-				UserId    string
-				Group     string
-				ApplyHere bool
-				ApplySub  bool
-				Allow     int64
-				Deny      int64
-			)
-			if err := stmt.Scan(&UserId, &Group, &ApplyHere, &ApplySub, &Allow, &Deny); err != nil {
-				return err
-			}
-
-			acl := NewChannelACL(c)
-			acl.ApplyHere = ApplyHere
-			acl.ApplySubs = ApplySub
-			if len(UserId) > 0 {
-				acl.UserId, err = strconv.Atoi(UserId)
-				if err != nil {
-					return err
-				}
-			} else if len(Group) > 0 {
-				acl.Group = Group
-			} else {
-				return os.NewError("Invalid ACL: Neither Group or UserId specified")
-			}
-
-			acl.Deny = Permission(Deny)
-			acl.Allow = Permission(Allow)
-			c.ACL = append(c.ACL, acl)
 		}
 	}
 
 	// Add groups
-	groups := make(map[int64]*Group)
 	for _, c := range parent.children {
-		stmt, err = db.Prepare("SELECT group_id, name, inherit, inheritable FROM groups WHERE server_id=? AND channel_id=?")
+		err = populateChannelGroupsFromDatabase(server, c, db)
 		if err != nil {
 			return err
-		}
-
-		if err := stmt.Exec(server.Id, c.Id); err != nil {
-			return err
-		}
-
-		for stmt.Next() {
-			var (
-				GroupId     int64
-				Name        string
-				Inherit     bool
-				Inheritable bool
-			)
-
-			if err := stmt.Scan(&GroupId, &Name, &Inherit, &Inheritable); err != nil {
-				return err
-			}
-
-			g := NewGroup(c, Name)
-			g.Inherit = Inherit
-			g.Inheritable = Inheritable
-			c.Groups[g.Name] = g
-			groups[GroupId] = g
-		}
-	}
-
-	// Add group members
-	for gid, grp := range groups {
-		stmt, err = db.Prepare("SELECT user_id, addit FROM group_members WHERE server_id=? AND group_id=?")
-		if err != nil {
-			return err
-		}
-
-		if err := stmt.Exec(server.Id, gid); err != nil {
-			return err
-		}
-
-		for stmt.Next() {
-			var (
-				UserId int64
-				Add    bool
-			)
-
-			if err := stmt.Scan(&UserId, &Add); err != nil {
-				return err
-			}
-
-			if Add {
-				grp.Add[int(UserId)] = true
-			} else {
-				grp.Remove[int(UserId)] = true
-			}
 		}
 	}
 
