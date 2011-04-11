@@ -637,7 +637,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 
 	broadcast := false
 
-	if userstate.Texture != nil {
+	if userstate.Texture != nil && target.user != nil {
 		key, err := globalBlobstore.Put(userstate.Texture)
 		if err != nil {
 			log.Panicf("Blobstore error: %v", err.String())
@@ -677,7 +677,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 		target.PluginIdentity = *userstate.PluginIdentity
 	}
 
-	if userstate.Comment != nil {
+	if userstate.Comment != nil && target.user != nil {
 		key, err := globalBlobstore.Put([]byte(*userstate.Comment))
 		if err != nil {
 			log.Panicf("Blobstore error: %v", err.String())
@@ -782,15 +782,21 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 		// If a texture hash is set on user, we transmit that instead of
 		// the texture itself. This allows the client to intelligently fetch
 		// the blobs that it does not already have in its local storage.
-		if userstate.Texture != nil && target.user.HasTexture() {
+		if userstate.Texture != nil && target.user != nil && target.user.HasTexture() {
 			userstate.Texture = nil
 			userstate.TextureHash = target.user.TextureBlobHashBytes()
+		} else if target.user == nil {
+			userstate.Texture = nil
+			userstate.TextureHash = nil
 		}
 
 		// Ditto for comments.
 		if userstate.Comment != nil && target.user.HasComment() {
 			userstate.Comment = nil
 			userstate.CommentHash = target.user.CommentBlobHashBytes()
+		} else if target.user == nil {
+			userstate.Comment = nil
+			userstate.CommentHash = nil
 		}
 
 		err := server.broadcastProtoMessageWithPredicate(MessageUserState, userstate, func(client *Client) bool {
