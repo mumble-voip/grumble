@@ -541,6 +541,18 @@ func (client *Client) sendChannelTree(channel *Channel) {
 		}
 	}
 
+	if channel.Temporary {
+		chanstate.Temporary = proto.Bool(true)
+	}
+
+	chanstate.Position = proto.Int32(int32(channel.Position))
+
+	links := []uint32{}
+	for cid, _ := range channel.Links {
+		links = append(links, uint32(cid))
+	}
+	chanstate.Links = links
+
 	err := client.sendProtoMessage(MessageChannelState, chanstate)
 	if err != nil {
 		client.Panic(err.String())
