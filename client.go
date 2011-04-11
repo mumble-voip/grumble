@@ -13,6 +13,7 @@ import (
 	"goprotobuf.googlecode.com/hg/proto"
 	"mumbleproto"
 	"cryptstate"
+	"io"
 	"packetdatastream"
 )
 
@@ -176,8 +177,10 @@ func (client *Client) RejectAuth(kind, reason string) {
 
 // Read a protobuf message from a client
 func (client *Client) readProtoMessage() (msg *Message, err os.Error) {
-	var length uint32
-	var kind uint16
+	var (
+		length uint32
+		kind uint16
+	)
 
 	// Read the message type (16-bit big-endian unsigned integer)
 	err = binary.Read(client.reader, binary.BigEndian, &kind)
@@ -194,7 +197,7 @@ func (client *Client) readProtoMessage() (msg *Message, err os.Error) {
 	}
 
 	buf := make([]byte, length)
-	_, err = client.reader.Read(buf)
+	_, err = io.ReadFull(client.reader, buf)
 	if err != nil {
 		client.Panic("Unable to read packet content")
 		return
