@@ -6,7 +6,7 @@
 package sqlite
 
 /*
-#include <sqlite3.h>
+#include "sqlite3.h"
 #include <stdlib.h>
 
 // These wrappers are necessary because SQLITE_TRANSIENT
