@@ -17,7 +17,7 @@ func NewTLSListener(port int) (rl *tls.Listener) {
 	// Load the certificate
 	pemBytes, err := ioutil.ReadFile("grumble.crt")
 	if err != nil {
-		log.Printf("Failed to read server.crt:", err)
+		log.Printf("Failed to read server.crt: %s", err)
 		return
 	}
 
