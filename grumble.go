@@ -173,6 +173,16 @@ func main() {
 		}
 	}
 
+	if len(servers) == 0 {
+		s, err := NewServer(1, *host, *port)
+		if err != nil {
+			log.Fatalf("Couldn't start server: %s", err.String())
+		}
+
+		servers[s.Id] = s
+		go s.ListenAndMurmur()
+	}
+
 	if len(servers) > 0 {
 		ticker := time.NewTicker(10e9) // 10 secs
 		for {
