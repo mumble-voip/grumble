@@ -13,6 +13,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/signal"
 	"log"
 	"sqlite"
 	"path/filepath"
@@ -218,6 +219,23 @@ func main() {
 						log.Panicf("Unable to freeze server: %v", err)
 					}
 				}
+
+			case sig := <-signal.Incoming:
+				if sig != signal.SIGINT && sig != signal.SIGTERM {
+					continue
+				}
+
+				for sid, s := range servers {
+					err := s.FreezeToFile(filepath.Join(*datadir, fmt.Sprintf("%v", sid)))
+					if err != nil {
+						log.Printf("Unable to freeze server %v: %s", sid, err.String())
+						continue
+					}
+
+					log.Printf("Server %v frozen", sid)
+				}
+
+				return
 			}
 		}
 	}
