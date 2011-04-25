@@ -10,8 +10,6 @@ import (
 	"flag"
 	"fmt"
 	"gob"
-	"io"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"log"
@@ -190,33 +188,10 @@ func main() {
 			select {
 			case <-ticker.C:
 				for sid, server := range servers {
-					r := server.FreezeServer()
+					err := server.FreezeToFile(filepath.Join(*datadir, fmt.Sprintf("%v", sid)))
 					if err != nil {
-						log.Panicf("Unable to freeze server %v", sid)
-					}
-					f, err := ioutil.TempFile(*datadir, fmt.Sprintf("%v_", sid))
-					if err != nil {
-						log.Panicf("Unable to open file: %", err.String())
-					}
-					nwritten, err := io.Copy(f, r)
-					if err != nil {
-						log.Panicf("Unable to copy frozen server data: %v bytes, err=%v", nwritten, err)
-					}
-					err = r.Close()
-					if err != nil {
-						log.Panicf("Unable to freeze server: %v", err)
-					}
-					err = f.Sync()
-					if err != nil {
-						log.Panicf("Unable to sync frozen file: %v", err)
-					}
-					err = f.Close()
-					if err != nil {
-						log.Panicf("Unable to freeze server: %v", err)
-					}
-					err = os.Rename(f.Name(), filepath.Join(*datadir, fmt.Sprintf("%v", sid)))
-					if err != nil {
-						log.Panicf("Unable to freeze server: %v", err)
+						log.Printf("Unable to freeze server %v: %s", sid, err.String())
+						continue
 					}
 				}
 
