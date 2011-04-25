@@ -12,13 +12,16 @@ import (
 	"net"
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"encoding/binary"
 	"encoding/hex"
 	"sync"
 	"goprotobuf.googlecode.com/hg/proto"
 	"mumbleproto"
 	"cryptstate"
+	"gob"
 	"hash"
+	"io"
 	"rand"
 	"strings"
 )
@@ -48,6 +51,7 @@ type Server struct {
 	incoming       chan *Message
 	udpsend        chan *Message
 	voicebroadcast chan *VoiceBroadcast
+	freezeRequest  chan *freezeRequest
 
 	// Signals to the server that a client has been successfully
 	// authenticated.
@@ -84,6 +88,11 @@ type Server struct {
 	aclcache ACLCache
 }
 
+type freezeRequest struct {
+	done        chan bool
+	readCloser  io.ReadCloser
+}
+
 // Allocate a new Murmur instance
 func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 	s = new(Server)
@@ -103,6 +112,7 @@ func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 	s.incoming = make(chan *Message)
 	s.udpsend = make(chan *Message)
 	s.voicebroadcast = make(chan *VoiceBroadcast)
+	s.freezeRequest = make(chan *freezeRequest)
 	s.clientAuthenticated = make(chan *Client)
 
 	s.MaxBandwidth = 300000
@@ -326,7 +336,42 @@ func (server *Server) handler() {
 		// server info.
 		case client := <-server.clientAuthenticated:
 			server.finishAuthenticate(client)
+
+		// Synchonized freeze requests
+		case req := <-server.freezeRequest:
+			fs, err := server.Freeze()
+			if err != nil {
+				log.Panicf("Unable to freeze the server")
+			}
+			go server.handleFreezeRequest(req, &fs)
 		}
+	}
+}
+
+func (server *Server) handleFreezeRequest(freq *freezeRequest, fs *frozenServer) {
+	pr, pw := io.Pipe()
+
+	freq.readCloser = pr
+	freq.done <- true
+
+	zw, err := gzip.NewWriterLevel(pw, gzip.BestCompression)
+	if err != nil {
+		if err = pw.CloseWithError(err); err != nil {
+			log.Panicf("Unable to close PipeWriter: %v", err.String())
+		}
+		return
+	}
+
+	enc := gob.NewEncoder(zw)
+	err = enc.Encode(fs)
+	if err != nil {
+		if err = pw.CloseWithError(err); err != nil {
+			log.Panicf("Unable to close PipeWriter: %v", err.String())
+		}
+	}
+
+	if err = pw.CloseWithError(zw.Close()); err != nil {
+		log.Panicf("Unable to close PipeWriter: %v", err.String())
 	}
 }
 
@@ -934,6 +979,15 @@ func (server *Server) userEnterChannel(client *Client, channel *Channel, usersta
 	if channel.parent != nil {
 		server.sendClientPermissions(client, channel.parent)
 	}
+}
+
+// Create a point-in-time snapshot of Server and make it
+// accessible through the returned io.ReadCloser.
+func (s *Server) FreezeServer() io.ReadCloser {
+	fr := &freezeRequest{done:make(chan bool)}
+	s.freezeRequest <- fr
+	<-fr.done
+	return fr.readCloser
 }
 
 // The accept loop of the server.

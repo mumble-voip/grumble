@@ -10,10 +10,14 @@ import (
 	"flag"
 	"fmt"
 	"gob"
+	"io"
+	"io/ioutil"
 	"os"
 	"log"
 	"sqlite"
 	"path/filepath"
+	"regexp"
+	"time"
 )
 
 var help *bool = flag.Bool("help", false, "Show this help")
@@ -158,21 +162,53 @@ func main() {
 
 	servers := make(map[int64]*Server)
 	for _, name := range names {
-		log.Printf("Loading server %v", name)
-		s, err := NewServerFromFrozen(filepath.Join(*datadir, name))
-		if err != nil {
-			log.Fatalf("Unable to load server: %s", err.String())
+		if matched, _ := regexp.MatchString("^[0-9]+$", name); matched {
+			log.Printf("Loading server %v", name)
+			s, err := NewServerFromFrozen(filepath.Join(*datadir, name))
+			if err != nil {
+				log.Fatalf("Unable to load server: %s", err.String())
+			}
+			servers[s.Id] = s
+			go s.ListenAndMurmur()
 		}
-
-		servers[s.Id] = s
-		go s.ListenAndMurmur()
 	}
 
 	if len(servers) > 0 {
-		// Sleep.
-		sleeper := make(chan int)
-		zzz := <-sleeper
-		if zzz > 0 {
+		ticker := time.NewTicker(10e9) // 10 secs
+		for {
+			select {
+			case <-ticker.C:
+				for sid, server := range servers {
+					r := server.FreezeServer()
+					if err != nil {
+						log.Panicf("Unable to freeze server %v", sid)
+					}
+					f, err := ioutil.TempFile(*datadir, fmt.Sprintf("%v_", sid))
+					if err != nil {
+						log.Panicf("Unable to open file: %", err.String())
+					}
+					nwritten, err := io.Copy(f, r)
+					if err != nil {
+						log.Panicf("Unable to copy frozen server data: %v bytes, err=%v", nwritten, err)
+					}
+					err = r.Close()
+					if err != nil {
+						log.Panicf("Unable to freeze server: %v", err)
+					}
+					err = f.Sync()
+					if err != nil {
+						log.Panicf("Unable to sync frozen file: %v", err)
+					}
+					err = f.Close()
+					if err != nil {
+						log.Panicf("Unable to freeze server: %v", err)
+					}
+					err = os.Rename(f.Name(), filepath.Join(*datadir, fmt.Sprintf("%v", sid)))
+					if err != nil {
+						log.Panicf("Unable to freeze server: %v", err)
+					}
+				}
+			}
 		}
 	}
 }
