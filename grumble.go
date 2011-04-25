@@ -6,10 +6,8 @@ package main
 
 import (
 	"blobstore"
-	"compress/gzip"
 	"flag"
 	"fmt"
-	"gob"
 	"os"
 	"os/signal"
 	"log"
@@ -60,26 +58,10 @@ func MurmurImport(filename string) (err os.Error) {
 			return err
 		}
 
-		f, err := os.Create(filepath.Join(*datadir, fmt.Sprintf("%v", sid)))
+		err = m.FreezeToFile(filepath.Join(*datadir, fmt.Sprintf("%v", sid)))
 		if err != nil {
 			return err
 		}
-
-		zf, err := gzip.NewWriterLevel(f, gzip.BestCompression)
-
-		fz, err := m.Freeze()
-		if err != nil {
-			return err
-		}
-
-		enc := gob.NewEncoder(zf)
-		err = enc.Encode(fz)
-		if err != nil {
-			return err
-		}
-
-		zf.Close()
-		f.Close()
 
 		log.Printf("Successfully imported server %v", sid)
 	}
