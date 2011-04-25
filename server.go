@@ -47,6 +47,7 @@ type Server struct {
 	address  string
 	port     int
 	udpconn  *net.UDPConn
+	running  bool
 
 	incoming       chan *Message
 	udpsend        chan *Message
@@ -100,6 +101,7 @@ func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 	s.Id = id
 	s.address = addr
 	s.port = port
+	s.running = false
 
 	s.clients = make(map[uint32]*Client)
 	s.Users = make(map[uint32]*User)
@@ -994,6 +996,8 @@ func (s *Server) FreezeServer() io.ReadCloser {
 func (s *Server) ListenAndMurmur() {
 	// Launch the event handler goroutine
 	go s.handler()
+
+	s.running = true
 
 	// Setup our UDP listener and spawn our reader and writer goroutines
 	s.SetupUDP()
