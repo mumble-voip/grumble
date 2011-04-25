@@ -6,7 +6,10 @@ package main
 
 import (
 	"compress/gzip"
+	"fmt"
 	"gob"
+	"io"
+	"io/ioutil"
 	"os"
 )
 
@@ -56,6 +59,40 @@ type frozenGroup struct {
 	Inheritable bool   "inheritable"
 	Add         []int  "add"
 	Remove      []int  "remove"
+}
+
+// Freeze a server and write it to a file
+func (server *Server) FreezeToFile(filename string) (err os.Error) {
+	r := server.FreezeServer()
+	if err != nil {
+		return err
+	}
+	f, err := ioutil.TempFile(*datadir, fmt.Sprintf("%v_", server.Id))
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(f, r)
+	if err != nil {
+		return err
+	}
+	err = r.Close()
+	if err != nil {
+		return err
+	}
+	err = f.Sync()
+	if err != nil {
+		return err
+	}
+	err = f.Close()
+	if err != nil {
+		return err
+	}
+	err = os.Rename(f.Name(), filename)
+	if err != nil {
+		return err
+	}
+
+	return
 }
 
 // Freeze a server
