@@ -986,6 +986,17 @@ func (server *Server) userEnterChannel(client *Client, channel *Channel, usersta
 // Create a point-in-time snapshot of Server and make it
 // accessible through the returned io.ReadCloser.
 func (s *Server) FreezeServer() io.ReadCloser {
+	if !s.running {
+		fs, err := s.Freeze()
+		if err != nil {
+			log.Panicf("Unable to freeze the server")
+		}
+		fr := &freezeRequest{done:make(chan bool)}
+		go s.handleFreezeRequest(fr, &fs)
+		<-fr.done
+		return fr.readCloser
+	}
+
 	fr := &freezeRequest{done:make(chan bool)}
 	s.freezeRequest <- fr
 	<-fr.done
