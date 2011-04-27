@@ -831,8 +831,6 @@ func (server *Server) handleIncomingMessage(client *Client, msg *Message) {
 		log.Printf("MessageVoiceTarget from client")
 	case MessagePermissionQuery:
 		server.handlePermissionQuery(msg.client, msg)
-	case MessageCodecVersion:
-		log.Printf("MessageCodecVersion from client")
 	case MessageUserStats:
 		server.handleUserStatsMessage(msg.client, msg)
 	case MessageRequestBlob:
