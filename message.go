@@ -1008,14 +1008,18 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 		}
 
 		// Map the user ids in the user map to usernames of users.
-		// fixme(mkrautz): This requires a persistent datastore, because it retrieves registered users.
 		queryusers := &mumbleproto.QueryUsers{}
 		for uid, _ := range users {
+			user, ok := server.Users[uint32(uid)]
+			if !ok {
+				log.Printf("Invalid user id in ACL")
+				continue
+			}
 			queryusers.Ids = append(queryusers.Ids, uint32(uid))
-			queryusers.Names = append(queryusers.Names, "Unknown")
+			queryusers.Names = append(queryusers.Names, user.Name)
 		}
 		if len(queryusers.Ids) > 0 {
-			client.sendProtoMessage(MessageQueryUsers, reply)
+			client.sendProtoMessage(MessageQueryUsers, queryusers)
 		}
 
 		// Set new groups and ACLs
