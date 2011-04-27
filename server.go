@@ -821,8 +821,6 @@ func (server *Server) handleIncomingMessage(client *Client, msg *Message) {
 		server.handleQueryUsers(msg.client, msg)
 	case MessageCryptSetup:
 		server.handleCryptSetup(msg.client, msg)
-	case MessageContextActionAdd:
-		log.Printf("MessageContextActionAdd from client")
 	case MessageContextAction:
 		log.Printf("MessageContextAction from client")
 	case MessageUserList:
