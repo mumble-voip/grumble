@@ -688,7 +688,7 @@ func (server *Server) sendUserList(client *Client) {
 		}
 
 		if len(connectedClient.CertHash) > 0 {
-			userstate.Hash = connectedClient.CertHash
+			userstate.Hash = proto.String(connectedClient.CertHash)
 		}
 
 		if connectedClient.IsRegistered() {
