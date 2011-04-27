@@ -1038,10 +1038,44 @@ func (s *Server) RemoveRegistration(uid uint32) (err os.Error) {
 		return os.NewError("Unknown user ID")
 	}
 
+	// Remove from user maps
 	s.Users[uid] = nil, false
 	s.UserCertMap[user.CertHash] = nil, false
 	s.UserNameMap[user.Name] = nil, false
+
+	// Remove from groups and ACLs.
+	s.removeRegisteredUserFromChannel(uid, s.root)
+
 	return nil
+}
+
+// Remove references for user id uid from channel. Traverses subchannels.
+func (s *Server) removeRegisteredUserFromChannel(uid uint32, channel *Channel) {
+
+	newACL := []*ChannelACL{}
+	for _, chanacl := range channel.ACL {
+		if chanacl.UserId == int(uid) {
+			continue
+		}
+		newACL = append(newACL, chanacl)
+	}
+	channel.ACL = newACL
+
+	for _, grp := range channel.Groups {
+		if _, ok := grp.Add[int(uid)]; ok {
+			grp.Add[int(uid)] = false, false
+		}
+		if _, ok := grp.Remove[int(uid)]; ok {
+			grp.Remove[int(uid)] = false, false
+		}
+		if _, ok := grp.Temporary[int(uid)]; ok {
+			grp.Temporary[int(uid)] = false, false
+		}
+	}
+
+	for _, subChan := range channel.children {
+		s.removeRegisteredUserFromChannel(uid, subChan)
+	}
 }
 
 // The accept loop of the server.
