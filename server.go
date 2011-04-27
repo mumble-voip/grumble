@@ -1035,16 +1035,6 @@ func (s *Server) ListenAndMurmur() {
 			log.Printf("Unable to accept() new client.")
 		}
 
-		tls, ok := conn.(*tls.Conn)
-		if !ok {
-			log.Panic("Internal inconsistency error.")
-		}
-
-		// Force the TLS handshake to get going. We'd like
-		// this to happen as soon as possible, so we can get
-		// at client certificates sooner.
-		tls.Handshake()
-
 		// Create a new client connection from our *tls.Conn
 		// which wraps net.TCPConn.
 		err = s.NewClient(conn)
