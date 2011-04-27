@@ -837,8 +837,6 @@ func (server *Server) handleIncomingMessage(client *Client, msg *Message) {
 		server.handleUserStatsMessage(msg.client, msg)
 	case MessageRequestBlob:
 		server.handleRequestBlob(msg.client, msg)
-	case MessageServerConfig:
-		log.Printf("MessageServerConfig from client")
 	}
 }
 
