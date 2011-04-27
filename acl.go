@@ -141,7 +141,7 @@ func NewChannelACL(channel *Channel) *ChannelACL {
 
 // Check whether client has permission perm on channel. Perm *must* be a single permission,
 // and not a combination of permissions.
-func (server *Server) HasPermission(client *Client, channel *Channel, perm Permission) bool {
+func (server *Server) HasPermission(client *Client, channel *Channel, perm Permission) (ok bool) {
 	// SuperUser can't speak or whisper, but everything else is OK	
 	if client.IsSuperUser() {
 		if perm == SpeakPermission || perm == WhisperPermission {
@@ -213,14 +213,14 @@ func (server *Server) HasPermission(client *Client, channel *Channel, perm Permi
 					granted &= ^acl.Deny
 				}
 			}
-			// If traverse is not set and the user doesn't have write permissions
-			// on the channel, the user will not have any permissions.
-			// This is because -traverse removes all permissions, and +write grants
-			// all permissions.
-			if !traverse && !write {
-				granted = NonePermission
-				break
-			}
+		}
+		// If traverse is not set and the user doesn't have write permissions
+		// on the channel, the user will not have any permissions.
+		// This is because -traverse removes all permissions, and +write grants
+		// all permissions.
+		if !traverse && !write {
+			granted = NonePermission
+			break
 		}
 	}
 
