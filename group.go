@@ -130,19 +130,18 @@ func (group *Group) Members() map[int]bool {
 // the group from an acl in aclchan.
 //
 // The channel aclchan will always be either equal to current, or be an ancestor.
-func GroupMemberCheck(current *Channel, aclchan *Channel, name string, client *Client) bool {
+func GroupMemberCheck(current *Channel, aclchan *Channel, name string, client *Client) (ok bool) {
 	invert := false
 	token := false
 	hash := false
 
 	// Returns the 'correct' return value considering the value
 	// of the invert flag.
-	retvalify := func(in bool) bool {
+	defer func() {
 		if invert {
-			return !in
+			ok = !ok
 		}
-		return in
-	}
+	}()
 
 	member := false
 	channel := current
@@ -287,14 +286,14 @@ func GroupMemberCheck(current *Channel, aclchan *Channel, name string, client *C
 		cofs += minpath
 		// Check that the minpath parameter that was given is a valid index for groupChain.
 		if cofs >= len(groupChain) {
-			return retvalify(false)
+			return false
 		} else if cofs < 0 {
 			cofs = 0
 		}
 
 		// If our 'base' channel is not in the playerChain, the group does not apply to the client.
 		if indexOf(playerChain, groupChain[cofs]) == -1 {
-			return retvalify(false)
+			return false
 		}
 
 		// Down here, we're certain that the playerChain includes the base channel
@@ -338,7 +337,7 @@ func GroupMemberCheck(current *Channel, aclchan *Channel, name string, client *C
 		}
 	}
 
-	return retvalify(member)
+	return member
 }
 
 // Get the list of group names in a particular channel.
