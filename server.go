@@ -799,7 +799,6 @@ func (server *Server) broadcastProtoMessage(kind uint16, msg interface{}) (err o
 }
 
 func (server *Server) handleIncomingMessage(client *Client, msg *Message) {
-	log.Printf("Handle Incoming Message")
 	switch msg.kind {
 	case MessagePing:
 		server.handlePingMessage(msg.client, msg)
