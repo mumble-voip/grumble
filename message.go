@@ -601,21 +601,19 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	if userstate.UserId != nil {
 		// If user == actor, check for SelfRegisterPermission on root channel.
 		// If user != actor, check for RegisterPermission permission on root channel.
-		permCheck := Permission(NonePermission)
-		uid := *userstate.UserId
-		if target == actor {
-			permCheck = SelfRegisterPermission
-		} else {
-			permCheck = RegisterPermission
+		perm := Permission(RegisterPermission)
+		if actor == target {
+			perm = Permission(SelfRegisterPermission)
 		}
-		if uid >= 0 || !server.HasPermission(actor, server.root, SelfRegisterPermission) {
-			client.sendPermissionDenied(actor, server.root, permCheck)
+
+		if target.IsRegistered() || !server.HasPermission(actor, server.root, perm) {
+			client.sendPermissionDenied(actor, server.root, perm)
 			return
 		}
 
-		// We can't register a user with an empty hash.
 		if len(target.CertHash) == 0 {
 			client.sendPermissionDeniedTypeUser("MissingCertificate", target)
+			return
 		}
 	}
 
@@ -733,10 +731,17 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 		broadcast = true
 	}
 
+	userRegistrationChanged := false
 	if userstate.UserId != nil {
-		// fixme(mkrautz): Registration is currently unhandled.
-		log.Printf("handleUserState: (Self)Register not implemented yet!")
-		userstate.UserId = nil
+		uid := server.RegisterClient(client)
+		if uid > 0 {
+			userstate.UserId = proto.Uint32(uid)
+			client.user = server.Users[uid]
+			userRegistrationChanged = true
+		} else {
+			userstate.UserId = nil
+		}
+		broadcast = true
 	}
 
 	if userstate.ChannelId != nil {
@@ -797,6 +802,10 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 		} else if target.user == nil {
 			userstate.Comment = nil
 			userstate.CommentHash = nil
+		}
+
+		if userRegistrationChanged {
+			server.ClearACLCache()
 		}
 
 		err := server.broadcastProtoMessageWithPredicate(MessageUserState, userstate, func(client *Client) bool {
@@ -1193,6 +1202,58 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 						client.Panic(err.String())
 						return
 					}
+				}
+			}
+		}
+	}
+}
+
+// User list query, user rename, user de-register
+func (server *Server) handleUserList(client *Client, msg *Message) {
+	userlist := &mumbleproto.UserList{}
+	err := proto.Unmarshal(msg.buf, userlist)
+	if err != nil {
+		client.Panic(err.String())
+		return
+	}
+
+	// Only users who are allowed to register other users can access the user list.
+	if !server.HasPermission(client, server.root, RegisterPermission) {
+		client.sendPermissionDenied(client, server.root, RegisterPermission)
+		return
+	}
+
+	// Query user list
+	if len(userlist.Users) == 0 {
+		for uid, user := range server.Users {
+			if uid == 0 {
+				continue
+			}
+			userlist.Users = append(userlist.Users, &mumbleproto.UserList_User{
+				UserId: proto.Uint32(uid),
+				Name:   proto.String(user.Name),
+			})
+		}
+		if err := client.sendProtoMessage(MessageUserList, userlist); err != nil {
+			client.Panic(err.String())
+			return
+		}
+	// Rename, registration removal
+	} else {
+		for _, listUser := range userlist.Users {
+			uid := *listUser.UserId
+			if uid == 0 {
+				continue
+			}
+			// De-register a user
+			if listUser.Name == nil {
+				server.RemoveRegistration(uid)
+			// Rename user
+			} else {
+				// todo(mkrautz): Validate name.
+				user, ok := server.Users[uid]
+				if ok {
+					user.Name = *listUser.Name
 				}
 			}
 		}

@@ -84,6 +84,7 @@ type Server struct {
 	Users             map[uint32]*User
 	UserCertMap       map[string]*User
 	UserNameMap       map[string]*User
+	nextUserId        uint32
 
 	// ACL cache
 	aclcache ACLCache
@@ -537,6 +538,11 @@ func (server *Server) finishAuthenticate(client *Client) {
 		Name:      proto.String(client.ShownName()),
 		ChannelId: proto.Uint32(0),
 	}
+
+	if len(client.CertHash) > 0 {
+		userstate.Hash = proto.String(client.CertHash)
+	}
+
 	if client.IsRegistered() {
 		userstate.UserId = proto.Uint32(uint32(client.UserId()))
 
@@ -681,6 +687,10 @@ func (server *Server) sendUserList(client *Client) {
 			ChannelId: proto.Uint32(uint32(connectedClient.Channel.Id)),
 		}
 
+		if len(connectedClient.CertHash) > 0 {
+			userstate.Hash = connectedClient.CertHash
+		}
+
 		if connectedClient.IsRegistered() {
 			userstate.UserId = proto.Uint32(uint32(connectedClient.UserId()))
 
@@ -708,10 +718,6 @@ func (server *Server) sendUserList(client *Client) {
 					}
 					userstate.Comment = proto.String(string(buf))
 				}
-			}
-
-			if len(connectedClient.user.CertHash) > 0 {
-				userstate.Hash = proto.String(connectedClient.user.CertHash)
 			}
 		}
 
@@ -820,7 +826,7 @@ func (server *Server) handleIncomingMessage(client *Client, msg *Message) {
 	case MessageContextAction:
 		log.Printf("MessageContextAction from client")
 	case MessageUserList:
-		log.Printf("MessageUserList from client")
+		server.handleUserList(msg.client, msg)
 	case MessageVoiceTarget:
 		log.Printf("MessageVoiceTarget from client")
 	case MessagePermissionQuery:
@@ -1001,6 +1007,48 @@ func (s *Server) FreezeServer() io.ReadCloser {
 	s.freezeRequest <- fr
 	<-fr.done
 	return fr.readCloser
+}
+
+// Register a client on the server.
+func (s *Server) RegisterClient(client *Client) (uid uint32) {
+	// Increment nextUserId only if registration succeeded.
+	defer func() {
+		if uid > 0 {
+			s.nextUserId += 1
+		}
+	}()
+
+	user, err := NewUser(s.nextUserId, client.Username)
+	if err != nil {
+		return 0
+	}
+
+	// Grumble can only register users with certificates.
+	if len(client.CertHash) == 0 {
+		return 0
+	}
+
+	user.Email = client.Email
+	user.CertHash = client.CertHash
+
+	uid = s.nextUserId
+	s.Users[uid] = user
+	s.UserCertMap[client.CertHash] = user
+	s.UserNameMap[client.Username] = user
+	return uid
+}
+
+// Remove a registered user.
+func (s *Server) RemoveRegistration(uid uint32) (err os.Error) {
+	user, ok := s.Users[uid]
+	if !ok {
+		return os.NewError("Unknown user ID")
+	}
+
+	s.Users[uid] = nil, false
+	s.UserCertMap[user.CertHash] = nil, false
+	s.UserNameMap[user.Name] = nil, false
+	return nil
 }
 
 // The accept loop of the server.

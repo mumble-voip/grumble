@@ -292,6 +292,9 @@ func NewServerFromFrozen(filename string) (s *Server, err os.Error) {
 		u.LastActive = fu.LastActive
 
 		s.Users[u.Id] = u
+		if u.Id > s.nextUserId {
+			s.nextUserId = u.Id + 1
+		}
 		s.UserNameMap[u.Name] = u
 		if len(u.CertHash) > 0 {
 			s.UserCertMap[u.CertHash] = u

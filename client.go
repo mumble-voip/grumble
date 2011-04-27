@@ -60,6 +60,7 @@ type Client struct {
 	Username        string
 	Session         uint32
 	CertHash        string
+	Email           string
 	Tokens          []string
 	Channel         *Channel
 	SelfMute        bool
