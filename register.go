@@ -180,7 +180,7 @@ func (server *Server) RegisterPublicServer() {
 			if r.StatusCode == 200 {
 				log.Printf("register: %v", registerMsg)
 			} else {
-				log.Printf("register: (status %v) %v", registerMsg)
+				log.Printf("register: (status %v) %v", r.StatusCode, registerMsg)
 			}
 		} else {
 			log.Printf("register: unable to read post response: %v", err)
