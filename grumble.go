@@ -24,6 +24,7 @@ var datadir *string = flag.String("datadir", "", "Directory to use for server st
 var blobdir *string = flag.String("blobdir", "", "Directory to use for blob storage")
 var sqlitedb *string = flag.String("murmurdb", "", "Path to murmur.sqlite to import server structure from")
 var cleanup *bool = flag.Bool("clean", false, "Clean up existing data dir content before importing Murmur data")
+var gencert *bool = flag.Bool("gencert", false, "Generate a self-signed certificate for use with Grumble")
 
 var globalBlobstore *blobstore.BlobStore
 
@@ -92,6 +93,26 @@ func main() {
 	globalBlobstore, err = blobstore.NewBlobStore(*blobdir, true)
 	if err != nil {
 		log.Fatalf("Unable to initialize blobstore: %v", err.String())
+	}
+
+	// Generate a cert?
+	if *gencert {
+		certfn := filepath.Join(*datadir, "cert")
+		keyfn := filepath.Join(*datadir, "key")
+		log.Printf("Generating 2048-bit RSA keypair for self-signed certificate...")
+
+		err := GenerateSelfSignedCert(certfn, keyfn)
+		if err != nil {
+			log.Printf("Error: %v", err)
+			return
+		}
+
+		log.Printf("Certificate output to %v", certfn)
+		log.Printf("Private key output to %v", keyfn)
+
+		log.Printf("Done generating certificate and private key.")
+		log.Printf("Please restart Grumble to make use of the generated certificate and private key.")
+		return
 	}
 
 	// Should we import data from a Murmur SQLite file?

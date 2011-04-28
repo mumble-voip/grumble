@@ -9,13 +9,14 @@ import (
 	"encoding/pem"
 	"crypto/x509"
 	"io/ioutil"
+	"path/filepath"
 )
 
 func NewTLSListener(port int) (rl *tls.Listener) {
 	rl = nil
 
 	// Load the certificate
-	pemBytes, err := ioutil.ReadFile("grumble.crt")
+	pemBytes, err := ioutil.ReadFile(filepath.Join(*datadir, "cert"))
 	if err != nil {
 		log.Printf("Failed to read server.crt: %s", err)
 		return
@@ -29,7 +30,7 @@ func NewTLSListener(port int) (rl *tls.Listener) {
 	}
 
 	// Load the private key
-	keyBytes, err := ioutil.ReadFile("grumble.key")
+	keyBytes, err := ioutil.ReadFile(filepath.Join(*datadir, "key"))
 	if err != nil {
 		log.Printf("Failed to read server.key.insecure: %s", err)
 		return
