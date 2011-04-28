@@ -953,7 +953,7 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 		reply.Groups = []*mumbleproto.ACL_ChanGroup{}
 		for name, _ := range allnames {
 			var (
-				group *Group
+				group  *Group
 				pgroup *Group
 			)
 			group = channel.Groups[name]
@@ -1242,7 +1242,7 @@ func (server *Server) handleUserList(client *Client, msg *Message) {
 			client.Panic(err.String())
 			return
 		}
-	// Rename, registration removal
+		// Rename, registration removal
 	} else {
 		for _, listUser := range userlist.Users {
 			uid := *listUser.UserId
@@ -1252,7 +1252,7 @@ func (server *Server) handleUserList(client *Client, msg *Message) {
 			// De-register a user
 			if listUser.Name == nil {
 				server.RemoveRegistration(uid)
-			// Rename user
+				// Rename user
 			} else {
 				// todo(mkrautz): Validate name.
 				user, ok := server.Users[uid]

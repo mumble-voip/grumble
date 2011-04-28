@@ -176,7 +176,7 @@ func (client *Client) RejectAuth(kind, reason string) {
 func (client *Client) readProtoMessage() (msg *Message, err os.Error) {
 	var (
 		length uint32
-		kind uint16
+		kind   uint16
 	)
 
 	// Read the message type (16-bit big-endian unsigned integer)
@@ -522,8 +522,8 @@ func (client *Client) sendChannelList() {
 
 func (client *Client) sendChannelTree(channel *Channel) {
 	chanstate := &mumbleproto.ChannelState{
-		ChannelId:   proto.Uint32(uint32(channel.Id)),
-		Name:        proto.String(channel.Name),
+		ChannelId: proto.Uint32(uint32(channel.Id)),
+		Name:      proto.String(channel.Name),
 	}
 	if channel.parent != nil {
 		chanstate.Parent = proto.Uint32(uint32(channel.parent.Id))

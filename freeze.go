@@ -14,10 +14,10 @@ import (
 )
 
 type frozenServer struct {
-	Id                int             "id"
-	MaxUsers          int             "max_user"
-	Channels          []frozenChannel "channels"
-	Users             []frozenUser    "users"
+	Id       int             "id"
+	MaxUsers int             "max_user"
+	Channels []frozenChannel "channels"
+	Users    []frozenUser    "users"
 }
 
 type frozenUser struct {

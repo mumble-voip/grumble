@@ -83,18 +83,18 @@ type Server struct {
 	Channels map[int]*Channel
 
 	// Users
-	Users             map[uint32]*User
-	UserCertMap       map[string]*User
-	UserNameMap       map[string]*User
-	nextUserId        uint32
+	Users       map[uint32]*User
+	UserCertMap map[string]*User
+	UserNameMap map[string]*User
+	nextUserId  uint32
 
 	// ACL cache
 	aclcache ACLCache
 }
 
 type freezeRequest struct {
-	done        chan bool
-	readCloser  io.ReadCloser
+	done       chan bool
+	readCloser io.ReadCloser
 }
 
 // Allocate a new Murmur instance
@@ -992,13 +992,13 @@ func (s *Server) FreezeServer() io.ReadCloser {
 		if err != nil {
 			log.Panicf("Unable to freeze the server")
 		}
-		fr := &freezeRequest{done:make(chan bool)}
+		fr := &freezeRequest{done: make(chan bool)}
 		go s.handleFreezeRequest(fr, &fs)
 		<-fr.done
 		return fr.readCloser
 	}
 
-	fr := &freezeRequest{done:make(chan bool)}
+	fr := &freezeRequest{done: make(chan bool)}
 	s.freezeRequest <- fr
 	<-fr.done
 	return fr.readCloser
