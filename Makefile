@@ -30,7 +30,6 @@ LDFLAGS = \
 GOFILES = \
 	grumble.go \
 	message.go \
-	tlsserver.go \
 	server.go \
 	client.go \
 	channel.go \

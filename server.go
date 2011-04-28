@@ -22,6 +22,7 @@ import (
 	"gob"
 	"hash"
 	"io"
+	"path/filepath"
 	"rand"
 	"strings"
 )
@@ -47,6 +48,7 @@ type Server struct {
 	address  string
 	port     int
 	udpconn  *net.UDPConn
+	tlscfg   *tls.Config
 	running  bool
 
 	incoming       chan *Message
@@ -1091,11 +1093,27 @@ func (s *Server) ListenAndMurmur() {
 	go s.SendUDP()
 
 	// Create a new listening TLS socket.
-	l := NewTLSListener(s.port)
-	if l == nil {
-		log.Printf("Unable to create TLS listener")
+	cert, err := tls.LoadX509KeyPair(filepath.Join(*datadir, "cert"), filepath.Join(*datadir, "key"))
+	if err != nil {
+		log.Printf("Unable to load x509 key pair: %v", err)
 		return
 	}
+
+	cfg := new(tls.Config)
+	cfg.Certificates = append(cfg.Certificates, cert)
+	cfg.AuthenticateClient = true
+	s.tlscfg = cfg
+
+	tl, err := net.ListenTCP("tcp", &net.TCPAddr{
+		net.ParseIP("0.0.0.0"),
+		s.port,
+	})
+	if err != nil {
+		log.Printf("Cannot bind: %s\n", err)
+		return
+	}
+
+	listener := tls.NewListener(tl, s.tlscfg)
 
 	log.Printf("Created new Murmur instance on port %v", s.port)
 
@@ -1105,7 +1123,7 @@ func (s *Server) ListenAndMurmur() {
 	// a new Go-routine to handle the client.
 	for {
 		// New client connected
-		conn, err := l.Accept()
+		conn, err := listener.Accept()
 		if err != nil {
 			log.Printf("Unable to accept() new client.")
 		}
