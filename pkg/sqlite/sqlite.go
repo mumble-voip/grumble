@@ -367,7 +367,7 @@ func (s *Stmt) Scan(args ...interface{}) os.Error {
 			}
 			*v = x
 		default:
-			return os.NewError("unsupported type in Scan: " + reflect.Typeof(v).String())
+			return os.NewError("unsupported type in Scan: " + reflect.TypeOf(v).String())
 		}
 	}
 	return nil
