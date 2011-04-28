@@ -38,7 +38,8 @@ GOFILES = \
 	user.go \
 	murmurdb.go \
 	freeze.go \
-	gencert.go
+	gencert.go \
+	register.go
 
 .PHONY: grumble
 grumble: pkg

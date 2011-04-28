@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"rand"
 	"strings"
+	"time"
 )
 
 // The default port a Murmur server listens on
@@ -61,8 +62,13 @@ type Server struct {
 	clientAuthenticated chan *Client
 
 	// Config-related
-	MaxUsers     int
-	MaxBandwidth uint32
+	MaxUsers         int
+	MaxBandwidth     uint32
+	RegisterName     string
+	RegisterHost     string
+	RegisterPassword string
+	RegisterWebUrl   string
+	RegisterLocation string
 
 	// Clients
 	clients map[uint32]*Client
@@ -349,6 +355,11 @@ func (server *Server) handler() {
 				log.Panicf("Unable to freeze the server")
 			}
 			go server.handleFreezeRequest(req, &fs)
+
+		// Server registration update
+		// Tick every hour + a minute offset based on the server id.
+		case <-time.Tick((3600 + ((server.Id * 60) % 600)) * 1e9):
+			server.RegisterPublicServer()
 		}
 	}
 }
@@ -1116,6 +1127,12 @@ func (s *Server) ListenAndMurmur() {
 	listener := tls.NewListener(tl, s.tlscfg)
 
 	log.Printf("Created new Murmur instance on port %v", s.port)
+
+	// Update server registration if needed.
+	go func() {
+		time.Sleep((60 + s.Id*10) * 1e9)
+		s.RegisterPublicServer()
+	}()
 
 	// The main accept loop. Basically, we block
 	// until we get a new client connection, and
