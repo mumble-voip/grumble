@@ -18,8 +18,6 @@ import (
 )
 
 var help *bool = flag.Bool("help", false, "Show this help")
-var port *int = flag.Int("port", 64738, "Default port to listen on")
-var host *string = flag.String("host", "0.0.0.0", "Default host to listen on")
 var datadir *string = flag.String("datadir", "", "Directory to use for server storage")
 var blobdir *string = flag.String("blobdir", "", "Directory to use for blob storage")
 var sqlitedb *string = flag.String("murmurdb", "", "Path to murmur.sqlite to import server structure from")
@@ -176,7 +174,7 @@ func main() {
 	}
 
 	if len(servers) == 0 {
-		s, err := NewServer(1, *host, *port)
+		s, err := NewServer(1, "0.0.0.0", 64738)
 		if err != nil {
 			log.Fatalf("Couldn't start server: %s", err.String())
 		}
