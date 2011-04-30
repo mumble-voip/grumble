@@ -189,9 +189,11 @@ func GroupMemberCheck(current *Channel, aclchan *Channel, name string, client *C
 		}
 		return false
 	} else if hash {
-		// The user is part of this group if the remaining name matches his
-		// cert hash.
-		log.Printf("GroupMemberCheck: Implement hash matching")
+		// The client is part of this group if the remaining name matches the
+		// client's cert hash.
+		if strings.ToLower(name) == strings.ToLower(client.CertHash) {
+			return true
+		}
 		return false
 	} else if name == "none" {
 		// None
