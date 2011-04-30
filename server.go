@@ -1158,7 +1158,7 @@ func (s *Server) ListenAndMurmur() {
 
 	listener := tls.NewListener(tl, s.tlscfg)
 
-	s.Printf("Created new Murmur instance on port %v", s.port)
+	s.Printf("Started: listening on %v", tl.Addr())
 
 	// Update server registration if needed.
 	go func() {
