@@ -810,9 +810,7 @@ func (server *Server) sendClientPermissions(client *Client, channel *Channel) {
 
 	// Update cache
 	server.HasPermission(client, channel, EnterPermission)
-
 	perm := server.aclcache.GetPermission(client, channel)
-	server.Printf("Permissions = 0x%x", perm)
 
 	// fixme(mkrautz): Cache which permissions we've already sent.
 	client.sendProtoMessage(MessagePermissionQuery, &mumbleproto.PermissionQuery{
