@@ -115,9 +115,15 @@ func (client *Client) ShownName() string {
 	return client.Username
 }
 
-// Something invalid happened on the wire.
-func (client *Client) Panic(reason string) {
-	client.Printf("panic: %v", reason)
+// Log a panic and disconnect the client.
+func (client *Client) Panic(v ...interface{}) {
+	client.Print(v)
+	client.Disconnect()
+}
+
+// Log a formatted panic and disconnect the client.
+func (client *Client) Panicf(format string, v ...interface{}) {
+	client.Printf(format, v)
 	client.Disconnect()
 }
 
@@ -144,6 +150,8 @@ func (client *Client) disconnect(kicked bool) {
 		client.msgchan <- nil
 		<-client.doneSending
 		close(client.msgchan)
+
+		client.Printf("Disconnected")
 
 		client.conn.Close()
 		client.server.RemoveClient(client, kicked)
@@ -185,21 +193,18 @@ func (client *Client) readProtoMessage() (msg *Message, err os.Error) {
 	// Read the message type (16-bit big-endian unsigned integer)
 	err = binary.Read(client.reader, binary.BigEndian, &kind)
 	if err != nil {
-		client.Panic("Unable to read packet kind")
 		return
 	}
 
 	// Read the message length (32-bit big-endian unsigned integer)
 	err = binary.Read(client.reader, binary.BigEndian, &length)
 	if err != nil {
-		client.Panic("Unable to read packet length")
 		return
 	}
 
 	buf := make([]byte, length)
 	_, err = io.ReadFull(client.reader, buf)
 	if err != nil {
-		client.Panic("Unable to read packet content")
 		return
 	}
 
@@ -243,7 +248,7 @@ func (c *Client) sendPermissionDeniedTypeUser(kind string, user *Client) {
 		}
 		d, err := proto.Marshal(pd)
 		if err != nil {
-			c.Panic(err.String())
+			c.Panicf("%v", err)
 			return
 		}
 		c.msgchan <- &Message{
@@ -251,7 +256,7 @@ func (c *Client) sendPermissionDeniedTypeUser(kind string, user *Client) {
 			kind: MessagePermissionDenied,
 		}
 	} else {
-		c.Panic("Unknown permission denied type.")
+		c.Panicf("Unknown permission denied type.")
 	}
 }
 
@@ -264,7 +269,7 @@ func (c *Client) sendPermissionDenied(who *Client, where *Channel, what Permissi
 		Type:       mumbleproto.NewPermissionDenied_DenyType(mumbleproto.PermissionDenied_Permission),
 	})
 	if err != nil {
-		c.Panic(err.String())
+		c.Panicf(err.String())
 	}
 	c.msgchan <- &Message{
 		buf:  d,
@@ -404,7 +409,7 @@ func (client *Client) sender() {
 		err := client.sendMessage(msg)
 		if err != nil {
 			// fixme(mkrautz): This is a deadlock waiting to happen.
-			client.Panic("Unable to send message to client")
+			client.Panicf("Unable to send message to client")
 			return
 		}
 	}
@@ -420,10 +425,9 @@ func (client *Client) receiver() {
 			msg, err := client.readProtoMessage()
 			if err != nil {
 				if err == os.EOF {
-					client.Printf("Disconnected.")
 					client.Disconnect()
 				} else {
-					client.Printf("Client error")
+					client.Panicf("%v", err)
 				}
 				return
 			}
@@ -442,7 +446,11 @@ func (client *Client) receiver() {
 			// Try to read the next message in the pool
 			msg, err := client.readProtoMessage()
 			if err != nil {
-				client.Panic(err.String())
+				if err == os.EOF {
+					client.Disconnect()
+				} else {
+					client.Panicf("%v", err)
+				}
 				return
 			}
 
@@ -477,10 +485,9 @@ func (client *Client) receiver() {
 			msg, err := client.readProtoMessage()
 			if err != nil {
 				if err == os.EOF {
-					client.Printf("Disconnected")
 					client.Disconnect()
 				} else {
-					client.Printf("Client error")
+					client.Panicf("%v", err)
 				}
 				return
 			}
@@ -488,7 +495,7 @@ func (client *Client) receiver() {
 			version := &mumbleproto.Version{}
 			err = proto.Unmarshal(msg.buf, version)
 			if err != nil {
-				client.Panic("Unable to unmarshal client version packet.")
+				client.Panicf("%v", err)
 				return
 			}
 
@@ -558,7 +565,7 @@ func (client *Client) sendChannelTree(channel *Channel) {
 
 	err := client.sendProtoMessage(MessageChannelState, chanstate)
 	if err != nil {
-		client.Panic(err.String())
+		client.Panicf("%v", err)
 	}
 
 	for _, subchannel := range channel.children {
