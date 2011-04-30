@@ -131,6 +131,7 @@ func (group *Group) Members() map[int]bool {
 //
 // The channel aclchan will always be either equal to current, or be an ancestor.
 func GroupMemberCheck(current *Channel, aclchan *Channel, name string, client *Client) (ok bool) {
+	valid := true
 	invert := false
 	token := false
 	hash := false
@@ -138,17 +139,17 @@ func GroupMemberCheck(current *Channel, aclchan *Channel, name string, client *C
 	// Returns the 'correct' return value considering the value
 	// of the invert flag.
 	defer func() {
-		if invert {
+		if valid && invert {
 			ok = !ok
 		}
 	}()
 
-	member := false
 	channel := current
 
 	for {
 		// Empty group name are not valid.
 		if len(name) == 0 {
+			valid = false
 			return false
 		}
 		// Invert
@@ -178,40 +179,42 @@ func GroupMemberCheck(current *Channel, aclchan *Channel, name string, client *C
 		break
 	}
 
-	// The user is part of this group if the remaining name is part of
-	// his access token list.
 	if token {
+		// The user is part of this group if the remaining name is part of
+		// his access token list.
 		log.Printf("GroupMemberCheck: Implement token matching")
-		member = false // fixme(mkrautz)
+		return false
+	} else if hash {
 		// The user is part of this group if the remaining name matches his
 		// cert hash.
-	} else if hash {
 		log.Printf("GroupMemberCheck: Implement hash matching")
-		member = false // fixme(mkrautz)
-		// None
+		return false
 	} else if name == "none" {
-		member = false
-		// Everyone
+		// None
+		return false
 	} else if name == "all" {
-		member = true
+		// Everyone
+		return true
+	} else if name == "auth" {
 		// The user is part of the auth group is he is authenticated. That is,
 		// his UserId is >= 0.
-	} else if name == "auth" {
-		member = client.IsRegistered()
-		// The user is part of the strong group if he is authenticated to the server
-		// via a strong certificate (i.e. non-self-signed).
+		return client.IsRegistered()
 	} else if name == "strong" {
+		// The user is part of the strong group if he is authenticated to the server
+		// via a strong certificate (i.e. non-self-signed, trusted by the server's
+		// trusted set of root CAs).
 		log.Printf("GroupMemberCheck: Implement strong certificate matching")
-		member = false // fixme(mkrautz)
-		// Is the user in the currently evaluated channel?
+		return false
 	} else if name == "in" {
-		member = client.Channel == channel
-		// Is the user not in the currently evaluated channel?
+		// Is the user in the currently evaluated channel?
+		return client.Channel == channel
 	} else if name == "out" {
-		member = client.Channel != channel
+		// Is the user not in the currently evaluated channel?
+		return client.Channel != channel
+	} else if name == "sub" {
 		// fixme(mkrautz): The sub group implementation below hasn't been thoroughly
 		// tested yet. It might be a bit buggy!
-	} else if name == "sub" {
+
 		// Strip away the "sub," part of the name
 		name = name[4:]
 
@@ -278,7 +281,7 @@ func GroupMemberCheck(current *Channel, aclchan *Channel, name string, client *C
 		// This can be either aclchan or current depending on the ~ group operator.
 		cofs := indexOf(groupChain, channel)
 		if cofs == -1 {
-			log.Printf("Invalid chain")
+			valid = false
 			return false
 		}
 
@@ -286,6 +289,7 @@ func GroupMemberCheck(current *Channel, aclchan *Channel, name string, client *C
 		cofs += minpath
 		// Check that the minpath parameter that was given is a valid index for groupChain.
 		if cofs >= len(groupChain) {
+			valid = false
 			return false
 		} else if cofs < 0 {
 			cofs = 0
@@ -302,10 +306,10 @@ func GroupMemberCheck(current *Channel, aclchan *Channel, name string, client *C
 		mindepth := cofs + mindesc
 		maxdepth := cofs + maxdesc
 		pdepth := len(playerChain) - 1
-		member = pdepth >= mindepth && pdepth <= maxdepth
+		return pdepth >= mindepth && pdepth <= maxdepth
 
-		// Non-magic groups
 	} else {
+		// Non-magic groups
 		groups := []*Group{}
 
 		iter := channel
@@ -327,17 +331,19 @@ func GroupMemberCheck(current *Channel, aclchan *Channel, name string, client *C
 			iter = iter.parent
 		}
 
+		isMember := false
 		for _, group := range groups {
 			if group.AddContains(client.UserId()) || group.TemporaryContains(client.UserId()) || group.TemporaryContains(-int(client.Session)) {
-				member = true
+				isMember = true
 			}
 			if group.RemoveContains(client.UserId()) {
-				member = false
+				isMember = false
 			}
 		}
+		return isMember
 	}
 
-	return member
+	return false
 }
 
 // Get the list of group names in a particular channel.
