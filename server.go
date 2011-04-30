@@ -446,6 +446,16 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 		return
 	}
 
+	// Set access tokens. Clients can set their access tokens any time
+	// by sending an Authenticate message with he contents of their new
+	// access token list.
+	client.Tokens = auth.Tokens
+	server.ClearACLCache()
+
+	if client.state >= StateClientAuthenticated {
+		return
+	}
+
 	// Did we get a username?
 	if auth.Username == nil || len(*auth.Username) == 0 {
 		client.RejectAuth("InvalidUsername", "Please specify a username to log in")
@@ -845,6 +855,8 @@ func (server *Server) broadcastProtoMessage(kind uint16, msg interface{}) (err o
 
 func (server *Server) handleIncomingMessage(client *Client, msg *Message) {
 	switch msg.kind {
+	case MessageAuthenticate:
+		server.handleAuthenticate(msg.client, msg)
 	case MessagePing:
 		server.handlePingMessage(msg.client, msg)
 	case MessageChannelRemove:
