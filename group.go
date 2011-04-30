@@ -181,8 +181,12 @@ func GroupMemberCheck(current *Channel, aclchan *Channel, name string, client *C
 
 	if token {
 		// The user is part of this group if the remaining name is part of
-		// his access token list.
-		log.Printf("GroupMemberCheck: Implement token matching")
+		// his access token list. The name check is case-insensitive.
+		for _, clientToken := range client.Tokens {
+			if strings.ToLower(name) == strings.ToLower(clientToken) {
+				return true
+			}
+		}
 		return false
 	} else if hash {
 		// The user is part of this group if the remaining name matches his
