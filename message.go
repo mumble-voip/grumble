@@ -5,7 +5,6 @@
 package main
 
 import (
-	"log"
 	"mumbleproto"
 	"goprotobuf.googlecode.com/hg/proto"
 	"net"
@@ -85,14 +84,14 @@ func (server *Server) handleCryptSetup(client *Client, msg *Message) {
 	// No client nonce. This means the client
 	// is requesting that we re-sync our nonces.
 	if len(cs.ClientNonce) == 0 {
-		log.Printf("Requested crypt-nonce resync")
+		client.Printf("Requested crypt-nonce resync")
 		cs.ClientNonce = make([]byte, cryptstate.AESBlockSize)
 		if copy(cs.ClientNonce, client.crypt.EncryptIV[0:]) != cryptstate.AESBlockSize {
 			return
 		}
 		client.sendProtoMessage(MessageCryptSetup, cs)
 	} else {
-		log.Printf("Received client nonce")
+		client.Printf("Received client nonce")
 		if len(cs.ClientNonce) != cryptstate.AESBlockSize {
 			return
 		}
@@ -101,7 +100,7 @@ func (server *Server) handleCryptSetup(client *Client, msg *Message) {
 		if copy(client.crypt.DecryptIV[0:], cs.ClientNonce) != cryptstate.AESBlockSize {
 			return
 		}
-		log.Printf("Crypt re-sync successful")
+		client.Printf("Crypt re-sync successful")
 	}
 }
 
@@ -237,7 +236,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 		if len(description) > 0 {
 			key, err = globalBlobstore.Put([]byte(description))
 			if err != nil {
-				log.Panicf("Blobstore error: %v", err.String())
+				server.Panicf("Blobstore error: %v", err.String())
 			}
 		}
 
@@ -416,7 +415,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 		if chanstate.Description != nil {
 			key, err := globalBlobstore.Put([]byte(*chanstate.Description))
 			if err != nil {
-				log.Panicf("Blobstore error: %v", err.String())
+				server.Panicf("Blobstore error: %v", err.String())
 			}
 			channel.DescriptionBlob = key
 		}
@@ -487,12 +486,12 @@ func (server *Server) handleUserRemoveMessage(client *Client, msg *Message) {
 
 	if ban {
 		// fixme(mkrautz): Implement banning.
-		log.Printf("handleUserRemove: Banning is not yet implemented.")
+		server.Printf("handleUserRemove: Banning is not yet implemented.")
 	}
 
 	userremove.Actor = proto.Uint32(uint32(client.Session))
 	if err = server.broadcastProtoMessage(MessageUserRemove, userremove); err != nil {
-		log.Panic("Unable to broadcast UserRemove message")
+		server.Panicf("Unable to broadcast UserRemove message")
 		return
 	}
 
@@ -509,7 +508,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 
 	actor, ok := server.clients[client.Session]
 	if !ok {
-		log.Panic("Client not found in server's client map.")
+		server.Panic("Client not found in server's client map.")
 		return
 	}
 	target := actor
@@ -638,7 +637,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	if userstate.Texture != nil && target.user != nil {
 		key, err := globalBlobstore.Put(userstate.Texture)
 		if err != nil {
-			log.Panicf("Blobstore error: %v", err.String())
+			server.Panicf("Blobstore error: %v", err.String())
 		}
 
 		if target.user.TextureBlob != key {
@@ -678,7 +677,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	if userstate.Comment != nil && target.user != nil {
 		key, err := globalBlobstore.Put([]byte(*userstate.Comment))
 		if err != nil {
-			log.Panicf("Blobstore error: %v", err.String())
+			server.Panicf("Blobstore error: %v", err.String())
 		}
 
 		if target.user.CommentBlob != key {
@@ -770,7 +769,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 				return client.Version < 0x10202
 			})
 			if err != nil {
-				log.Panic("Unable to broadcast UserState")
+				server.Panic("Unable to broadcast UserState")
 			}
 			// Re-add it to the message, so that 1.2.2+ clients *do* get the new-style texture.
 			userstate.Texture = texture
@@ -780,7 +779,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 				return client.Version < 0x10202
 			})
 			if err != nil {
-				log.Panic("Unable to broadcast UserState")
+				server.Panic("Unable to broadcast UserState")
 			}
 		}
 
@@ -812,7 +811,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 			return client.Version >= 0x10203
 		})
 		if err != nil {
-			log.Panic("Unable to broadcast UserState")
+			server.Panic("Unable to broadcast UserState")
 		}
 	}
 }
@@ -1012,7 +1011,7 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 		for uid, _ := range users {
 			user, ok := server.Users[uint32(uid)]
 			if !ok {
-				log.Printf("Invalid user id in ACL")
+				client.Printf("Invalid user id in ACL")
 				continue
 			}
 			queryusers.Ids = append(queryusers.Ids, uint32(uid))
@@ -1110,7 +1109,7 @@ func (server *Server) handleUserStatsMessage(client *Client, msg *Message) {
 		client.Panic(err.String())
 	}
 
-	log.Printf("UserStats")
+	client.Printf("UserStats")
 }
 
 // Permission query
@@ -1150,7 +1149,7 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 				if target.user.HasTexture() {
 					buf, err := globalBlobstore.Get(target.user.TextureBlob)
 					if err != nil {
-						log.Panicf("Blobstore error: %v", err.String())
+						server.Panicf("Blobstore error: %v", err.String())
 					}
 					userstate.Reset()
 					userstate.Session = proto.Uint32(uint32(target.Session))
@@ -1174,7 +1173,7 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 				if target.user.HasComment() {
 					buf, err := globalBlobstore.Get(target.user.CommentBlob)
 					if err != nil {
-						log.Panicf("Blobstore error: %v", err.String())
+						server.Panicf("Blobstore error: %v", err.String())
 					}
 					userstate.Reset()
 					userstate.Session = proto.Uint32(uint32(target.Session))
@@ -1198,7 +1197,7 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 					chanstate.Reset()
 					buf, err := globalBlobstore.Get(channel.DescriptionBlob)
 					if err != nil {
-						log.Panicf("Blobstore error: %v", err.String())
+						server.Panicf("Blobstore error: %v", err.String())
 					}
 					chanstate.ChannelId = proto.Uint32(uint32(channel.Id))
 					chanstate.Description = proto.String(string(buf))

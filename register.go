@@ -11,7 +11,6 @@ import (
 	"encoding/hex"
 	"http"
 	"io/ioutil"
-	"log"
 	"net"
 	"os"
 	"strconv"
@@ -118,7 +117,7 @@ func (server *Server) RegisterPublicServer() {
 	buf := bytes.NewBuffer(nil)
 	t, err := template.Parse(registerTemplate, nil)
 	if err != nil {
-		log.Printf("register: unable to parse template: %v", err)
+		server.Printf("register: unable to parse template: %v", err)
 		return
 	}
 	err = t.Execute(buf, map[string]string{
@@ -133,7 +132,7 @@ func (server *Server) RegisterPublicServer() {
 		"channels": strconv.Itoa(len(server.Channels)),
 	})
 	if err != nil {
-		log.Printf("register: unable to execute template: %v", err)
+		server.Printf("register: unable to execute template: %v", err)
 		return
 	}
 
@@ -143,7 +142,7 @@ func (server *Server) RegisterPublicServer() {
 		// certificate chain, so we use our own wrapper instead.
 		hc, err := newTLSClientAuthConn(registerAddr, config)
 		if err != nil {
-			log.Printf("register: unable to create https client: %v", err)
+			server.Printf("register: unable to create https client: %v", err)
 			return
 		}
 		defer hc.Close()
@@ -164,13 +163,13 @@ func (server *Server) RegisterPublicServer() {
 
 		req.URL, err = http.ParseURL(registerUrl)
 		if err != nil {
-			log.Printf("register: error parsing url: %v", err)
+			server.Printf("register: error parsing url: %v", err)
 			return
 		}
 
 		r, err := hc.Do(&req)
 		if err != nil && err != http.ErrPersistEOF {
-			log.Printf("register: unable to post registration request: %v", err)
+			server.Printf("register: unable to post registration request: %v", err)
 			return
 		}
 
@@ -178,12 +177,12 @@ func (server *Server) RegisterPublicServer() {
 		if err == nil {
 			registerMsg := string(bodyBytes)
 			if r.StatusCode == 200 {
-				log.Printf("register: %v", registerMsg)
+				server.Printf("register: %v", registerMsg)
 			} else {
-				log.Printf("register: (status %v) %v", r.StatusCode, registerMsg)
+				server.Printf("register: (status %v) %v", r.StatusCode, registerMsg)
 			}
 		} else {
-			log.Printf("register: unable to read post response: %v", err)
+			server.Printf("register: unable to read post response: %v", err)
 			return
 		}
 	}()

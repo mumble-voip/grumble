@@ -19,6 +19,9 @@ import (
 
 // A client connection
 type Client struct {
+	// Logging
+	*log.Logger
+	lf *clientLogForwarder
 
 	// Connection-related
 	tcpaddr *net.TCPAddr
@@ -114,7 +117,7 @@ func (client *Client) ShownName() string {
 
 // Something invalid happened on the wire.
 func (client *Client) Panic(reason string) {
-	log.Printf("Client panic: %s", reason)
+	client.Printf("panic: %v", reason)
 	client.Disconnect()
 }
 
@@ -248,7 +251,7 @@ func (c *Client) sendPermissionDeniedTypeUser(kind string, user *Client) {
 			kind: MessagePermissionDenied,
 		}
 	} else {
-		log.Panic("Unknown permission denied type.")
+		c.Panic("Unknown permission denied type.")
 	}
 }
 
@@ -339,10 +342,10 @@ func (client *Client) udpreceiver() {
 
 func (client *Client) sendUdp(msg *Message) {
 	if client.udp {
-		log.Printf("Sent UDP!")
+		client.Printf("Sent UDP!")
 		client.server.udpsend <- msg
 	} else {
-		log.Printf("Sent TCP!")
+		client.Printf("Sent TCP!")
 		msg.kind = MessageUDPTunnel
 		client.msgchan <- msg
 	}
@@ -417,10 +420,10 @@ func (client *Client) receiver() {
 			msg, err := client.readProtoMessage()
 			if err != nil {
 				if err == os.EOF {
-					log.Printf("Client disconnected.")
+					client.Printf("Disconnected.")
 					client.Disconnect()
 				} else {
-					log.Printf("Client error.")
+					client.Printf("Client error")
 				}
 				return
 			}
@@ -474,10 +477,10 @@ func (client *Client) receiver() {
 			msg, err := client.readProtoMessage()
 			if err != nil {
 				if err == os.EOF {
-					log.Printf("Client disconnected.")
+					client.Printf("Disconnected")
 					client.Disconnect()
 				} else {
-					log.Printf("Client error.")
+					client.Printf("Client error")
 				}
 				return
 			}
@@ -507,9 +510,9 @@ func (client *Client) receiver() {
 				client.OSVersion = *version.OsVersion
 			}
 
-			log.Printf("version = 0x%x", client.Version)
-			log.Printf("os = %s %s", client.OSName, client.OSVersion)
-			log.Printf("client = %s", client.ClientName)
+			client.Printf("version = 0x%x", client.Version)
+			client.Printf("os = %s %s", client.OSName, client.OSVersion)
+			client.Printf("client = %s", client.ClientName)
 
 			client.state = StateClientSentVersion
 		}

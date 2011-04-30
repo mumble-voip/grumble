@@ -19,6 +19,7 @@ import (
 	"goprotobuf.googlecode.com/hg/proto"
 	"mumbleproto"
 	"cryptstate"
+	"fmt"
 	"gob"
 	"hash"
 	"io"
@@ -96,6 +97,26 @@ type Server struct {
 
 	// ACL cache
 	aclcache ACLCache
+
+	// Logging
+	*log.Logger
+}
+
+type clientLogForwarder struct {
+	client *Client
+	logger *log.Logger
+}
+
+func (lf clientLogForwarder) Write(incoming []byte) (int, os.Error) {
+	buf := bytes.NewBuffer(nil)
+	if (lf.client.Session == 0) {
+		buf.WriteString("{?} ")
+	} else {
+		buf.WriteString(fmt.Sprintf("{%v} ", lf.client.Session))
+	}
+	buf.Write(incoming)
+	lf.logger.Output(3, buf.String())
+	return len(incoming), nil
 }
 
 type freezeRequest struct {
@@ -133,6 +154,8 @@ func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 	s.root = s.NewChannel(0, "Root")
 	s.aclcache = NewACLCache()
 
+	s.Logger = log.New(os.Stdout, fmt.Sprintf("[%v] ", s.Id), log.Ldate|log.Ltime)
+
 	return
 }
 
@@ -140,7 +163,7 @@ func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 func (server *Server) CheckSuperUserPassword(password string) bool {
 	superUser, exists := server.Users[0]
 	if !exists {
-		log.Panicf("Fatal error: No SuperUser for server %v", server.Id)
+		server.Panicf("Fatal error: No SuperUser for server %v", server.Id)
 	}
 
 	parts := strings.Split(superUser.Password, "$", -1)
@@ -185,6 +208,9 @@ func (server *Server) NewClient(conn net.Conn) (err os.Error) {
 		err = os.NewError("Unable to extract address for client.")
 		return
 	}
+
+	client.lf = &clientLogForwarder{client, server.Logger}
+	client.Logger = log.New(client.lf, "", 0)
 
 	client.tcpaddr = addr.(*net.TCPAddr)
 	client.server = server
@@ -241,7 +267,7 @@ func (server *Server) RemoveClient(client *Client, kicked bool) {
 			Session: proto.Uint32(client.Session),
 		})
 		if err != nil {
-			log.Panic("Unable to broadcast UserRemove message for disconnected client.")
+			server.Panic("Unable to broadcast UserRemove message for disconnected client.")
 		}
 	}
 }
@@ -274,7 +300,7 @@ func (server *Server) AddChannel(name string) (channel *Channel) {
 // Remove a channel from the server.
 func (server *Server) RemoveChanel(channel *Channel) {
 	if channel.Id == 0 {
-		log.Printf("Attempted to remove root channel.")
+		server.Printf("Attempted to remove root channel.")
 		return
 	}
 	server.Channels[channel.Id] = nil, false
@@ -331,7 +357,7 @@ func (server *Server) handler() {
 			server.handleIncomingMessage(client, msg)
 		// Voice broadcast
 		case vb := <-server.voicebroadcast:
-			log.Printf("VoiceBroadcast!")
+			server.Printf("VoiceBroadcast!")
 			if vb.target == 0 {
 				channel := vb.client.Channel
 				for _, client := range channel.clients {
@@ -352,7 +378,7 @@ func (server *Server) handler() {
 		case req := <-server.freezeRequest:
 			fs, err := server.Freeze()
 			if err != nil {
-				log.Panicf("Unable to freeze the server")
+				server.Panicf("Unable to freeze the server")
 			}
 			go server.handleFreezeRequest(req, &fs)
 
@@ -373,7 +399,7 @@ func (server *Server) handleFreezeRequest(freq *freezeRequest, fs *frozenServer)
 	zw, err := gzip.NewWriterLevel(pw, gzip.BestCompression)
 	if err != nil {
 		if err = pw.CloseWithError(err); err != nil {
-			log.Panicf("Unable to close PipeWriter: %v", err.String())
+			server.Panicf("Unable to close PipeWriter: %v", err.String())
 		}
 		return
 	}
@@ -382,12 +408,12 @@ func (server *Server) handleFreezeRequest(freq *freezeRequest, fs *frozenServer)
 	err = enc.Encode(fs)
 	if err != nil {
 		if err = pw.CloseWithError(err); err != nil {
-			log.Panicf("Unable to close PipeWriter: %v", err.String())
+			server.Panicf("Unable to close PipeWriter: %v", err.String())
 		}
 	}
 
 	if err = pw.CloseWithError(zw.Close()); err != nil {
-		log.Panicf("Unable to close PipeWriter: %v", err.String())
+		server.Panicf("Unable to close PipeWriter: %v", err.String())
 	}
 }
 
@@ -496,7 +522,7 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	// Add codecs
 	client.codecs = auth.CeltVersions
 	if len(client.codecs) == 0 {
-		log.Printf("Client %i connected without CELT codecs.", client.Session)
+		server.Printf("Client %i connected without CELT codecs.", client.Session)
 	}
 
 	client.state = StateClientAuthenticated
@@ -566,7 +592,7 @@ func (server *Server) finishAuthenticate(client *Client) {
 			} else {
 				buf, err := globalBlobstore.Get(client.user.TextureBlob)
 				if err != nil {
-					log.Panicf("Blobstore error: %v", err.String())
+					server.Panicf("Blobstore error: %v", err.String())
 				}
 				userstate.Texture = buf
 			}
@@ -579,7 +605,7 @@ func (server *Server) finishAuthenticate(client *Client) {
 			} else {
 				buf, err := globalBlobstore.Get(client.user.CommentBlob)
 				if err != nil {
-					log.Panicf("Blobstore error: %v", err.String())
+					server.Panicf("Blobstore error: %v", err.String())
 				}
 				userstate.Comment = proto.String(string(buf))
 			}
@@ -677,11 +703,11 @@ func (server *Server) updateCodecVersions() {
 		PreferAlpha: proto.Bool(server.PreferAlphaCodec),
 	})
 	if err != nil {
-		log.Printf("Unable to broadcast.")
+		server.Printf("Unable to broadcast.")
 		return
 	}
 
-	log.Printf("CELT codec switch %#x %#x (PreferAlpha %v)", uint32(server.AlphaCodec), uint32(server.BetaCodec), server.PreferAlphaCodec)
+	server.Printf("CELT codec switch %#x %#x (PreferAlpha %v)", uint32(server.AlphaCodec), uint32(server.BetaCodec), server.PreferAlphaCodec)
 	return
 }
 
@@ -714,7 +740,7 @@ func (server *Server) sendUserList(client *Client) {
 				} else {
 					buf, err := globalBlobstore.Get(connectedClient.user.TextureBlob)
 					if err != nil {
-						log.Panicf("Blobstore error: %v", err.String())
+						server.Panicf("Blobstore error: %v", err.String())
 					}
 					userstate.Texture = buf
 				}
@@ -727,7 +753,7 @@ func (server *Server) sendUserList(client *Client) {
 				} else {
 					buf, err := globalBlobstore.Get(connectedClient.user.CommentBlob)
 					if err != nil {
-						log.Panicf("Blobstore error: %v", err.String())
+						server.Panicf("Blobstore error: %v", err.String())
 					}
 					userstate.Comment = proto.String(string(buf))
 				}
@@ -778,7 +804,7 @@ func (server *Server) sendClientPermissions(client *Client, channel *Channel) {
 	server.HasPermission(client, channel, EnterPermission)
 
 	perm := server.aclcache.GetPermission(client, channel)
-	log.Printf("Permissions = 0x%x", perm)
+	server.Printf("Permissions = 0x%x", perm)
 
 	// fixme(mkrautz): Cache which permissions we've already sent.
 	client.sendProtoMessage(MessagePermissionQuery, &mumbleproto.PermissionQuery{
@@ -834,11 +860,11 @@ func (server *Server) handleIncomingMessage(client *Client, msg *Message) {
 	case MessageCryptSetup:
 		server.handleCryptSetup(msg.client, msg)
 	case MessageContextAction:
-		log.Printf("MessageContextAction from client")
+		server.Printf("MessageContextAction from client")
 	case MessageUserList:
 		server.handleUserList(msg.client, msg)
 	case MessageVoiceTarget:
-		log.Printf("MessageVoiceTarget from client")
+		server.Printf("MessageVoiceTarget from client")
 	case MessagePermissionQuery:
 		server.handlePermissionQuery(msg.client, msg)
 	case MessageUserStats:
@@ -889,7 +915,7 @@ func (server *Server) ListenUDP() {
 
 		udpaddr, ok := remote.(*net.UDPAddr)
 		if !ok {
-			log.Printf("No UDPAddr in read packet. Disabling UDP. (Windows?)")
+			server.Printf("No UDPAddr in read packet. Disabling UDP. (Windows?)")
 			return
 		}
 
@@ -929,7 +955,7 @@ func (server *Server) ListenUDP() {
 			if ok {
 				err = client.crypt.Decrypt(plain[0:], buf[0:nread])
 				if err != nil {
-					log.Panicf("Unable to decrypt incoming packet for client %v (host-port matched)", client)
+					server.Panicf("Unable to decrypt incoming packet for client %v (host-port matched)", client)
 				}
 				match = client
 			} else {
@@ -952,7 +978,7 @@ func (server *Server) ListenUDP() {
 
 			// No client found.
 			if match == nil {
-				log.Printf("Sender of UDP packet could not be determined. Packet dropped.")
+				server.Printf("Sender of UDP packet could not be determined. Packet dropped.")
 				continue
 			}
 
@@ -1001,7 +1027,7 @@ func (s *Server) FreezeServer() io.ReadCloser {
 	if !s.running {
 		fs, err := s.Freeze()
 		if err != nil {
-			log.Panicf("Unable to freeze the server")
+			s.Panicf("Unable to freeze the server")
 		}
 		fr := &freezeRequest{done: make(chan bool)}
 		go s.handleFreezeRequest(fr, &fs)
@@ -1106,7 +1132,7 @@ func (s *Server) ListenAndMurmur() {
 	// Create a new listening TLS socket.
 	cert, err := tls.LoadX509KeyPair(filepath.Join(*datadir, "cert"), filepath.Join(*datadir, "key"))
 	if err != nil {
-		log.Printf("Unable to load x509 key pair: %v", err)
+		s.Printf("Unable to load x509 key pair: %v", err)
 		return
 	}
 
@@ -1120,13 +1146,13 @@ func (s *Server) ListenAndMurmur() {
 		s.port,
 	})
 	if err != nil {
-		log.Printf("Cannot bind: %s\n", err)
+		s.Printf("Cannot bind: %s\n", err)
 		return
 	}
 
 	listener := tls.NewListener(tl, s.tlscfg)
 
-	log.Printf("Created new Murmur instance on port %v", s.port)
+	s.Printf("Created new Murmur instance on port %v", s.port)
 
 	// Update server registration if needed.
 	go func() {
@@ -1142,16 +1168,16 @@ func (s *Server) ListenAndMurmur() {
 		// New client connected
 		conn, err := listener.Accept()
 		if err != nil {
-			log.Printf("Unable to accept() new client.")
+			s.Printf("Unable to accept() new client.")
 		}
 
 		// Create a new client connection from our *tls.Conn
 		// which wraps net.TCPConn.
 		err = s.NewClient(conn)
 		if err != nil {
-			log.Printf("Unable to start new client")
+			s.Printf("Unable to start new client")
 		}
 
-		log.Printf("num clients = %v", len(s.clients))
+		s.Printf("num clients = %v", len(s.clients))
 	}
 }

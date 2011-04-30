@@ -76,6 +76,7 @@ func main() {
 		return
 	}
 
+	log.SetPrefix("[G] ")
 	log.Printf("Grumble - Mumble server written in Go")
 
 	if len(*datadir) == 0 {
