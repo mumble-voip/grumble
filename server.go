@@ -95,6 +95,10 @@ type Server struct {
 	UserNameMap map[string]*User
 	nextUserId  uint32
 
+	// Sessions
+	sessions   map[uint32]bool
+	sessionlock sync.Mutex
+
 	// ACL cache
 	aclcache ACLCache
 
@@ -133,6 +137,7 @@ func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 	s.port = port
 	s.running = false
 
+	s.sessions = make(map[uint32]bool)
 	s.clients = make(map[uint32]*Client)
 	s.Users = make(map[uint32]*User)
 	s.UserCertMap = make(map[string]*User)
@@ -212,6 +217,9 @@ func (server *Server) NewClient(conn net.Conn) (err os.Error) {
 	client.lf = &clientLogForwarder{client, server.Logger}
 	client.Logger = log.New(client.lf, "", 0)
 
+	client.Session = server.GetSessionId()
+	client.Printf("New connection: %v", conn.RemoteAddr())
+
 	client.tcpaddr = addr.(*net.TCPAddr)
 	client.server = server
 	client.conn = conn
@@ -252,6 +260,7 @@ func (server *Server) RemoveClient(client *Client, kicked bool) {
 	server.hmutex.Unlock()
 
 	server.clients[client.Session] = nil, false
+	server.ReclaimSessionId(client.Session)
 
 	// Remove client from channel
 	channel := client.Channel
@@ -318,30 +327,30 @@ func (server *Server) UnlinkChannels(channel *Channel, other *Channel) {
 	other.Links[channel.Id] = nil, false
 }
 
-// Generate a random, valid session ID.
-// The returned session ID is guaranteed not to currently be in use
-// on the server, and not to be the zero-value for integers (0).
-func (server *Server) GenSessionId() (session uint32) {
+// Get a unique session id.
+func (server *Server) GetSessionId() (session uint32) {
+	server.sessionlock.Lock()
+	defer server.sessionlock.Unlock()
+
 	for {
 		session = rand.Uint32()
-
-		// The 0 session is disallowed in Grumble. 0 is the zero-value for
-		// integer types, and as such, an uninitialized session id could
-		// point to a valid client if we allowed the 0 session id.
-		if session == 0 {
+		_, exists := server.sessions[session]
+		if exists {
 			continue
+		} else {
+			server.sessions[session] = true
+			return
 		}
-
-		// Is there already a client on the sever with the generated id?
-		// Give us a new one, please.
-		if _, exists := server.clients[session]; exists {
-			continue
-		}
-
-		break
 	}
 
 	return
+}
+
+// Reclaim a session id when it is no longer in use.
+func (server *Server) ReclaimSessionId(session uint32) {
+	server.sessionlock.Lock()
+	defer server.sessionlock.Unlock()
+	server.sessions[session] = false, false
 }
 
 
@@ -557,7 +566,6 @@ func (server *Server) finishAuthenticate(client *Client) {
 	}
 
 	// Add the client to the connected list
-	client.Session = server.GenSessionId()
 	server.clients[client.Session] = client
 
 	// First, check whether we need to tell the other connected
@@ -1171,8 +1179,6 @@ func (s *Server) ListenAndMurmur() {
 			s.Printf("Unable to accept new client: %v", err)
 			continue
 		}
-
-		s.Printf("New connection: %v", conn.RemoteAddr())
 
 		// Create a new client connection from our *tls.Conn
 		// which wraps net.TCPConn.
