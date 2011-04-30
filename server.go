@@ -110,9 +110,9 @@ type clientLogForwarder struct {
 func (lf clientLogForwarder) Write(incoming []byte) (int, os.Error) {
 	buf := bytes.NewBuffer(nil)
 	if (lf.client.Session == 0) {
-		buf.WriteString("{?} ")
+		buf.WriteString("<?:(-1)> ")
 	} else {
-		buf.WriteString(fmt.Sprintf("{%v} ", lf.client.Session))
+		buf.WriteString(fmt.Sprintf("<%v>:%v(%v)> ", lf.client.Session, lf.client.ShownName(), lf.client.UserId()))
 	}
 	buf.Write(incoming)
 	lf.logger.Output(3, buf.String())
@@ -1168,16 +1168,18 @@ func (s *Server) ListenAndMurmur() {
 		// New client connected
 		conn, err := listener.Accept()
 		if err != nil {
-			s.Printf("Unable to accept() new client.")
+			s.Printf("Unable to accept new client: %v", err)
+			continue
 		}
+
+		s.Printf("New connection: %v", conn.RemoteAddr())
 
 		// Create a new client connection from our *tls.Conn
 		// which wraps net.TCPConn.
 		err = s.NewClient(conn)
 		if err != nil {
-			s.Printf("Unable to start new client")
+			s.Printf("Unable to handle new client: %v", err)
+			continue
 		}
-
-		s.Printf("num clients = %v", len(s.clients))
 	}
 }
