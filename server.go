@@ -96,7 +96,7 @@ type Server struct {
 	nextUserId  uint32
 
 	// Sessions
-	sessions   map[uint32]bool
+	sessions    map[uint32]bool
 	sessionlock sync.Mutex
 
 	// ACL cache
@@ -113,7 +113,7 @@ type clientLogForwarder struct {
 
 func (lf clientLogForwarder) Write(incoming []byte) (int, os.Error) {
 	buf := bytes.NewBuffer(nil)
-	if (lf.client.Session == 0) {
+	if lf.client.Session == 0 {
 		buf.WriteString("<?:(-1)> ")
 	} else {
 		buf.WriteString(fmt.Sprintf("<%v>:%v(%v)> ", lf.client.Session, lf.client.ShownName(), lf.client.UserId()))
