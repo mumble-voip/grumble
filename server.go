@@ -508,12 +508,12 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	// Setup the cryptstate for the client.
 	client.crypt, err = cryptstate.New()
 	if err != nil {
-		client.Panic(err.String())
+		client.Panicf("%v", err)
 		return
 	}
 	err = client.crypt.GenerateKey()
 	if err != nil {
-		client.Panic(err.String())
+		client.Panicf("%v", err)
 		return
 	}
 
@@ -525,7 +525,7 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 		ServerNonce: client.crypt.EncryptIV[0:],
 	})
 	if err != nil {
-		client.Panic(err.String())
+		client.Panicf("%v", err)
 	}
 
 	// Add codecs
@@ -643,7 +643,7 @@ func (server *Server) finishAuthenticate(client *Client) {
 		sync.Permissions = proto.Uint64(uint64(perm))
 	}
 	if err := client.sendProtoMessage(MessageServerSync, sync); err != nil {
-		client.Panic(err.String())
+		client.Panicf("%v", err)
 		return
 	}
 
@@ -653,7 +653,7 @@ func (server *Server) finishAuthenticate(client *Client) {
 		ImageMessageLength: proto.Uint32(1000),
 	})
 	if err != nil {
-		client.Panic(err.String())
+		client.Panicf("%v", err)
 		return
 	}
 
