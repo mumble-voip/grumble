@@ -5,6 +5,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"mumbleproto"
 	"goprotobuf.googlecode.com/hg/proto"
 	"net"
@@ -1139,7 +1140,99 @@ func (server *Server) handleUserStatsMessage(client *Client, msg *Message) {
 		client.Panic(err.String())
 	}
 
-	client.Printf("UserStats")
+	if stats.Session == nil {
+		return
+	}
+
+	target, exists := server.clients[*stats.Session]
+	if !exists {
+		return
+	}
+
+	extended := false
+	// If a client is requesting a UserStats from itself, serve it the whole deal.
+	if client == target {
+		extended = true
+	}
+	// Otherwise, only send extended UserStats for people with +register permissions
+	// on the root channel.
+	if server.HasPermission(client, server.root, RegisterPermission) {
+		extended = true
+	}
+
+	// If the client wasn't granted extended permissions, only allow it to query
+	// users in channels it can enter.
+	if !extended && !server.HasPermission(client, target.Channel, EnterPermission) {
+		client.sendPermissionDenied(client, target.Channel, EnterPermission)
+		return
+	}
+
+	details := extended
+	local := extended || target.Channel == client.Channel
+
+	if stats.StatsOnly != nil && *stats.StatsOnly == true {
+		details = false
+	}
+
+	stats.Reset()
+	stats.Session = proto.Uint32(target.Session)
+
+	if details {
+		if tlsconn := target.conn.(*tls.Conn); tlsconn != nil {
+			state := tlsconn.ConnectionState()
+			for i := len(state.PeerCertificates)-1; i >= 0; i-- {
+				stats.Certificates = append(stats.Certificates, state.PeerCertificates[i].Raw)
+			}
+			// fixme(mkrautz): strong certificate checking
+		}
+	}
+
+	if local {
+		fromClient := &mumbleproto.UserStats_Stats{}
+		fromClient.Good = proto.Uint32(target.crypt.Good)
+		fromClient.Late = proto.Uint32(target.crypt.Late)
+		fromClient.Lost = proto.Uint32(target.crypt.Lost)
+		fromClient.Resync = proto.Uint32(target.crypt.Resync)
+		stats.FromClient = fromClient
+
+		fromServer := &mumbleproto.UserStats_Stats{}
+		fromServer.Good = proto.Uint32(target.crypt.RemoteGood)
+		fromServer.Late = proto.Uint32(target.crypt.RemoteLate)
+		fromServer.Lost = proto.Uint32(target.crypt.RemoteLost)
+		fromServer.Resync = proto.Uint32(target.crypt.RemoteResync)
+		stats.FromServer = fromServer
+	}
+
+	stats.UdpPackets = proto.Uint32(target.UdpPackets)
+	stats.TcpPackets = proto.Uint32(target.TcpPackets)
+	stats.UdpPingAvg = proto.Float32(target.UdpPingAvg)
+	stats.UdpPingVar = proto.Float32(target.UdpPingVar)
+	stats.TcpPingAvg = proto.Float32(target.TcpPingAvg)
+	stats.TcpPingVar = proto.Float32(target.TcpPingVar)
+
+	if details {
+		version := &mumbleproto.Version{}
+		version.Version = proto.Uint32(target.Version)
+		if len(target.ClientName) > 0 {
+			version.Release = proto.String(target.ClientName)
+		}
+		if len(target.OSName) > 0 {
+			version.Os = proto.String(target.OSName)
+			if len(target.OSVersion) > 0 {
+				version.OsVersion = proto.String(target.OSVersion)
+			}
+		}
+		stats.Version = version
+		stats.CeltVersions = target.codecs
+		stats.Address = target.tcpaddr.IP
+	}
+
+	// fixme(mkrautz): we don't do bandwidth tracking yet
+
+	if err := client.sendProtoMessage(MessageUserStats, stats); err != nil {
+		client.Panic(err.String())
+		return
+	}
 }
 
 // Permission query
