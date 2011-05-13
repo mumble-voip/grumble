@@ -27,7 +27,6 @@ var sqlitedb *string = flag.String("murmurdb", "", "Path to murmur.sqlite to imp
 var cleanup *bool = flag.Bool("clean", false, "Clean up existing data dir content before importing Murmur data")
 var gencert *bool = flag.Bool("gencert", false, "Generate a self-signed certificate for use with Grumble")
 
-var globalBlobstore *blobstore.BlobStore
 var servers map[int64]*Server
 
 func Usage() {
@@ -103,7 +102,7 @@ func main() {
 	}
 
 	log.Printf("Using blob directory: %s", *blobdir)
-	globalBlobstore, err = blobstore.NewBlobStore(*blobdir, true)
+	err = blobstore.Open(*blobdir, true)
 	if err != nil {
 		log.Fatalf("Unable to initialize blobstore: %v", err.String())
 	}

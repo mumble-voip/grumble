@@ -13,6 +13,7 @@ import (
 	"goprotobuf.googlecode.com/hg/proto"
 	"mumbleproto"
 	"cryptstate"
+	"grumble/blobstore"
 	"io"
 	"packetdatastream"
 )
@@ -543,7 +544,7 @@ func (client *Client) sendChannelTree(channel *Channel) {
 		if client.Version >= 0x10202 {
 			chanstate.DescriptionHash = channel.DescriptionBlobHashBytes()
 		} else {
-			buf, err := globalBlobstore.Get(channel.DescriptionBlob)
+			buf, err := blobstore.Get(channel.DescriptionBlob)
 			if err != nil {
 				panic("Blobstore error.")
 			}

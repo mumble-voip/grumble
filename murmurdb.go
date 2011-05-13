@@ -10,6 +10,7 @@ package main
 // SQLite datbase into a format that Grumble can understand.
 
 import (
+	"grumble/blobstore"
 	"os"
 	"sqlite"
 	"strconv"
@@ -87,7 +88,7 @@ func populateChannelInfoFromDatabase(server *Server, c *Channel, db *sqlite.Conn
 			return err
 		}
 
-		key, err := globalBlobstore.Put([]byte(description))
+		key, err := blobstore.Put([]byte(description))
 		if err != nil {
 			return err
 		}
@@ -361,7 +362,7 @@ func populateUsers(server *Server, db *sqlite.Conn) (err os.Error) {
 
 		user.Password = "sha1$$" + SHA1Password
 
-		key, err := globalBlobstore.Put(Texture)
+		key, err := blobstore.Put(Texture)
 		if err != nil {
 			return err
 		}
@@ -405,7 +406,7 @@ func populateUsers(server *Server, db *sqlite.Conn) (err os.Error) {
 			case UserInfoEmail:
 				user.Email = Value
 			case UserInfoComment:
-				key, err := globalBlobstore.Put([]byte(Value))
+				key, err := blobstore.Put([]byte(Value))
 				if err != nil {
 					return err
 				}

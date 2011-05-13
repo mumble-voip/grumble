@@ -21,6 +21,7 @@ import (
 	"cryptstate"
 	"fmt"
 	"gob"
+	"grumble/blobstore"
 	"grumble/serverconf"
 	"hash"
 	"io"
@@ -602,7 +603,7 @@ func (server *Server) finishAuthenticate(client *Client) {
 			if client.Version >= 0x10203 {
 				userstate.TextureHash = client.user.TextureBlobHashBytes()
 			} else {
-				buf, err := globalBlobstore.Get(client.user.TextureBlob)
+				buf, err := blobstore.Get(client.user.TextureBlob)
 				if err != nil {
 					server.Panicf("Blobstore error: %v", err.String())
 				}
@@ -615,7 +616,7 @@ func (server *Server) finishAuthenticate(client *Client) {
 			if client.Version >= 0x10203 {
 				userstate.CommentHash = client.user.CommentBlobHashBytes()
 			} else {
-				buf, err := globalBlobstore.Get(client.user.CommentBlob)
+				buf, err := blobstore.Get(client.user.CommentBlob)
 				if err != nil {
 					server.Panicf("Blobstore error: %v", err.String())
 				}
@@ -750,7 +751,7 @@ func (server *Server) sendUserList(client *Client) {
 				if client.Version >= 0x10203 {
 					userstate.TextureHash = connectedClient.user.TextureBlobHashBytes()
 				} else {
-					buf, err := globalBlobstore.Get(connectedClient.user.TextureBlob)
+					buf, err := blobstore.Get(connectedClient.user.TextureBlob)
 					if err != nil {
 						server.Panicf("Blobstore error: %v", err.String())
 					}
@@ -763,7 +764,7 @@ func (server *Server) sendUserList(client *Client) {
 				if client.Version >= 0x10203 {
 					userstate.CommentHash = connectedClient.user.CommentBlobHashBytes()
 				} else {
-					buf, err := globalBlobstore.Get(connectedClient.user.CommentBlob)
+					buf, err := blobstore.Get(connectedClient.user.CommentBlob)
 					if err != nil {
 						server.Panicf("Blobstore error: %v", err.String())
 					}
