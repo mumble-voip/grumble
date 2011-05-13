@@ -12,6 +12,7 @@ PACKAGES = \
 	pkg/mumbleproto \
 	pkg/blobstore \
 	pkg/serverconf \
+	pkg/sessionpool \
 	pkg/sqlite
 
 GCFLAGS = \
@@ -20,6 +21,7 @@ GCFLAGS = \
 	-Ipkg/mumbleproto/_obj \
 	-Ipkg/blobstore/_obj \
 	-Ipkg/serverconf/_obj \
+	-Ipkg/sessionpool/_obj \
 	-Ipkg/sqlite/_obj
 
 LDFLAGS = \
@@ -28,6 +30,7 @@ LDFLAGS = \
 	-Lpkg/mumbleproto/_obj \
 	-Lpkg/blobstore/_obj \
 	-Lpkg/serverconf/_obj \
+	-Lpkg/sessionpool/_obj \
 	-Lpkg/sqlite/_obj
 
 GOFILES = \
