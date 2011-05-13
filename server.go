@@ -492,6 +492,7 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 
 	// Send CryptState information to the client so it can establish an UDP connection,
 	// if it wishes.
+	client.lastResync = time.Seconds()
 	err = client.sendProtoMessage(MessageCryptSetup, &mumbleproto.CryptSetup{
 		Key:         client.crypt.RawKey[0:],
 		ClientNonce: client.crypt.DecryptIV[0:],
@@ -923,51 +924,55 @@ func (server *Server) ListenUDP() {
 				address: udpaddr,
 			}
 		} else {
-			var match *Client
-			plain := make([]byte, nread-4)
-
-			// Determine which client sent the the packet.  First, we
-			// check the map 'hpclients' in the server struct. It maps
-			// a hort-post combination to a client.
-			//
-			// If we don't find any matches, we look in the 'hclients',
-			// which maps a host address to a slice of clients.
-			server.hmutex.Lock()
-			client, ok := server.hpclients[udpaddr.String()]
-			if ok {
-				err = client.crypt.Decrypt(plain[0:], buf[0:nread])
-				if err != nil {
-					server.Panicf("Unable to decrypt incoming packet for client %v (host-port matched)", client)
-				}
-				match = client
-			} else {
-				host := udpaddr.IP.String()
-				hostclients := server.hclients[host]
-				for _, client := range hostclients {
-					err = client.crypt.Decrypt(plain[0:], buf[0:nread])
-					if err != nil {
-						continue
-					} else {
-						match = client
-					}
-				}
-				if match != nil {
-					match.udpaddr = udpaddr
-					server.hpclients[udpaddr.String()] = match
-				}
-			}
-			server.hmutex.Unlock()
-
-			// No client found.
-			if match == nil {
-				server.Printf("Sender of UDP packet could not be determined. Packet dropped.")
-				continue
-			}
-
-			match.udp = true
-			match.udprecv <- plain
+			server.handleUdpPacket(udpaddr, buf, nread)
 		}
 	}
+}
+
+func (server *Server) handleUdpPacket(udpaddr *net.UDPAddr, buf []byte, nread int) {
+	var match *Client
+	plain := make([]byte, nread-4)
+
+	// Determine which client sent the the packet.  First, we
+	// check the map 'hpclients' in the server struct. It maps
+	// a hort-post combination to a client.
+	//
+	// If we don't find any matches, we look in the 'hclients',
+	// which maps a host address to a slice of clients.
+	server.hmutex.Lock()
+	defer server.hmutex.Unlock()
+	client, ok := server.hpclients[udpaddr.String()]
+	if ok {
+		err := client.crypt.Decrypt(plain[0:], buf[0:nread])
+		if err != nil {
+			client.cryptResync()
+			return
+		}
+		match = client
+	} else {
+		host := udpaddr.IP.String()
+		hostclients := server.hclients[host]
+		for _, client := range hostclients {
+			err := client.crypt.Decrypt(plain[0:], buf[0:nread])
+			if err != nil {
+				client.cryptResync()
+				return
+			} else {
+				match = client
+			}
+		}
+		if match != nil {
+			match.udpaddr = udpaddr
+			server.hpclients[udpaddr.String()] = match
+		}
+	}
+
+	if match == nil {
+		return
+	}
+
+	match.udp = true
+	match.udprecv <- plain
 }
 
 // Clear the ACL cache

@@ -113,8 +113,39 @@ func (server *Server) handlePingMessage(client *Client, msg *Message) {
 		return
 	}
 
-	// Phony response for ping messages. We don't keep stats
-	// for this yet.
+	if ping.Good != nil {
+		client.crypt.RemoteGood = uint32(*ping.Good)
+	}
+	if ping.Late != nil {
+		client.crypt.RemoteLate = *ping.Late
+	}
+	if ping.Lost != nil {
+		client.crypt.RemoteLost = *ping.Lost
+	}
+	if ping.Resync != nil {
+		client.crypt.RemoteResync = *ping.Resync
+	}
+
+	if ping.UdpPingAvg != nil {
+		client.UdpPingAvg = *ping.UdpPingAvg
+	}
+	if ping.UdpPingVar != nil {
+		client.UdpPingVar = *ping.UdpPingVar
+	}
+	if ping.UdpPackets != nil {
+		client.UdpPackets = *ping.UdpPackets
+	}
+
+	if ping.TcpPingAvg != nil {
+		client.TcpPingAvg = *ping.TcpPingAvg
+	}
+	if ping.TcpPingVar != nil {
+		client.TcpPingVar = *ping.TcpPingVar
+	}
+	if ping.TcpPackets != nil {
+		client.TcpPackets = *ping.TcpPackets
+	}
+
 	client.sendProtoMessage(MessagePing, &mumbleproto.Ping{
 		Timestamp: ping.Timestamp,
 		Good:      proto.Uint32(uint32(client.crypt.Good)),

@@ -9,6 +9,7 @@ import (
 	"crypto/aes"
 	"crypto/rand"
 	"os"
+	"time"
 )
 
 const AESBlockSize = 16
@@ -20,15 +21,16 @@ type CryptState struct {
 	DecryptIV      [AESBlockSize]byte
 	decryptHistory [DecryptHistorySize]byte
 
-	Good   int
-	Late   int
-	Lost   int
-	Resync int
+	LastGoodTime   int64
 
-	RemoteGood   int
-	RemoteLate   int
-	RemoteLost   int
-	RemoteResync int
+	Good           uint32
+	Late           uint32
+	Lost           uint32
+	Resync         uint32
+	RemoteGood     uint32
+	RemoteLate     uint32
+	RemoteLost     uint32
+	RemoteResync   uint32
 
 	cipher *aes.Cipher
 }
@@ -196,10 +198,18 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err os.Error) {
 	}
 
 	cs.Good += 1
-	cs.Late += late
-	cs.Lost += lost
+	if late > 0 {
+		cs.Late += uint32(late)
+	} else {
+		cs.Late -= uint32(-late)
+	}
+	if lost > 0 {
+		cs.Lost = uint32(lost)
+	} else {
+		cs.Lost = uint32(-lost)
+	}
 
-	// restart timer
+	cs.LastGoodTime = time.Seconds()
 
 	return
 }

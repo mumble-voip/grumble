@@ -16,6 +16,7 @@ import (
 	"grumble/blobstore"
 	"io"
 	"packetdatastream"
+	"time"
 )
 
 // A client connection
@@ -39,9 +40,18 @@ type Client struct {
 
 	disconnected bool
 
-	crypt  *cryptstate.CryptState
-	codecs []int32
-	udp    bool
+	lastResync int64
+	crypt      *cryptstate.CryptState
+	codecs     []int32
+	udp        bool
+
+	// Ping stats
+	UdpPingAvg float32
+	UdpPingVar float32
+	UdpPackets uint32
+	TcpPingAvg float32
+	TcpPingVar float32
+	TcpPackets uint32
 
 	// If the client is a registered user on the server,
 	// the user field will point to the registration record.
@@ -571,5 +581,21 @@ func (client *Client) sendChannelTree(channel *Channel) {
 
 	for _, subchannel := range channel.children {
 		client.sendChannelTree(subchannel)
+	}
+}
+
+// Try to do a crypto resync
+func (client *Client) cryptResync() {
+	goodElapsed := time.Seconds() - client.crypt.LastGoodTime
+	if goodElapsed > 5 {
+		requestElapsed := time.Seconds() - client.lastResync
+		if requestElapsed > 5 {
+			client.lastResync = time.Seconds()
+			cryptsetup := &mumbleproto.CryptSetup{}
+			err := client.sendProtoMessage(MessageCryptSetup, cryptsetup)
+			if err != nil {
+				client.Panicf("%v", err)
+			}
+		}
 	}
 }
