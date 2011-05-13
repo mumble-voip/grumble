@@ -8,20 +8,20 @@ import (
 func TestReclaim(t *testing.T) {
 	pool := New()
 	id := pool.Get()
-	if id != 0 {
-		t.Errorf("Got %v, expected 0 (first time)", id)
+	if id != 1 {
+		t.Errorf("Got %v, expected 1 (first time)", id)
 	}
 
-	pool.Reclaim(0)
-
-	id = pool.Get()
-	if id != 0 {
-		t.Errorf("Got %v, expected 0 (second time)", id)
-	}
+	pool.Reclaim(1)
 
 	id = pool.Get()
 	if id != 1 {
-		t.Errorf("Got %v, expected 1", id)
+		t.Errorf("Got %v, expected 1 (second time)", id)
+	}
+
+	id = pool.Get()
+	if id != 2 {
+		t.Errorf("Got %v, expected 2", id)
 	}
 }
 
@@ -33,7 +33,7 @@ func TestDepletion(t *testing.T) {
 		}
 	}()
 	pool := New()
-	pool.next = math.MaxUint32
+	pool.cur = math.MaxUint32
 	pool.Get()
 }
 

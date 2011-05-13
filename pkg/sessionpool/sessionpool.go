@@ -16,7 +16,7 @@ type SessionPool struct {
 	mutex  sync.Mutex
 	used   map[uint32]bool
 	unused []uint32
-	next   uint32
+	cur    uint32
 }
 
 // Create a new SessionPool container.
@@ -34,7 +34,7 @@ func New() (pool *SessionPool) {
 // the program will panic.
 // panic.
 func (pool *SessionPool) EnableUseTracking() {
-	if len(pool.unused) != 0 || pool.next != 0 {
+	if len(pool.unused) != 0 || pool.cur != 0 {
 		panic("Attempt to enable use tracking on an existing SessionPool.")
 	}
 	pool.used = make(map[uint32]bool)
@@ -61,17 +61,18 @@ func (pool *SessionPool) Get() (id uint32) {
 		return
 	}
 
-	// Check for session pool depletion. Note that this depletion
-	// check makes MaxUint32 an invalid next value, and thus limits
-	// the session pool to 2**32-2 distinct sessions.
-	if pool.next == math.MaxUint32 {
+	// Check for depletion. If cur is MaxUint32,
+	// there aren't any session IDs left, since the
+	// increment below would overflow us back to 0.
+	if pool.cur == math.MaxUint32 {
 		panic("SessionPool depleted")
 	}
 
-	// Return the current 'next' value and increment it
-	// for next time we're here.
-	id = pool.next
-	pool.next += 1
+	// Increment the next session id and return it.
+	// Note: By incrementing and *then* returning, we skip 0.
+	// This is deliberate, as 0 is an invalid session ID in Mumble.
+	pool.cur += 1
+	id = pool.cur
 	return
 }
 
