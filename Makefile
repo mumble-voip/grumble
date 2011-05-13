@@ -11,6 +11,7 @@ PACKAGES = \
 	pkg/cryptstate \
 	pkg/mumbleproto \
 	pkg/blobstore \
+	pkg/serverconf \
 	pkg/sqlite
 
 GCFLAGS = \
@@ -18,6 +19,7 @@ GCFLAGS = \
 	-Ipkg/packetdatastream/_obj \
 	-Ipkg/mumbleproto/_obj \
 	-Ipkg/blobstore/_obj \
+	-Ipkg/serverconf/_obj \
 	-Ipkg/sqlite/_obj
 
 LDFLAGS = \
@@ -25,6 +27,7 @@ LDFLAGS = \
 	-Lpkg/packetdatastream/_obj \
 	-Lpkg/mumbleproto/_obj \
 	-Lpkg/blobstore/_obj \
+	-Lpkg/serverconf/_obj \
 	-Lpkg/sqlite/_obj
 
 GOFILES = \
@@ -39,7 +42,9 @@ GOFILES = \
 	murmurdb.go \
 	freeze.go \
 	gencert.go \
-	register.go
+	register.go \
+	ctlrpc.go \
+	ctl.go
 
 .PHONY: grumble
 grumble: pkg

@@ -21,6 +21,7 @@ import (
 	"cryptstate"
 	"fmt"
 	"gob"
+	"grumble/serverconf"
 	"hash"
 	"io"
 	"path/filepath"
@@ -57,19 +58,14 @@ type Server struct {
 	udpsend        chan *Message
 	voicebroadcast chan *VoiceBroadcast
 	freezeRequest  chan *freezeRequest
+	configRequest  chan *configRequest
 
 	// Signals to the server that a client has been successfully
 	// authenticated.
 	clientAuthenticated chan *Client
 
-	// Config-related
-	MaxUsers         int
-	MaxBandwidth     uint32
-	RegisterName     string
-	RegisterHost     string
-	RegisterPassword string
-	RegisterWebUrl   string
-	RegisterLocation string
+	// Server configuration
+	cfg serverconf.Config
 
 	// Clients
 	clients map[uint32]*Client
@@ -128,6 +124,13 @@ type freezeRequest struct {
 	readCloser io.ReadCloser
 }
 
+type configRequest struct {
+	done  chan bool
+	set   bool
+	key   string
+	value string
+}
+
 // Allocate a new Murmur instance
 func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 	s = new(Server)
@@ -136,6 +139,8 @@ func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 	s.address = addr
 	s.port = port
 	s.running = false
+
+	s.cfg = make(map[string]string)
 
 	s.sessions = make(map[uint32]bool)
 	s.clients = make(map[uint32]*Client)
@@ -150,10 +155,8 @@ func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 	s.udpsend = make(chan *Message)
 	s.voicebroadcast = make(chan *VoiceBroadcast)
 	s.freezeRequest = make(chan *freezeRequest)
+	s.configRequest = make(chan *configRequest)
 	s.clientAuthenticated = make(chan *Client)
-
-	s.MaxBandwidth = 300000
-	s.MaxUsers = 10
 
 	s.Channels = make(map[int]*Channel)
 	s.root = s.NewChannel(0, "Root")
@@ -391,6 +394,10 @@ func (server *Server) handler() {
 			}
 			go server.handleFreezeRequest(req, &fs)
 
+		// Synchronzied config get/set
+		case req := <-server.configRequest:
+			server.handleConfigRequest(req)
+
 		// Server registration update
 		// Tick every hour + a minute offset based on the server id.
 		case <-time.Tick((3600 + ((server.Id * 60) % 600)) * 1e9):
@@ -424,6 +431,15 @@ func (server *Server) handleFreezeRequest(freq *freezeRequest, fs *frozenServer)
 	if err = pw.CloseWithError(zw.Close()); err != nil {
 		server.Panicf("Unable to close PipeWriter: %v", err.String())
 	}
+}
+
+func (server *Server) handleConfigRequest(cfgReq *configRequest) {
+	if cfgReq.set {
+		server.cfg.Set(cfgReq.key, cfgReq.value)
+	} else {
+		cfgReq.value = server.cfg.StringValue(cfgReq.key)
+	}
+	cfgReq.done <- true
 }
 
 // Handle an Authenticate protobuf message.  This is handled in a separate
@@ -639,7 +655,7 @@ func (server *Server) finishAuthenticate(client *Client) {
 
 	sync := &mumbleproto.ServerSync{}
 	sync.Session = proto.Uint32(client.Session)
-	sync.MaxBandwidth = proto.Uint32(server.MaxBandwidth)
+	sync.MaxBandwidth = proto.Uint32(server.cfg.Uint32Value("MaxBandwidth"))
 	if client.IsSuperUser() {
 		sync.Permissions = proto.Uint64(uint64(AllPermissions))
 	} else {
@@ -951,8 +967,8 @@ func (server *Server) ListenUDP() {
 			_ = binary.Write(buffer, binary.BigEndian, uint32((1<<16)|(2<<8)|2))
 			_ = binary.Write(buffer, binary.BigEndian, rand)
 			_ = binary.Write(buffer, binary.BigEndian, uint32(len(server.clients)))
-			_ = binary.Write(buffer, binary.BigEndian, uint32(server.MaxUsers))
-			_ = binary.Write(buffer, binary.BigEndian, uint32(server.MaxBandwidth))
+			_ = binary.Write(buffer, binary.BigEndian, server.cfg.Uint32Value("MaxUsers"))
+			_ = binary.Write(buffer, binary.BigEndian, server.cfg.Uint32Value("MaxBandwidth"))
 
 			server.udpsend <- &Message{
 				buf:     buffer.Bytes(),
@@ -1057,6 +1073,22 @@ func (s *Server) FreezeServer() io.ReadCloser {
 	s.freezeRequest <- fr
 	<-fr.done
 	return fr.readCloser
+}
+
+// Set the value of a config key
+func (s *Server) SetConfig(key string, value string) {
+	cfgReq := &configRequest{make(chan bool), true, key, value}
+	s.configRequest <- cfgReq
+	<-cfgReq.done
+	return
+}
+
+// Get the value of a config key
+func (s *Server) GetConfig(key string) (value string) {
+	cfgReq := &configRequest{make(chan bool), false, key, ""}
+	s.configRequest <- cfgReq
+	<-cfgReq.done
+	return cfgReq.value
 }
 
 // Register a client on the server.

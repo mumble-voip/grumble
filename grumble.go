@@ -11,20 +11,24 @@ import (
 	"os"
 	"os/signal"
 	"log"
+	"net"
 	"sqlite"
 	"path/filepath"
 	"regexp"
+	"rpc"
 	"time"
 )
 
 var help *bool = flag.Bool("help", false, "Show this help")
 var datadir *string = flag.String("datadir", "", "Directory to use for server storage")
 var blobdir *string = flag.String("blobdir", "", "Directory to use for blob storage")
+var ctlpath *string = flag.String("ctlpath", "", "File to use for ctl socket")
 var sqlitedb *string = flag.String("murmurdb", "", "Path to murmur.sqlite to import server structure from")
 var cleanup *bool = flag.Bool("clean", false, "Clean up existing data dir content before importing Murmur data")
 var gencert *bool = flag.Bool("gencert", false, "Generate a self-signed certificate for use with Grumble")
 
 var globalBlobstore *blobstore.BlobStore
+var servers map[int64]*Server
 
 func Usage() {
 	fmt.Fprintf(os.Stderr, "usage: grumble [options]\n")
@@ -42,16 +46,16 @@ func MurmurImport(filename string) (err os.Error) {
 		panic(err.String())
 	}
 
-	var servers []int64
+	var serverids []int64
 	var sid int64
 	for stmt.Next() {
 		stmt.Scan(&sid)
-		servers = append(servers, sid)
+		serverids = append(serverids, sid)
 	}
 
-	log.Printf("Found servers: %v (%v servers)", servers, len(servers))
+	log.Printf("Found servers: %v (%v servers)", serverids, len(serverids))
 
-	for _, sid := range servers {
+	for _, sid := range serverids {
 		m, err := NewServerFromSQLite(sid, db)
 		if err != nil {
 			return err
@@ -70,6 +74,12 @@ func MurmurImport(filename string) (err os.Error) {
 
 func main() {
 	var err os.Error
+
+	if len(os.Args) >= 2 && os.Args[1] == "ctl" {
+		GrumbleCtl(os.Args[2:])
+		return
+	}
+
 	flag.Parse()
 	if *help == true {
 		Usage()
@@ -86,6 +96,10 @@ func main() {
 
 	if len(*blobdir) == 0 {
 		*blobdir = filepath.Join(os.Getenv("HOME"), ".grumble", "blob")
+	}
+
+	if len(*ctlpath) == 0 {
+		*ctlpath = filepath.Join(os.Getenv("HOME"), ".grumble", "ctl")
 	}
 
 	log.Printf("Using blob directory: %s", *blobdir)
@@ -161,7 +175,7 @@ func main() {
 		log.Fatalf("Murmur import failed: %s", err.String())
 	}
 
-	servers := make(map[int64]*Server)
+	servers = make(map[int64]*Server)
 	for _, name := range names {
 		if matched, _ := regexp.MatchString("^[0-9]+$", name); matched {
 			log.Printf("Loading server %v", name)
@@ -183,6 +197,22 @@ func main() {
 		servers[s.Id] = s
 		go s.ListenAndMurmur()
 	}
+
+	os.Remove(*ctlpath)
+
+	addr, err := net.ResolveUnixAddr("unix", *ctlpath)
+	if err != nil {
+		log.Panicf("Unable to resolve ctl addr: %v", err)
+	}
+
+	lis, err := net.ListenUnix("unix", addr)
+	if err != nil {
+		log.Panicf("Unable to listen on ctl socket: %v", err)
+	}
+
+	ctl := &ControlRPC{}
+	rpc.RegisterName("ctl", ctl)
+	go rpc.Accept(lis)
 
 	if len(servers) > 0 {
 		ticker := time.NewTicker(10e9) // 10 secs

@@ -14,10 +14,10 @@ import (
 )
 
 type frozenServer struct {
-	Id       int             "id"
-	MaxUsers int             "max_user"
-	Channels []frozenChannel "channels"
-	Users    []frozenUser    "users"
+	Id       int               "id"
+	Config   map[string]string "config"
+	Channels []frozenChannel   "channels"
+	Users    []frozenUser      "users"
 }
 
 type frozenUser struct {
@@ -98,7 +98,7 @@ func (server *Server) FreezeToFile(filename string) (err os.Error) {
 // Freeze a server
 func (server *Server) Freeze() (fs frozenServer, err os.Error) {
 	fs.Id = int(server.Id)
-	fs.MaxUsers = server.MaxUsers
+	fs.Config = server.cfg
 
 	channels := []frozenChannel{}
 	for _, c := range server.Channels {
@@ -222,6 +222,10 @@ func NewServerFromFrozen(filename string) (s *Server, err os.Error) {
 	s, err = NewServer(int64(fs.Id), "0.0.0.0", int(DefaultPort+fs.Id-1))
 	if err != nil {
 		return nil, err
+	}
+
+	if fs.Config != nil {
+		s.cfg = fs.Config
 	}
 
 	// Add all channels, but don't hook up parent/child relationships

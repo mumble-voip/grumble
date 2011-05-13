@@ -74,16 +74,16 @@ func newTLSClientAuthConn(addr string, cfg *tls.Config) (c *http.ClientConn, err
 // This function is used to determine whether or not to periodically
 // contact the master server list and update this server's metadata.
 func (server *Server) IsPublic() bool {
-	if len(server.RegisterName) == 0 {
+	if len(server.cfg.StringValue("RegisterName")) == 0 {
 		return false
 	}
-	if len(server.RegisterHost) == 0 {
+	if len(server.cfg.StringValue("RegisterHost")) == 0 {
 		return false
 	}
-	if len(server.RegisterPassword) == 0 {
+	if len(server.cfg.StringValue("RegisterPassword")) == 0 {
 		return false
 	}
-	if len(server.RegisterWebUrl) == 0 {
+	if len(server.cfg.StringValue("RegisterWebUrl")) == 0 {
 		return false
 	}
 	return true
@@ -121,11 +121,11 @@ func (server *Server) RegisterPublicServer() {
 		return
 	}
 	err = t.Execute(buf, map[string]string{
-		"name":     server.RegisterName,
-		"host":     server.RegisterHost,
-		"password": server.RegisterPassword,
-		"url":      server.RegisterWebUrl,
-		"location": server.RegisterLocation,
+		"name":     server.cfg.StringValue("RegisterName"),
+		"host":     server.cfg.StringValue("RegisterHost"),
+		"password": server.cfg.StringValue("RegisterPassword"),
+		"url":      server.cfg.StringValue("RegisterWebUrl"),
+		"location": server.cfg.StringValue("RegisterLocation"),
 		"port":     strconv.Itoa(server.port),
 		"digest":   digest,
 		"users":    strconv.Itoa(len(server.clients)),
