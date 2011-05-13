@@ -23,10 +23,10 @@ import (
 	"gob"
 	"grumble/blobstore"
 	"grumble/serverconf"
+	"grumble/sessionpool"
 	"hash"
 	"io"
 	"path/filepath"
-	"rand"
 	"strings"
 	"time"
 )
@@ -92,8 +92,7 @@ type Server struct {
 	nextUserId  uint32
 
 	// Sessions
-	sessions    map[uint32]bool
-	sessionlock sync.Mutex
+	pool *sessionpool.SessionPool
 
 	// ACL cache
 	aclcache ACLCache
@@ -109,11 +108,7 @@ type clientLogForwarder struct {
 
 func (lf clientLogForwarder) Write(incoming []byte) (int, os.Error) {
 	buf := bytes.NewBuffer(nil)
-	if lf.client.Session == 0 {
-		buf.WriteString("<?:(-1)> ")
-	} else {
-		buf.WriteString(fmt.Sprintf("<%v>:%v(%v)> ", lf.client.Session, lf.client.ShownName(), lf.client.UserId()))
-	}
+	buf.WriteString(fmt.Sprintf("<%v:%v(%v)> ", lf.client.Session, lf.client.ShownName(), lf.client.UserId()))
 	buf.Write(incoming)
 	lf.logger.Output(3, buf.String())
 	return len(incoming), nil
@@ -135,7 +130,7 @@ func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 
 	s.cfg = serverconf.New(nil)
 
-	s.sessions = make(map[uint32]bool)
+	s.pool = sessionpool.New()
 	s.clients = make(map[uint32]*Client)
 	s.Users = make(map[uint32]*User)
 	s.UserCertMap = make(map[string]*User)
@@ -212,8 +207,8 @@ func (server *Server) NewClient(conn net.Conn) (err os.Error) {
 	client.lf = &clientLogForwarder{client, server.Logger}
 	client.Logger = log.New(client.lf, "", 0)
 
-	client.Session = server.GetSessionId()
-	client.Printf("New connection: %v", conn.RemoteAddr())
+	client.Session = server.pool.Get()
+	client.Printf("New connection: %v (%v)", conn.RemoteAddr(), client.Session)
 
 	client.tcpaddr = addr.(*net.TCPAddr)
 	client.server = server
@@ -255,7 +250,7 @@ func (server *Server) RemoveClient(client *Client, kicked bool) {
 	server.hmutex.Unlock()
 
 	server.clients[client.Session] = nil, false
-	server.ReclaimSessionId(client.Session)
+	server.pool.Reclaim(client.Session)
 
 	// Remove client from channel
 	channel := client.Channel
@@ -321,33 +316,6 @@ func (server *Server) UnlinkChannels(channel *Channel, other *Channel) {
 	channel.Links[other.Id] = nil, false
 	other.Links[channel.Id] = nil, false
 }
-
-// Get a unique session id.
-func (server *Server) GetSessionId() (session uint32) {
-	server.sessionlock.Lock()
-	defer server.sessionlock.Unlock()
-
-	for {
-		session = rand.Uint32()
-		_, exists := server.sessions[session]
-		if exists {
-			continue
-		} else {
-			server.sessions[session] = true
-			return
-		}
-	}
-
-	return
-}
-
-// Reclaim a session id when it is no longer in use.
-func (server *Server) ReclaimSessionId(session uint32) {
-	server.sessionlock.Lock()
-	defer server.sessionlock.Unlock()
-	server.sessions[session] = false, false
-}
-
 
 // This is the synchronous handler goroutine.
 // Important control channel messages are routed through this Goroutine
