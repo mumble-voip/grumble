@@ -622,9 +622,9 @@ func (server *Server) finishAuthenticate(client *Client) {
 	}
 
 	err := client.sendProtoMessage(MessageServerConfig, &mumbleproto.ServerConfig{
-		AllowHtml:          proto.Bool(true),
-		MessageLength:      proto.Uint32(1000),
-		ImageMessageLength: proto.Uint32(1000),
+		AllowHtml:          proto.Bool(server.cfg.BoolValue("AllowHTML")),
+		MessageLength:      proto.Uint32(server.cfg.Uint32Value("MaxTextMessageLength")),
+		ImageMessageLength: proto.Uint32(server.cfg.Uint32Value("MaxImageMessageLength")),
 	})
 	if err != nil {
 		client.Panicf("%v", err)

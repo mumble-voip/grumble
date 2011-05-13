@@ -1092,8 +1092,6 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 
 			server.ClearACLCache()
 		}
-
-		// fixme(mkrautz): Sync channel to datastore
 	}
 }
 
