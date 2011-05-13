@@ -5,7 +5,7 @@
 package main
 
 import (
-	"blobstore"
+	"grumble/blobstore"
 	"flag"
 	"fmt"
 	"os"

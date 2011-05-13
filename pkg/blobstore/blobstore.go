@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"os"
 	"strconv"
+	"sync"
 	"syscall"
 )
 
@@ -29,6 +30,55 @@ var (
 	ErrNoSuchKey       = os.NewError("no such key")
 	ErrInvalidKey      = os.NewError("invalid key")
 )
+
+var (
+	defaultStore *BlobStore
+	defaultMutex sync.Mutex
+)
+
+// Open an existing, or create a new BlobStore at path.
+// Path must point to a directory, and must already exist.
+// See NewBlobStore for more information.
+func Open(path string, makeall bool) (err os.Error) {
+	defaultMutex.Lock()
+	defer defaultMutex.Unlock()
+
+	if defaultStore != nil {
+		panic("Default BlobStore already open")
+	}
+
+	defaultStore, err = NewBlobStore(path, makeall)
+	return
+}
+
+// Close the open default BlobStore. This removes the lockfile allowing
+// other processes to open the BlobStore.
+func Close() (err os.Error) {
+	if defaultStore == nil {
+		panic("DefaultStore not open")
+	}
+
+	err = defaultStore.Close()
+	if err != nil {
+		return
+	}
+
+	defaultStore = nil
+	return
+}
+
+// Lookup a blob by its key and return a buffer containing the contents
+// of the blob.
+func Get(key string) (buf []byte, err os.Error) {
+	return defaultStore.Get(key)
+}
+
+// Store a blob. If the blob was successfully stored, the returned key
+// can be used to retrieve the buf from the BlobStore.
+func Put(buf []byte) (key string, err os.Error) {
+	return defaultStore.Put(buf)
+}
+
 
 // Open an existing, or create a new BlobStore residing at path.
 // Path must point to a directory, and must already exist.

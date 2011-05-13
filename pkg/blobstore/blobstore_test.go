@@ -205,3 +205,33 @@ func TestReadInvalidKeyNonHex(t *testing.T) {
 		return
 	}
 }
+
+func TestDefaultBlobStore(t *testing.T) {
+	dir, err := ioutil.TempDir("", "blobstore")
+	if err != nil {
+		t.Errorf(err.String())
+		return
+	}
+	defer os.RemoveAll(dir)
+
+	err = Open(dir, false)
+	if err != nil {
+		t.Errorf(err.String())
+	}
+
+	data := []byte{0xf, 0x0, 0x0, 0xb, 0xa, 0xf}
+
+	key, err := Put(data)
+	if err != nil {
+		t.Errorf(err.String())
+	}
+
+	fetchedData, err := Get(key)
+	if err != nil {
+		t.Errorf(err.String())
+	}
+
+	if !bytes.Equal(fetchedData, data) {
+		t.Errorf("stored data and retrieved data does not match: %v vs. %v", fetchedData, data)
+	}
+}

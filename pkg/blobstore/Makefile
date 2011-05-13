@@ -1,6 +1,6 @@
 include $(GOROOT)/src/Make.inc
 
-TARG = blobstore
+TARG = grumble/blobstore
 GOFILES = \
 	blobstore.go \
 	blobreader.go \
