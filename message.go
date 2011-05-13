@@ -1129,6 +1129,34 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 
 // User query
 func (server *Server) handleQueryUsers(client *Client, msg *Message) {
+	query := &mumbleproto.QueryUsers{}
+	err := proto.Unmarshal(msg.buf, query)
+	if err != nil {
+		client.Panic(err.String())
+	}
+
+	reply := &mumbleproto.QueryUsers{}
+
+	for _, id := range query.Ids {
+		user, exists := server.Users[id]
+		if exists {
+			reply.Ids = append(reply.Ids, id)
+			reply.Names = append(reply.Names, user.Name)
+		}
+	}
+
+	for _, name := range query.Names {
+		user, exists := server.UserNameMap[name]
+		if exists {
+			reply.Ids = append(reply.Ids, user.Id)
+			reply.Names = append(reply.Names, name)
+		}
+	}
+
+	if err := client.sendProtoMessage(MessageQueryUsers, reply); err != nil {
+		client.Panic(err.String())
+		return
+	}
 }
 
 // User stats message. Shown in the Mumble client when a
