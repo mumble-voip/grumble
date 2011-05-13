@@ -51,7 +51,7 @@ func GrumbleCtl(args []string) {
 		if err != nil {
 			log.Fatalf("Unable to start: %v", err)
 		}
-		log.Printf("[%v] Started")
+		log.Printf("[%v] Started", sid)
 	case "stop":
 		err := client.Call("ctl.Stop", sid, nil)
 		if err != nil {
