@@ -10,11 +10,11 @@ import (
 )
 
 type PacketDataStream struct {
-	Buf []byte
-	offset int
-	maxsize int
+	Buf       []byte
+	offset    int
+	maxsize   int
 	overshoot int
-	ok bool
+	ok        bool
 }
 
 func New(buf []byte) (pds *PacketDataStream) {
@@ -76,7 +76,7 @@ func (pds *PacketDataStream) Next8() (ret uint8) {
 // Put a byte (represented in an uint64) into the
 // PacketDataStream.
 func (pds *PacketDataStream) append(val uint64) {
-	if (val > 0xff) {
+	if val > 0xff {
 		pds.ok = false
 		return
 	}
@@ -97,7 +97,7 @@ func (pds *PacketDataStream) append(val uint64) {
 func (pds *PacketDataStream) addVarint(val uint64) {
 	i := val
 
-	if (i & 0x8000000000000000) != 0 && ^i < 0x100000000 {
+	if (i&0x8000000000000000) != 0 && ^i < 0x100000000 {
 		// Signed number
 		i = ^i
 		if i <= 0x3 {
@@ -146,13 +146,13 @@ func (pds *PacketDataStream) getVarint() (i uint64) {
 	if (v & 0x80) == 0x00 {
 		i = (v & 0x7f)
 	} else if (v & 0xc0) == 0x80 {
-		i = (v & 0x3f) << 8 | pds.next()
+		i = (v&0x3f)<<8 | pds.next()
 	} else if (v & 0xf0) == 0xf0 {
 		switch v & 0xfc {
 		case 0xf0:
-			i = pds.next() << 24 | pds.next() << 16 | pds.next() << 8 | pds.next()
+			i = pds.next()<<24 | pds.next()<<16 | pds.next()<<8 | pds.next()
 		case 0xf4:
-			i = pds.next() << 56 | pds.next() << 48 | pds.next() << 40 | pds.next() << 32 | pds.next() << 24 | pds.next() << 16 | pds.next() << 8 | pds.next()
+			i = pds.next()<<56 | pds.next()<<48 | pds.next()<<40 | pds.next()<<32 | pds.next()<<24 | pds.next()<<16 | pds.next()<<8 | pds.next()
 		case 0xf8:
 			i = ^pds.getVarint()
 		case 0xfc:
@@ -162,9 +162,9 @@ func (pds *PacketDataStream) getVarint() (i uint64) {
 			i = 0
 		}
 	} else if (v & 0xf0) == 0xe0 {
-		i = (v & 0x0f) << 24 | pds.next() << 16 | pds.next() << 8 | pds.next()
+		i = (v&0x0f)<<24 | pds.next()<<16 | pds.next()<<8 | pds.next()
 	} else if (v & 0xe0) == 0xc0 {
-		i = (v & 0x1f) << 16 | pds.next() << 8 | pds.next()
+		i = (v&0x1f)<<16 | pds.next()<<8 | pds.next()
 	}
 
 	return
@@ -260,7 +260,7 @@ func (pds *PacketDataStream) GetFloat32() float32 {
 
 	var val uint32
 
-	val = uint32(pds.Next8()) << 24 | uint32(pds.Next8()) << 16 | uint32(pds.Next8()) << 8 | uint32(pds.Next8())
+	val = uint32(pds.Next8())<<24 | uint32(pds.Next8())<<16 | uint32(pds.Next8())<<8 | uint32(pds.Next8())
 	return math.Float32frombits(val)
 }
 
@@ -281,7 +281,7 @@ func (pds *PacketDataStream) GetFloat64() float64 {
 	}
 
 	var val uint64
-	val = uint64(pds.Next8()) << 56 | uint64(pds.Next8()) << 48 | uint64(pds.Next8()) << 40 | uint64(pds.Next8()) << 32 | uint64(pds.Next8()) << 24 | uint64(pds.Next8()) << 16 | uint64(pds.Next8()) << 8 | uint64(pds.Next8())
+	val = uint64(pds.Next8())<<56 | uint64(pds.Next8())<<48 | uint64(pds.Next8())<<40 | uint64(pds.Next8())<<32 | uint64(pds.Next8())<<24 | uint64(pds.Next8())<<16 | uint64(pds.Next8())<<8 | uint64(pds.Next8())
 
 	return math.Float64frombits(val)
 }

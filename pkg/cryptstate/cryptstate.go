@@ -11,23 +11,23 @@ import (
 	"os"
 )
 
-const AESBlockSize        = 16
-const DecryptHistorySize  = 0x100
+const AESBlockSize = 16
+const DecryptHistorySize = 0x100
 
 type CryptState struct {
-	RawKey [AESBlockSize]byte
-	EncryptIV [AESBlockSize]byte
-	DecryptIV [AESBlockSize]byte
+	RawKey         [AESBlockSize]byte
+	EncryptIV      [AESBlockSize]byte
+	DecryptIV      [AESBlockSize]byte
 	decryptHistory [DecryptHistorySize]byte
 
-	Good int
-	Late int
-	Lost int
+	Good   int
+	Late   int
+	Lost   int
 	Resync int
 
-	RemoteGood int
-	RemoteLate int
-	RemoteLost int
+	RemoteGood   int
+	RemoteLate   int
+	RemoteLost   int
 	RemoteResync int
 
 	cipher *aes.Cipher
@@ -52,7 +52,7 @@ func (cs *CryptState) GenerateKey() (err os.Error) {
 	return
 }
 
-func (cs *CryptState) SetKey(key []byte, eiv []byte, div[]byte) (err os.Error) {
+func (cs *CryptState) SetKey(key []byte, eiv []byte, div []byte) (err os.Error) {
 	if copy(cs.RawKey[0:], key[0:]) != AESBlockSize {
 		err = os.NewError("Unable to copy key")
 		return
@@ -103,7 +103,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err os.Error) {
 		return
 	}
 
-	if byte(cs.DecryptIV[0] + 1) == ivbyte {
+	if byte(cs.DecryptIV[0]+1) == ivbyte {
 		// In order as expected
 		if ivbyte > cs.DecryptIV[0] {
 			cs.DecryptIV[0] = ivbyte
@@ -246,7 +246,7 @@ func times2(block []byte) {
 }
 
 func times3(block []byte) {
-	carry := (block[0] >> 7) & 0x1;
+	carry := (block[0] >> 7) & 0x1
 	for i := 0; i < AESBlockSize-1; i++ {
 		block[i] ^= (block[i] << 1) | ((block[i+1] >> 7) & 0x1)
 	}
@@ -286,7 +286,7 @@ func (cs *CryptState) OCBEncrypt(dst []byte, src []byte, nonce []byte, tag []byt
 		err = os.NewError("Copy failed")
 		return
 	}
-	if copy(tmp[copied:], pad[copied:]) != (AESBlockSize-remain) {
+	if copy(tmp[copied:], pad[copied:]) != (AESBlockSize - remain) {
 		err = os.NewError("Copy failed")
 		return
 	}

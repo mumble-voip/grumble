@@ -42,7 +42,7 @@ func (cfg *Config) GetAll() (all map[string]string) {
 	defer cfg.mutex.RUnlock()
 
 	all = make(map[string]string)
-	for k,v := range cfg.cfgMap {
+	for k, v := range cfg.cfgMap {
 		all[k] = v
 	}
 	return

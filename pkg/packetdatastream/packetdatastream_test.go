@@ -32,7 +32,7 @@ func TestSelfUint64(t *testing.T) {
 	buf := make([]byte, 500)
 	pds := New(buf)
 
-	for i := uint64(1 << 54); i < (uint64(1 << 54)+10); i++ {
+	for i := uint64(1 << 54); i < (uint64(1<<54) + 10); i++ {
 		pds.PutUint64(i)
 		if !pds.IsValid() {
 			t.Errorf("Invalid PDS")
@@ -41,7 +41,7 @@ func TestSelfUint64(t *testing.T) {
 	}
 
 	pds2 := New(buf)
-	for i := uint64(1 << 54); i < (uint64(1 << 54)+10); i++ {
+	for i := uint64(1 << 54); i < (uint64(1<<54) + 10); i++ {
 		val := pds2.GetUint64()
 		if !pds.IsValid() {
 			t.Errorf("Invalid PDS")
@@ -121,7 +121,7 @@ func TestSelfFloat32(t *testing.T) {
 }
 
 func TestSelfBytes(t *testing.T) {
-	msg := [15]byte{ 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf, }
+	msg := [15]byte{0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf}
 	buf := make([]byte, 500)
 	pds := New(buf)
 	pds2 := New(buf)
