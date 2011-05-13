@@ -603,6 +603,7 @@ func (server *Server) finishAuthenticate(client *Client) {
 	sync := &mumbleproto.ServerSync{}
 	sync.Session = proto.Uint32(client.Session)
 	sync.MaxBandwidth = proto.Uint32(server.cfg.Uint32Value("MaxBandwidth"))
+	sync.WelcomeText = proto.String(server.cfg.StringValue("WelcomeText"))
 	if client.IsSuperUser() {
 		sync.Permissions = proto.Uint64(uint64(AllPermissions))
 	} else {
