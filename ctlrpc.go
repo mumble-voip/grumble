@@ -30,7 +30,7 @@ type ConfigValue struct {
 
 // Set a config value
 func (c *ControlRPC) SetConfig(in *ConfigValue, out *ConfigValue) os.Error {
-	servers[in.Id].SetConfig(in.Key, in.Value)
+	servers[in.Id].cfg.Set(in.Key, in.Value)
 	out.Id = in.Id
 	out.Key = in.Key
 	out.Value = in.Value
@@ -41,6 +41,6 @@ func (c *ControlRPC) SetConfig(in *ConfigValue, out *ConfigValue) os.Error {
 func (c *ControlRPC) GetConfig(in *ConfigValue, out *ConfigValue) os.Error {
 	out.Id = in.Id
 	out.Key = in.Key
-	out.Value = servers[in.Id].GetConfig(in.Key)
+	out.Value = servers[in.Id].cfg.StringValue(in.Key)
 	return nil
 }

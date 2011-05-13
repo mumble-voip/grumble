@@ -8,6 +8,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	"gob"
+	"grumble/serverconf"
 	"io"
 	"io/ioutil"
 	"os"
@@ -98,7 +99,7 @@ func (server *Server) FreezeToFile(filename string) (err os.Error) {
 // Freeze a server
 func (server *Server) Freeze() (fs frozenServer, err os.Error) {
 	fs.Id = int(server.Id)
-	fs.Config = server.cfg
+	fs.Config = server.cfg.GetAll()
 
 	channels := []frozenChannel{}
 	for _, c := range server.Channels {
@@ -225,7 +226,7 @@ func NewServerFromFrozen(filename string) (s *Server, err os.Error) {
 	}
 
 	if fs.Config != nil {
-		s.cfg = fs.Config
+		s.cfg = serverconf.New(fs.Config)
 	}
 
 	// Add all channels, but don't hook up parent/child relationships
