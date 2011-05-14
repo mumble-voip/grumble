@@ -12,13 +12,12 @@ import (
 	"time"
 )
 
-const AESBlockSize = 16
 const DecryptHistorySize = 0x100
 
 type CryptState struct {
-	RawKey         [AESBlockSize]byte
-	EncryptIV      [AESBlockSize]byte
-	DecryptIV      [AESBlockSize]byte
+	RawKey         [aes.BlockSize]byte
+	EncryptIV      [aes.BlockSize]byte
+	DecryptIV      [aes.BlockSize]byte
 	decryptHistory [DecryptHistorySize]byte
 
 	LastGoodTime   int64
@@ -55,17 +54,17 @@ func (cs *CryptState) GenerateKey() (err os.Error) {
 }
 
 func (cs *CryptState) SetKey(key []byte, eiv []byte, div []byte) (err os.Error) {
-	if copy(cs.RawKey[0:], key[0:]) != AESBlockSize {
+	if copy(cs.RawKey[0:], key[0:]) != aes.BlockSize {
 		err = os.NewError("Unable to copy key")
 		return
 	}
 
-	if copy(cs.EncryptIV[0:], eiv[0:]) != AESBlockSize {
+	if copy(cs.EncryptIV[0:], eiv[0:]) != aes.BlockSize {
 		err = os.NewError("Unable to copy EIV")
 		return
 	}
 
-	if copy(cs.DecryptIV[0:], div[0:]) != AESBlockSize {
+	if copy(cs.DecryptIV[0:], div[0:]) != aes.BlockSize {
 		err = os.NewError("Unable to copy DIV")
 		return
 	}
@@ -90,8 +89,8 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err os.Error) {
 		return
 	}
 
-	var saveiv [AESBlockSize]byte
-	var tag [AESBlockSize]byte
+	var saveiv [aes.BlockSize]byte
+	var tag [aes.BlockSize]byte
 	var ivbyte byte
 	var restore bool
 	lost := 0
@@ -100,7 +99,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err os.Error) {
 	ivbyte = src[0]
 	restore = false
 
-	if copy(saveiv[0:], cs.DecryptIV[0:]) != AESBlockSize {
+	if copy(saveiv[0:], cs.DecryptIV[0:]) != aes.BlockSize {
 		err = os.NewError("Copy failed")
 		return
 	}
@@ -111,7 +110,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err os.Error) {
 			cs.DecryptIV[0] = ivbyte
 		} else if ivbyte < cs.DecryptIV[0] {
 			cs.DecryptIV[0] = ivbyte
-			for i := 1; i < AESBlockSize; i++ {
+			for i := 1; i < aes.BlockSize; i++ {
 				cs.DecryptIV[i] += 1
 				if cs.DecryptIV[i] > 0 {
 					break
@@ -141,7 +140,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err os.Error) {
 			late = 1
 			lost = -1
 			cs.DecryptIV[0] = ivbyte
-			for i := 1; i < AESBlockSize; i++ {
+			for i := 1; i < aes.BlockSize; i++ {
 				cs.DecryptIV[i] -= 1
 				if cs.DecryptIV[i] > 0 {
 					break
@@ -156,7 +155,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err os.Error) {
 			// Lost a few packets, and wrapped around
 			lost = int(256 - int(cs.DecryptIV[0]) + int(ivbyte) - 1)
 			cs.DecryptIV[0] = ivbyte
-			for i := 1; i < AESBlockSize; i++ {
+			for i := 1; i < aes.BlockSize; i++ {
 				cs.DecryptIV[i] += 1
 				if cs.DecryptIV[i] > 0 {
 					break
@@ -168,8 +167,8 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err os.Error) {
 		}
 
 		if cs.decryptHistory[cs.DecryptIV[0]] == cs.DecryptIV[0] {
-			if copy(cs.DecryptIV[0:], saveiv[0:]) != AESBlockSize {
-				err = os.NewError("Failed to copy AESBlockSize bytes")
+			if copy(cs.DecryptIV[0:], saveiv[0:]) != aes.BlockSize {
+				err = os.NewError("Failed to copy aes.BlockSize bytes")
 				return
 			}
 		}
@@ -179,7 +178,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err os.Error) {
 
 	for i := 0; i < 3; i++ {
 		if tag[i] != src[i+1] {
-			if copy(cs.DecryptIV[0:], saveiv[0:]) != AESBlockSize {
+			if copy(cs.DecryptIV[0:], saveiv[0:]) != aes.BlockSize {
 				err = os.NewError("Error while trying to recover from error")
 				return
 			}
@@ -191,7 +190,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err os.Error) {
 	cs.decryptHistory[cs.DecryptIV[0]] = cs.DecryptIV[0]
 
 	if restore {
-		if copy(cs.DecryptIV[0:], saveiv[0:]) != AESBlockSize {
+		if copy(cs.DecryptIV[0:], saveiv[0:]) != aes.BlockSize {
 			err = os.NewError("Error while trying to recover IV")
 			return
 		}
@@ -215,7 +214,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err os.Error) {
 }
 
 func (cs *CryptState) Encrypt(dst, src []byte) {
-	var tag [AESBlockSize]byte
+	var tag [aes.BlockSize]byte
 
 	// First, increase our IV
 	for i := range cs.EncryptIV {
@@ -242,53 +241,53 @@ func zeros(block []byte) {
 }
 
 func xor(dst []byte, a []byte, b []byte) {
-	for i := 0; i < AESBlockSize; i++ {
+	for i := 0; i < aes.BlockSize; i++ {
 		dst[i] = a[i] ^ b[i]
 	}
 }
 
 func times2(block []byte) {
 	carry := (block[0] >> 7) & 0x1
-	for i := 0; i < AESBlockSize-1; i++ {
+	for i := 0; i < aes.BlockSize-1; i++ {
 		block[i] = (block[i] << 1) | ((block[i+1] >> 7) & 0x1)
 	}
-	block[AESBlockSize-1] = (block[AESBlockSize-1] << 1) ^ (carry * 135)
+	block[aes.BlockSize-1] = (block[aes.BlockSize-1] << 1) ^ (carry * 135)
 }
 
 func times3(block []byte) {
 	carry := (block[0] >> 7) & 0x1
-	for i := 0; i < AESBlockSize-1; i++ {
+	for i := 0; i < aes.BlockSize-1; i++ {
 		block[i] ^= (block[i] << 1) | ((block[i+1] >> 7) & 0x1)
 	}
-	block[AESBlockSize-1] ^= ((block[AESBlockSize-1] << 1) ^ (carry * 135))
+	block[aes.BlockSize-1] ^= ((block[aes.BlockSize-1] << 1) ^ (carry * 135))
 }
 
 func (cs *CryptState) OCBEncrypt(dst []byte, src []byte, nonce []byte, tag []byte) (err os.Error) {
-	var delta [AESBlockSize]byte
-	var checksum [AESBlockSize]byte
-	var tmp [AESBlockSize]byte
-	var pad [AESBlockSize]byte
+	var delta [aes.BlockSize]byte
+	var checksum [aes.BlockSize]byte
+	var tmp [aes.BlockSize]byte
+	var pad [aes.BlockSize]byte
 	off := 0
 
 	cs.cipher.Encrypt(delta[0:], cs.EncryptIV[0:])
 	zeros(checksum[0:])
 
 	remain := len(src)
-	for remain > AESBlockSize {
+	for remain > aes.BlockSize {
 		times2(delta[0:])
-		xor(tmp[0:], delta[0:], src[off:off+AESBlockSize])
+		xor(tmp[0:], delta[0:], src[off:off+aes.BlockSize])
 		cs.cipher.Encrypt(tmp[0:], tmp[0:])
-		xor(dst[off:off+AESBlockSize], delta[0:], tmp[0:])
-		xor(checksum[0:], checksum[0:], src[off:off+AESBlockSize])
-		remain -= AESBlockSize
-		off += AESBlockSize
+		xor(dst[off:off+aes.BlockSize], delta[0:], tmp[0:])
+		xor(checksum[0:], checksum[0:], src[off:off+aes.BlockSize])
+		remain -= aes.BlockSize
+		off += aes.BlockSize
 	}
 
 	times2(delta[0:])
 	zeros(tmp[0:])
 	num := remain * 8
-	tmp[AESBlockSize-2] = uint8((uint32(num) >> 8) & 0xff)
-	tmp[AESBlockSize-1] = uint8(num & 0xff)
+	tmp[aes.BlockSize-2] = uint8((uint32(num) >> 8) & 0xff)
+	tmp[aes.BlockSize-1] = uint8(num & 0xff)
 	xor(tmp[0:], tmp[0:], delta[0:])
 	cs.cipher.Encrypt(pad[0:], tmp[0:])
 	copied := copy(tmp[0:], src[off:])
@@ -296,7 +295,7 @@ func (cs *CryptState) OCBEncrypt(dst []byte, src []byte, nonce []byte, tag []byt
 		err = os.NewError("Copy failed")
 		return
 	}
-	if copy(tmp[copied:], pad[copied:]) != (AESBlockSize - remain) {
+	if copy(tmp[copied:], pad[copied:]) != (aes.BlockSize - remain) {
 		err = os.NewError("Copy failed")
 		return
 	}
@@ -315,31 +314,31 @@ func (cs *CryptState) OCBEncrypt(dst []byte, src []byte, nonce []byte, tag []byt
 }
 
 func (cs *CryptState) OCBDecrypt(plain []byte, encrypted []byte, nonce []byte, tag []byte) (err os.Error) {
-	var checksum [AESBlockSize]byte
-	var delta [AESBlockSize]byte
-	var tmp [AESBlockSize]byte
-	var pad [AESBlockSize]byte
+	var checksum [aes.BlockSize]byte
+	var delta [aes.BlockSize]byte
+	var tmp [aes.BlockSize]byte
+	var pad [aes.BlockSize]byte
 	off := 0
 
 	cs.cipher.Encrypt(delta[0:], nonce[0:])
 	zeros(checksum[0:])
 
 	remain := len(encrypted)
-	for remain > AESBlockSize {
+	for remain > aes.BlockSize {
 		times2(delta[0:])
-		xor(tmp[0:], delta[0:], encrypted[off:off+AESBlockSize])
+		xor(tmp[0:], delta[0:], encrypted[off:off+aes.BlockSize])
 		cs.cipher.Decrypt(tmp[0:], tmp[0:])
-		xor(plain[off:off+AESBlockSize], delta[0:], tmp[0:])
-		xor(checksum[0:], checksum[0:], plain[off:off+AESBlockSize])
-		off += AESBlockSize
-		remain -= AESBlockSize
+		xor(plain[off:off+aes.BlockSize], delta[0:], tmp[0:])
+		xor(checksum[0:], checksum[0:], plain[off:off+aes.BlockSize])
+		off += aes.BlockSize
+		remain -= aes.BlockSize
 	}
 
 	times2(delta[0:])
 	zeros(tmp[0:])
 	num := remain * 8
-	tmp[AESBlockSize-2] = uint8((uint32(num) >> 8) & 0xff)
-	tmp[AESBlockSize-1] = uint8(num & 0xff)
+	tmp[aes.BlockSize-2] = uint8((uint32(num) >> 8) & 0xff)
+	tmp[aes.BlockSize-1] = uint8(num & 0xff)
 	xor(tmp[0:], tmp[0:], delta[0:])
 	cs.cipher.Encrypt(pad[0:], tmp[0:])
 	zeros(tmp[0:])

@@ -5,11 +5,11 @@
 package main
 
 import (
+	"crypto/aes"
 	"crypto/tls"
 	"mumbleproto"
 	"goprotobuf.googlecode.com/hg/proto"
 	"net"
-	"cryptstate"
 	"fmt"
 	"grumble/ban"
 	"grumble/blobstore"
@@ -89,19 +89,19 @@ func (server *Server) handleCryptSetup(client *Client, msg *Message) {
 	// is requesting that we re-sync our nonces.
 	if len(cs.ClientNonce) == 0 {
 		client.Printf("Requested crypt-nonce resync")
-		cs.ClientNonce = make([]byte, cryptstate.AESBlockSize)
-		if copy(cs.ClientNonce, client.crypt.EncryptIV[0:]) != cryptstate.AESBlockSize {
+		cs.ClientNonce = make([]byte, aes.BlockSize)
+		if copy(cs.ClientNonce, client.crypt.EncryptIV[0:]) != aes.BlockSize {
 			return
 		}
 		client.sendProtoMessage(MessageCryptSetup, cs)
 	} else {
 		client.Printf("Received client nonce")
-		if len(cs.ClientNonce) != cryptstate.AESBlockSize {
+		if len(cs.ClientNonce) != aes.BlockSize {
 			return
 		}
 
 		client.crypt.Resync += 1
-		if copy(client.crypt.DecryptIV[0:], cs.ClientNonce) != cryptstate.AESBlockSize {
+		if copy(client.crypt.DecryptIV[0:], cs.ClientNonce) != aes.BlockSize {
 			return
 		}
 		client.Printf("Crypt re-sync successful")
