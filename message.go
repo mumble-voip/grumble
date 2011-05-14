@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"grumble/ban"
 	"grumble/blobstore"
+	"time"
 )
 
 // These are the different kinds of messages
@@ -502,31 +503,48 @@ func (server *Server) handleUserRemoveMessage(client *Client, msg *Message) {
 		return
 	}
 
-	ban := false
+	isBan := false
 	if userremove.Ban != nil {
-		ban = *userremove.Ban
+		isBan = *userremove.Ban
 	}
 
 	// Check client's permissions
 	perm := Permission(KickPermission)
-	if ban {
+	if isBan {
 		perm = Permission(BanPermission)
 	}
-
 	if removeClient.IsSuperUser() || !server.HasPermission(client, server.root, perm) {
 		client.sendPermissionDenied(client, server.root, perm)
 		return
 	}
 
-	if ban {
-		// fixme(mkrautz): Implement banning.
-		server.Printf("handleUserRemove: Banning is not yet implemented.")
+	if isBan {
+		ban := ban.Ban{}
+		ban.IP = removeClient.conn.RemoteAddr().(*net.TCPAddr).IP
+		ban.Mask = 128
+		if userremove.Reason != nil {
+			ban.Reason = *userremove.Reason
+		}
+		ban.Username = removeClient.ShownName()
+		ban.CertHash = removeClient.CertHash
+		ban.Start = time.Seconds()
+		ban.Duration = 0
+
+		server.banlock.Lock()
+		server.Bans = append(server.Bans, ban)
+		server.banlock.Unlock()
 	}
 
 	userremove.Actor = proto.Uint32(uint32(client.Session))
 	if err = server.broadcastProtoMessage(MessageUserRemove, userremove); err != nil {
 		server.Panicf("Unable to broadcast UserRemove message")
 		return
+	}
+
+	if isBan {
+		client.Printf("Kick-banned %v (%v)", removeClient.ShownName(), removeClient.Session)
+	} else {
+		client.Printf("Kicked %v (%v)", removeClient.ShownName(), removeClient.Session)
 	}
 
 	removeClient.ForceDisconnect()
