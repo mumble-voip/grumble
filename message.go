@@ -11,6 +11,7 @@ import (
 	"net"
 	"cryptstate"
 	"fmt"
+	"grumble/ban"
 	"grumble/blobstore"
 )
 
@@ -850,6 +851,65 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 }
 
 func (server *Server) handleBanListMessage(client *Client, msg *Message) {
+	banlist := &mumbleproto.BanList{}
+	err := proto.Unmarshal(msg.buf, banlist)
+	if err != nil {
+		client.Panic(err.String())
+		return
+	}
+
+	if !server.HasPermission(client, server.root, BanPermission) {
+		client.sendPermissionDenied(client, server.root, BanPermission)
+	}
+
+	if banlist.Query != nil && *banlist.Query != false {
+		banlist.Reset()
+
+		server.banlock.RLock()
+		defer server.banlock.RUnlock()
+
+		for _, ban := range server.Bans {
+			entry := &mumbleproto.BanList_BanEntry{}
+			entry.Address = ban.IP
+			entry.Mask = proto.Uint32(uint32(ban.Mask))
+			entry.Name = proto.String(ban.Username)
+			entry.Hash = proto.String(ban.CertHash)
+			entry.Reason = proto.String(ban.Reason)
+			entry.Start = proto.String(ban.ISOStartDate())
+			entry.Duration = proto.Uint32(ban.Duration)
+			banlist.Bans = append(banlist.Bans, entry)
+		}
+		if err := client.sendProtoMessage(MessageBanList, banlist); err != nil {
+			client.Panic("Unable to send BanList")
+		}
+	} else {
+		server.banlock.Lock()
+		defer server.banlock.Unlock()
+
+		server.Bans = server.Bans[0:0]
+		for _, entry := range banlist.Bans {
+			ban := ban.Ban{}
+			ban.IP = entry.Address
+			ban.Mask = int(*entry.Mask)
+			if entry.Name != nil {
+				ban.Username = *entry.Name
+			}
+			if entry.Hash != nil {
+				ban.CertHash = *entry.Hash
+			}
+			if entry.Reason != nil {
+				ban.Reason = *entry.Reason
+			}
+			if entry.Start != nil {
+				ban.SetISOStartDate(*entry.Start)
+			}
+			if entry.Duration != nil {
+				ban.Duration = *entry.Duration
+			}
+			server.Bans = append(server.Bans, ban)
+		}
+		client.Printf("Banlist updated")
+	}
 }
 
 // Broadcast text messages

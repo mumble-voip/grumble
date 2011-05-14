@@ -8,6 +8,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	"gob"
+	"grumble/ban"
 	"grumble/serverconf"
 	"io"
 	"io/ioutil"
@@ -17,6 +18,7 @@ import (
 type frozenServer struct {
 	Id       int               "id"
 	Config   map[string]string "config"
+	Bans     []ban.Ban         "bans"
 	Channels []frozenChannel   "channels"
 	Users    []frozenUser      "users"
 }
@@ -100,6 +102,11 @@ func (server *Server) FreezeToFile(filename string) (err os.Error) {
 func (server *Server) Freeze() (fs frozenServer, err os.Error) {
 	fs.Id = int(server.Id)
 	fs.Config = server.cfg.GetAll()
+
+	server.banlock.RLock()
+	fs.Bans = make([]ban.Ban, len(server.Bans))
+	copy(fs.Bans, server.Bans)
+	server.banlock.RUnlock()
 
 	channels := []frozenChannel{}
 	for _, c := range server.Channels {
@@ -228,6 +235,8 @@ func NewServerFromFrozen(filename string) (s *Server, err os.Error) {
 	if fs.Config != nil {
 		s.cfg = serverconf.New(fs.Config)
 	}
+
+	s.Bans = fs.Bans
 
 	// Add all channels, but don't hook up parent/child relationships
 	// until all of them are loaded.

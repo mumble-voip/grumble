@@ -21,6 +21,7 @@ import (
 	"cryptstate"
 	"fmt"
 	"gob"
+	"grumble/ban"
 	"grumble/blobstore"
 	"grumble/serverconf"
 	"grumble/sessionpool"
@@ -96,6 +97,10 @@ type Server struct {
 
 	// ACL cache
 	aclcache ACLCache
+
+	// Bans
+	banlock sync.RWMutex
+	Bans    []ban.Ban
 
 	// Logging
 	*log.Logger
@@ -1104,6 +1109,21 @@ func (s *Server) removeRegisteredUserFromChannel(uid uint32, channel *Channel) {
 	}
 }
 
+// Is the incoming connection conn banned?
+func (server *Server) IsBanned(conn net.Conn) bool {
+	server.banlock.RLock()
+	defer server.banlock.RUnlock()
+
+	for _, ban := range server.Bans {
+		addr := conn.RemoteAddr().(*net.TCPAddr)
+		if ban.Match(addr.IP) && !ban.IsExpired() {
+			return true
+		}
+	}
+
+	return false
+}
+
 // The accept loop of the server.
 func (s *Server) ListenAndMurmur() {
 	// Launch the event handler goroutine
@@ -1156,6 +1176,17 @@ func (s *Server) ListenAndMurmur() {
 		conn, err := listener.Accept()
 		if err != nil {
 			s.Printf("Unable to accept new client: %v", err)
+			continue
+		}
+
+		// Is the client banned?
+		// fixme(mkrautz): Clean up expired bans
+		if s.IsBanned(conn) {
+			s.Printf("Rejected client %v: Banned", conn.RemoteAddr())
+			err := conn.Close()
+			if err != nil {
+				s.Printf("Unable to close connection: %v", err)
+			}
 			continue
 		}
 

@@ -13,6 +13,7 @@ PACKAGES = \
 	pkg/blobstore \
 	pkg/serverconf \
 	pkg/sessionpool \
+	pkg/ban \
 	pkg/sqlite
 
 GCFLAGS = \
@@ -22,6 +23,7 @@ GCFLAGS = \
 	-Ipkg/blobstore/_obj \
 	-Ipkg/serverconf/_obj \
 	-Ipkg/sessionpool/_obj \
+	-Ipkg/ban/_obj \
 	-Ipkg/sqlite/_obj
 
 LDFLAGS = \
@@ -31,6 +33,7 @@ LDFLAGS = \
 	-Lpkg/blobstore/_obj \
 	-Lpkg/serverconf/_obj \
 	-Lpkg/sessionpool/_obj \
+	-Lpkg/ban/_obj \
 	-Lpkg/sqlite/_obj
 
 GOFILES = \
