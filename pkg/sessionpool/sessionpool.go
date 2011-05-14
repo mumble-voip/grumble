@@ -32,7 +32,6 @@ func New() (pool *SessionPool) {
 // the SessionPool checks whether the ID being reclaimed
 // is in its list of used IDs. If this is not the case,
 // the program will panic.
-// panic.
 func (pool *SessionPool) EnableUseTracking() {
 	if len(pool.unused) != 0 || pool.cur != 0 {
 		panic("Attempt to enable use tracking on an existing SessionPool.")
@@ -41,7 +40,7 @@ func (pool *SessionPool) EnableUseTracking() {
 }
 
 // Get a new session ID from the SessionPool.
-// Must be reclaimed using Reclaim() when done.
+// Must be reclaimed using Reclaim() when done using it.
 func (pool *SessionPool) Get() (id uint32) {
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
