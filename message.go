@@ -878,6 +878,7 @@ func (server *Server) handleBanListMessage(client *Client, msg *Message) {
 
 	if !server.HasPermission(client, server.root, BanPermission) {
 		client.sendPermissionDenied(client, server.root, BanPermission)
+		return
 	}
 
 	if banlist.Query != nil && *banlist.Query != false {
@@ -949,6 +950,7 @@ func (server *Server) handleTextMessage(client *Client, msg *Message) {
 		if channel, ok := server.Channels[int(chanid)]; ok {
 			if !server.HasPermission(client, channel, TextMessagePermission) {
 				client.sendPermissionDenied(client, channel, TextMessagePermission)
+				return
 			}
 			for _, target := range channel.clients {
 				clients[target.Session] = target
