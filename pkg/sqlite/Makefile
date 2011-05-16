@@ -8,7 +8,7 @@ TARG=sqlite
 
 CGOFILES=sqlite.go
 
-ifneq ($(SQLITE),dll)
+ifneq ($(GOOS),windows)
 CGO_OFILES=sqlite3.o
 endif
 
@@ -17,6 +17,9 @@ CGO_LDFLAGS=-lpthread -ldl
 endif
 
 ifeq ($(GOOS),windows)
+# requires a .dll and .def in c:\sqlite
+# beware of version incompatibilities:
+# build uses sqlite3.h header from this dir
 CGO_LDFLAGS=-Lc:/sqlite -lsqlite3
 endif
 
