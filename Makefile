@@ -5,6 +5,9 @@
 include $(GOROOT)/src/Make.inc
 
 TARG = grumble
+ifeq ($(GOOS),windows)
+TARG:=$(TARG).exe
+endif
 
 PACKAGES = \
 	pkg/packetdatastream \
