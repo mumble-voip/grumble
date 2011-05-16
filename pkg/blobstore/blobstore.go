@@ -10,11 +10,9 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"io/ioutil"
-	"path/filepath"
 	"os"
-	"strconv"
+	"path/filepath"
 	"sync"
-	"syscall"
 )
 
 type BlobStore struct {
@@ -100,7 +98,7 @@ func NewBlobStore(path string, makeall bool) (bs *BlobStore, err os.Error) {
 
 	// Try to acquire an exclusive lock on the blobstore.
 	lockfn := filepath.Join(path, "lock")
-	err = acquireLockfile(lockfn)
+	err = AcquireLockFile(lockfn)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +107,7 @@ func NewBlobStore(path string, makeall bool) (bs *BlobStore, err os.Error) {
 	// know the filename.)
 	defer func() {
 		if err != nil {
-			os.Remove(lockfn)
+			ReleaseLockFile(lockfn)
 		}
 	}()
 
@@ -172,61 +170,6 @@ func NewBlobStore(path string, makeall bool) (bs *BlobStore, err os.Error) {
 // other processes to open the BlobStore.
 func (bs *BlobStore) Close() (err os.Error) {
 	return os.Remove(bs.lockfn)
-}
-
-// Acquire an exclusive lock for the BlobStore in directory dir.
-func acquireLockfile(path string) os.Error {
-	dir, fn := filepath.Split(path)
-	lockfn := filepath.Join(dir, fn)
-
-	lockfile, err := os.OpenFile(lockfn, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
-	if e, ok := err.(*os.PathError); ok && e.Error == os.EEXIST {
-		content, err := ioutil.ReadFile(lockfn)
-		if err != nil {
-			return err
-		}
-
-		pid, err := strconv.Atoui64(string(content))
-		if err == nil {
-			if pidRunning(pid) {
-				return ErrLocked
-			}
-		}
-
-		lockfile, err = ioutil.TempFile(dir, "lock")
-		if err != nil {
-			return err
-		}
-
-		_, err = lockfile.WriteString(strconv.Itoa(syscall.Getpid()))
-		if err != nil {
-			lockfile.Close()
-			return ErrLockAcquirement
-		}
-
-		curfn := lockfile.Name()
-
-		err = lockfile.Close()
-		if err != nil {
-			return err
-		}
-
-		err = os.Rename(curfn, lockfn)
-		if err != nil {
-			os.Remove(curfn)
-			return ErrLockAcquirement
-		}
-	} else if err != nil {
-		return err
-	} else {
-		_, err = lockfile.WriteString(strconv.Uitoa64(getPid()))
-		if err != nil {
-			return err
-		}
-		lockfile.Close()
-	}
-
-	return nil
 }
 
 // Checks that a given key is a valid key for the BlobStore.
