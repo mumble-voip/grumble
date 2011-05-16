@@ -6,8 +6,6 @@ package main
 
 import (
 	"log"
-	"os"
-	"path/filepath"
 	"rpc"
 	"strconv"
 )
@@ -40,7 +38,7 @@ func GrumbleCtl(args []string) {
 
 	sid, _ := strconv.Atoi64(args[1])
 
-	client, err := rpc.Dial("unix", filepath.Join(os.Getenv("HOME"), ".grumble", "ctl"))
+	client, err := rpc.Dial(*ctlnet, *ctladdr)
 	if err != nil {
 		log.Fatalf("Could not connect to control socket: %v", err)
 	}

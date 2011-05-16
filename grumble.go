@@ -16,13 +16,45 @@ import (
 	"path/filepath"
 	"regexp"
 	"rpc"
+	"runtime"
 	"time"
 )
 
+func defaultGrumbleDir() string {
+	dirname := ".grumble"
+	if runtime.GOOS == "windows" {
+		dirname = "grumble"
+	}
+	return filepath.Join(os.Getenv("HOME"), dirname)
+}
+
+func defaultDataDir() string {
+	return filepath.Join(defaultGrumbleDir(), "data")
+}
+
+func defaultBlobDir() string {
+	return filepath.Join(defaultGrumbleDir(), "blob")
+}
+
+func defaultCtlNet() string {
+	if runtime.GOOS == "windows" {
+		return "tcp"
+	}
+	return "unix"
+}
+
+func defaultCtlAddr() string {
+	if runtime.GOOS == "windows" {
+		return "localhost:5454"
+	}
+	return filepath.Join(defaultGrumbleDir(), ".ctl")
+}
+
 var help *bool = flag.Bool("help", false, "Show this help")
-var datadir *string = flag.String("datadir", "", "Directory to use for server storage")
-var blobdir *string = flag.String("blobdir", "", "Directory to use for blob storage")
-var ctlpath *string = flag.String("ctlpath", "", "File to use for ctl socket")
+var datadir *string = flag.String("datadir", defaultDataDir(), "Directory to use for server storage")
+var blobdir *string = flag.String("blobdir", defaultBlobDir(), "Directory to use for blob storage")
+var ctlnet *string = flag.String("ctlnet", defaultCtlNet(), "Network to use for ctl socket")
+var ctladdr *string = flag.String("ctladdr", defaultCtlAddr(), "Address to use for ctl socket")
 var sqlitedb *string = flag.String("murmurdb", "", "Path to murmur.sqlite to import server structure from")
 var cleanup *bool = flag.Bool("clean", false, "Clean up existing data dir content before importing Murmur data")
 var gencert *bool = flag.Bool("gencert", false, "Generate a self-signed certificate for use with Grumble")
@@ -31,6 +63,7 @@ var servers map[int64]*Server
 
 func Usage() {
 	fmt.Fprintf(os.Stderr, "usage: grumble [options]\n")
+	fmt.Fprintf(os.Stderr, "remote control: grumble [options] ctl [ctlopts]\n")
 	flag.PrintDefaults()
 }
 
@@ -74,32 +107,21 @@ func MurmurImport(filename string) (err os.Error) {
 func main() {
 	var err os.Error
 
-	if len(os.Args) >= 2 && os.Args[1] == "ctl" {
-		GrumbleCtl(os.Args[2:])
-		return
-	}
-
 	flag.Parse()
 	if *help == true {
 		Usage()
 		return
 	}
 
+	for i, str := range os.Args {
+		if str == "ctl" {
+			GrumbleCtl(os.Args[i+1:])
+			return
+		}
+	}
+
 	log.SetPrefix("[G] ")
 	log.Printf("Grumble - Mumble server written in Go")
-
-	if len(*datadir) == 0 {
-		*datadir = filepath.Join(os.Getenv("HOME"), ".grumble", "data")
-	}
-	log.Printf("Using data directory: %s", *datadir)
-
-	if len(*blobdir) == 0 {
-		*blobdir = filepath.Join(os.Getenv("HOME"), ".grumble", "blob")
-	}
-
-	if len(*ctlpath) == 0 {
-		*ctlpath = filepath.Join(os.Getenv("HOME"), ".grumble", "ctl")
-	}
 
 	log.Printf("Using blob directory: %s", *blobdir)
 	err = blobstore.Open(*blobdir, true)
@@ -197,14 +219,10 @@ func main() {
 		go s.ListenAndMurmur()
 	}
 
-	os.Remove(*ctlpath)
-
-	addr, err := net.ResolveUnixAddr("unix", *ctlpath)
-	if err != nil {
-		log.Panicf("Unable to resolve ctl addr: %v", err)
+	if *ctlnet == "unix" {
+		os.Remove(*ctladdr)
 	}
-
-	lis, err := net.ListenUnix("unix", addr)
+	lis, err := net.Listen(*ctlnet, *ctladdr)
 	if err != nil {
 		log.Panicf("Unable to listen on ctl socket: %v", err)
 	}
