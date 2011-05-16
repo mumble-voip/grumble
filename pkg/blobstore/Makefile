@@ -6,9 +6,9 @@ GOFILES = \
 	blobreader.go
 
 ifeq ($(GOOS),windows)
-GOFILES += pid_windows.go
+GOFILES += lock_windows.go
 else
-GOFILES += pid_unix.go
+GOFILES += lock_unix.go
 endif
 
 include $(GOROOT)/src/Make.pkg
