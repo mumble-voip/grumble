@@ -9,7 +9,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/signal"
 	"log"
 	"net"
 	"sqlite"
@@ -233,6 +232,7 @@ func main() {
 
 	if len(servers) > 0 {
 		ticker := time.NewTicker(10e9) // 10 secs
+		go SignalHandler()
 		for {
 			select {
 			case <-ticker.C:
@@ -243,23 +243,6 @@ func main() {
 						continue
 					}
 				}
-
-			case sig := <-signal.Incoming:
-				if sig != signal.SIGINT && sig != signal.SIGTERM {
-					continue
-				}
-
-				for sid, s := range servers {
-					err := s.FreezeToFile(filepath.Join(*datadir, fmt.Sprintf("%v", sid)))
-					if err != nil {
-						log.Printf("Unable to freeze server %v: %s", sid, err.String())
-						continue
-					}
-
-					log.Printf("Server %v frozen", sid)
-				}
-
-				return
 			}
 		}
 	}

@@ -52,6 +52,12 @@ GOFILES = \
 	ctlrpc.go \
 	ctl.go
 
+ifeq ($(GOOS),windows)
+	GOFILES += signal_windows.go
+else
+	GOFILES += signal_unix.go
+endif
+
 .PHONY: grumble
 grumble: pkg
 	$(GC) $(GCFLAGS) -o $(TARG).$(O) $(GOFILES)
