@@ -186,10 +186,9 @@ func acquireLockfile(path string) os.Error {
 			return err
 		}
 
-		pid, err := strconv.Atoi(string(content))
+		pid, err := strconv.Atoui64(string(content))
 		if err == nil {
-			errno := syscall.Kill(pid, 0)
-			if errno == 0 {
+			if pidRunning(pid) {
 				return ErrLocked
 			}
 		}
@@ -220,7 +219,7 @@ func acquireLockfile(path string) os.Error {
 	} else if err != nil {
 		return err
 	} else {
-		_, err = lockfile.WriteString(strconv.Itoa(syscall.Getpid()))
+		_, err = lockfile.WriteString(strconv.Uitoa64(getPid()))
 		if err != nil {
 			return err
 		}
