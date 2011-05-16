@@ -7,10 +7,17 @@ include $(GOROOT)/src/Make.inc
 TARG=sqlite
 
 CGOFILES=sqlite.go
+
+ifneq ($(SQLITE),dll)
 CGO_OFILES=sqlite3.o
+endif
 
 ifeq ($(GOOS),linux)
 CGO_LDFLAGS=-lpthread -ldl
+endif
+
+ifeq ($(GOOS),windows)
+CGO_LDFLAGS=-Lc:/sqlite -lsqlite3
 endif
 
 include $(GOROOT)/src/Make.pkg
