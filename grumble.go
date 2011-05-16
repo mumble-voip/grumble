@@ -121,7 +121,7 @@ func main() {
 	}
 
 	log.SetPrefix("[G] ")
-	log.Printf("Grumble - Mumble server written in Go")
+	log.Printf("Grumble")
 
 	log.Printf("Using blob directory: %s", *blobdir)
 	err = blobstore.Open(*blobdir, true)
