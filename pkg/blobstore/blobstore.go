@@ -21,6 +21,10 @@ type BlobStore struct {
 	makeall bool
 }
 
+const (
+	win32AlreadyExists = 183
+)
+
 var (
 	ErrLocked          = os.NewError("lockfile acquired by another process")
 	ErrLockAcquirement = os.NewError("unable to acquire lockfile")
@@ -116,8 +120,7 @@ func NewBlobStore(path string, makeall bool) (bs *BlobStore, err os.Error) {
 			outer := filepath.Join(path, hex.EncodeToString([]byte{byte(i)}))
 			err = os.Mkdir(outer, 0700)
 			if e, ok := err.(*os.PathError); ok {
-				switch e.Error {
-				case os.EEXIST:
+				if isExistError(e) {
 					// The file alread exists. Stat it to check whether it is indeed
 					// a directory.
 					fi, err := os.Stat(outer)
@@ -127,7 +130,7 @@ func NewBlobStore(path string, makeall bool) (bs *BlobStore, err os.Error) {
 					if !fi.IsDirectory() {
 						return nil, ErrBadFile
 					}
-				case os.ENOTDIR:
+				} else if e.Error == os.ENOTDIR {
 					return nil, ErrBadFile
 				}
 			} else if err != nil {
@@ -137,8 +140,7 @@ func NewBlobStore(path string, makeall bool) (bs *BlobStore, err os.Error) {
 				inner := filepath.Join(outer, hex.EncodeToString([]byte{byte(j)}))
 				err = os.Mkdir(inner, 0700)
 				if e, ok := err.(*os.PathError); ok {
-					switch e.Error {
-					case os.EEXIST:
+					if isExistError(e) {
 						// The file alread exists. Stat it to check whether it is indeed
 						// a directory.
 						fi, err := os.Stat(inner)
@@ -148,7 +150,7 @@ func NewBlobStore(path string, makeall bool) (bs *BlobStore, err os.Error) {
 						if !fi.IsDirectory() {
 							return nil, ErrBadFile
 						}
-					case os.ENOTDIR:
+					} else if e.Error == os.ENOTDIR {
 						return nil, ErrBadFile
 					}
 				} else if err != nil {
@@ -212,7 +214,7 @@ func (bs *BlobStore) Get(key string) (buf []byte, err os.Error) {
 	}
 
 	file, err := os.Open(fn)
-	if e, ok := err.(*os.PathError); ok && e.Error == os.ENOENT {
+	if e, ok := err.(*os.PathError); ok && (e.Error == os.ENOENT || e.Error == os.ENOTDIR) {
 		err = ErrNoSuchKey
 		return
 	} else if err != nil {
@@ -261,7 +263,7 @@ func (bs *BlobStore) Put(buf []byte) (key string, err os.Error) {
 		file.Close()
 		return
 	} else {
-		if e, ok := err.(*os.PathError); ok && e.Error == os.ENOENT {
+		if e, ok := err.(*os.PathError); ok && (e.Error == os.ENOENT || e.Error == os.ENOTDIR) {
 			// No such file exists on disk. Ready to rock!
 		} else {
 			return
@@ -270,7 +272,7 @@ func (bs *BlobStore) Put(buf []byte) (key string, err os.Error) {
 
 	if !bs.makeall {
 		// Make sure the leading directories exist...
-		err = os.MkdirAll(blobdir, 0700)
+		err = os.MkdirAll(filepath.ToSlash(blobdir), 0700)
 		if err != nil {
 			return
 		}
@@ -307,4 +309,17 @@ func (bs *BlobStore) Put(buf []byte) (key string, err os.Error) {
 	}
 
 	return key, nil
+}
+
+// Check whether an os.PathError is an EXIST error.
+// On Unix, it checks for EEXIST. On Windows, it checks for EEXIST
+// and Errno code 183 (ERROR_ALREADY_EXISTS)
+func isExistError(err *os.PathError) (exists bool) {
+	if e, ok := err.Error.(os.Errno); ok && e == win32AlreadyExists {
+		exists = true
+	}
+	if err.Error == os.EEXIST {
+		exists = true
+	}
+	return
 }
