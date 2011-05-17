@@ -7,6 +7,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 	"os/signal"
 	"path/filepath"
 )
@@ -25,5 +26,7 @@ func SignalHandler() {
 			}
 			log.Printf("Server %v frozen", sid)
 		}
+
+		os.Exit(0)
 	}
 }
