@@ -13,6 +13,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"runtime"
 )
 
 type frozenServer struct {
@@ -64,7 +65,7 @@ type frozenGroup struct {
 	Remove      []int  "remove"
 }
 
-// Freeze a server and write it to a file
+// Freeze a server and write it to a file.
 func (server *Server) FreezeToFile(filename string) (err os.Error) {
 	r := server.FreezeServer()
 	if err != nil {
@@ -89,6 +90,28 @@ func (server *Server) FreezeToFile(filename string) (err os.Error) {
 	err = f.Close()
 	if err != nil {
 		return err
+	}
+	// Temporary non-atomic path
+	// We should probably use MoveFileEx instead, but I'm
+	// not sure whether that's atomic either. MoveFileTransacted
+	// would be prefered for Vista/Server 2008+.
+	if runtime.GOOS == "windows" {
+		err = os.Remove(filename + ".old")
+		if e, ok := err.(*os.PathError); ok {
+			if e.Error != os.ENOENT {
+				return err
+			}
+		} else if err != nil {
+			return err
+		}
+		err = os.Rename(filename, filename + ".old")
+		if e, ok := err.(*os.LinkError); ok {
+			if e.Error != os.ENOENT {
+				return err
+			}
+		} else if err != nil {
+			return err
+		}
 	}
 	err = os.Rename(f.Name(), filename)
 	if err != nil {

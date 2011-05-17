@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"rpc"
 	"runtime"
+	"strconv"
 	"time"
 )
 
@@ -205,6 +206,20 @@ func main() {
 			}
 			servers[s.Id] = s
 			go s.ListenAndMurmur()
+		}
+		// win32 special-case
+		if matched, _ := regexp.MatchString("^[0-9]+.old$", name); matched {
+			sid, _ := strconv.Atoi64(name[0:len(name)-4])
+			_, exists := servers[sid]
+			if !exists {
+				log.Printf("Recovering lost server %v", name)
+				s, err := NewServerFromFrozen(filepath.Join(*datadir, name))
+				if err != nil {
+					log.Fatalf("Unable to recover server: %S", err.String())
+				}
+				servers[sid] = s
+				go s.ListenAndMurmur()
+			}
 		}
 	}
 
