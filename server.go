@@ -1145,6 +1145,7 @@ func (server *Server) RemoveChannel(channel *Channel) {
 	// Remove the channel itself
 	parent := channel.parent
 	parent.children[channel.Id] = nil, false
+	server.Channels[channel.Id] = nil, false
 	chanremove := &mumbleproto.ChannelRemove{
 		ChannelId: proto.Uint32(uint32(channel.Id)),
 	}
