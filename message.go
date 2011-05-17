@@ -158,10 +158,29 @@ func (server *Server) handlePingMessage(client *Client, msg *Message) {
 	})
 }
 
-func (server *Server) handleChannelAddMessage(client *Client, msg *Message) {
-}
-
 func (server *Server) handleChannelRemoveMessage(client *Client, msg *Message) {
+	chanremove := &mumbleproto.ChannelRemove{}
+	err := proto.Unmarshal(msg.buf, chanremove)
+	if err != nil {
+		client.Panic(err.String())
+		return
+	}
+
+	if chanremove.ChannelId == nil {
+		return
+	}
+
+	channel, exists := server.Channels[int(*chanremove.ChannelId)]
+	if !exists {
+		return
+	}
+
+	if !server.HasPermission(client, channel, WritePermission) {
+		client.sendPermissionDenied(client, channel, WritePermission)
+		return
+	}
+
+	server.RemoveChannel(channel)
 }
 
 // Handle channel state change.

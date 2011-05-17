@@ -830,7 +830,7 @@ func (server *Server) handleIncomingMessage(client *Client, msg *Message) {
 	case MessagePing:
 		server.handlePingMessage(msg.client, msg)
 	case MessageChannelRemove:
-		server.handlePingMessage(msg.client, msg)
+		server.handleChannelRemoveMessage(msg.client, msg)
 	case MessageChannelState:
 		server.handleChannelStateMessage(msg.client, msg)
 	case MessageUserState:
@@ -1106,6 +1106,50 @@ func (s *Server) removeRegisteredUserFromChannel(uid uint32, channel *Channel) {
 
 	for _, subChan := range channel.children {
 		s.removeRegisteredUserFromChannel(uid, subChan)
+	}
+}
+
+// Remove a channel
+func (server *Server) RemoveChannel(channel *Channel) {
+	// Can't remove root
+	if channel.parent == nil {
+		return
+	}
+
+	// Remove all links
+	for _, linkedChannel := range channel.Links {
+		linkedChannel.Links[channel.Id] = nil, false
+	}
+
+	// Remove all subchannels
+	for _, subChannel := range channel.children {
+		server.RemoveChannel(subChannel)
+	}
+
+	// Remove all clients
+	for _, client := range channel.clients {
+		target := channel.parent
+		for target.parent != nil && !server.HasPermission(client, target, EnterPermission) {
+			target = target.parent
+		}
+
+		userstate := &mumbleproto.UserState{}
+		userstate.Session = proto.Uint32(client.Session)
+		userstate.ChannelId = proto.Uint32(uint32(target.Id))
+		server.userEnterChannel(client, target, userstate)
+		if err := server.broadcastProtoMessage(MessageUserState, userstate); err != nil {
+			server.Panicf("%v", err)
+		}
+	}
+
+	// Remove the channel itself
+	parent := channel.parent
+	parent.children[channel.Id] = nil, false
+	chanremove := &mumbleproto.ChannelRemove{
+		ChannelId: proto.Uint32(uint32(channel.Id)),
+	}
+	if err := server.broadcastProtoMessage(MessageChannelRemove, chanremove); err != nil {
+		server.Panicf("%v", err)
 	}
 }
 
