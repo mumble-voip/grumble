@@ -11,7 +11,7 @@ import (
 )
 
 // A SessionPool is a pool for session IDs.
-// IDs are reclaimed in MRU order, for ease of implementation in Go.
+// IDs are re-used in MRU order, for ease of implementation in Go.
 type SessionPool struct {
 	mutex  sync.Mutex
 	used   map[uint32]bool
