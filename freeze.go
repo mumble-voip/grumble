@@ -199,7 +199,6 @@ func (channel *Channel) Freeze() (fc frozenChannel, err os.Error) {
 func (user *User) Freeze() (fu frozenUser, err os.Error) {
 	fu.Id = user.Id
 	fu.Name = user.Name
-	fu.Password = user.Password
 	fu.CertHash = user.CertHash
 	fu.Email = user.Email
 	fu.TextureBlob = user.TextureBlob
@@ -320,7 +319,6 @@ func NewServerFromFrozen(filename string) (s *Server, err os.Error) {
 			return nil, err
 		}
 
-		u.Password = fu.Password
 		u.CertHash = fu.CertHash
 		u.Email = fu.Email
 		u.TextureBlob = fu.TextureBlob

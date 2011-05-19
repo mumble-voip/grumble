@@ -9,11 +9,16 @@ import (
 )
 
 type ControlRPC struct {
+}
 
+type KeyValuePair struct {
+	Id    int64
+	Key   string
+	Value string
 }
 
 // Start a server
-func (c *ControlRPC) Start(Id int64, out *int) os.Error {
+func (c *ControlRPC) Start(Id int64, out *int64) os.Error {
 	server, exists := servers[Id]
 	if !exists {
 		return os.NewError("no such server")
@@ -32,14 +37,19 @@ func (c *ControlRPC) Stop(Id int64, out *int) os.Error {
 	return nil
 }
 
-type ConfigValue struct {
-	Id    int64
-	Key   string
-	Value string
+// Set SuperUser password
+func (c *ControlRPC) SetSuperUserPassword(in *KeyValuePair, out *int64) os.Error {
+	server, exists := servers[in.Id]
+	if !exists {
+		return os.NewError("no such server")
+	}
+	server.SetSuperUserPassword(in.Value)
+	*out = in.Id
+	return nil
 }
 
 // Set a config value
-func (c *ControlRPC) SetConfig(in *ConfigValue, out *ConfigValue) os.Error {
+func (c *ControlRPC) SetConfig(in *KeyValuePair, out *KeyValuePair) os.Error {
 	server, exists := servers[in.Id]
 	if !exists {
 		return os.NewError("no such server")
@@ -52,7 +62,7 @@ func (c *ControlRPC) SetConfig(in *ConfigValue, out *ConfigValue) os.Error {
 }
 
 // Get a config value
-func (c *ControlRPC) GetConfig(in *ConfigValue, out *ConfigValue) os.Error {
+func (c *ControlRPC) GetConfig(in *KeyValuePair, out *KeyValuePair) os.Error {
 	server, exists := servers[in.Id]
 	if !exists {
 		return os.NewError("no such server")

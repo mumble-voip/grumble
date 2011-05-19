@@ -13,6 +13,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"crypto/rand"
 	"encoding/binary"
 	"encoding/hex"
 	"sync"
@@ -86,6 +87,9 @@ type Server struct {
 	root     *Channel
 	Channels map[int]*Channel
 
+	// Administration
+	SuperUserPassword string
+
 	// Users
 	Users       map[uint32]*User
 	UserCertMap map[string]*User
@@ -150,6 +154,7 @@ func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 	s.freezeRequest = make(chan *freezeRequest)
 	s.clientAuthenticated = make(chan *Client)
 
+	s.Users[0], err = NewUser(0, "SuperUser")
 	s.Channels = make(map[int]*Channel)
 	s.root = s.NewChannel(0, "Root")
 	s.aclcache = NewACLCache()
@@ -159,14 +164,27 @@ func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 	return
 }
 
-// Check whether password matches the set SuperUser password.
-func (server *Server) CheckSuperUserPassword(password string) bool {
-	superUser, exists := server.Users[0]
-	if !exists {
-		server.Panicf("Fatal error: No SuperUser for server %v", server.Id)
+// Set password as the new SuperUser password
+func (server *Server) SetSuperUserPassword(password string) {
+	saltBytes := make([]byte, 24)
+	_, err := rand.Read(saltBytes)
+	if err != nil {
+		server.Fatalf("Unable to read from crypto/rand: %v", err)
 	}
 
-	parts := strings.Split(superUser.Password, "$", -1)
+	salt := hex.EncodeToString(saltBytes)
+	hasher := sha1.New()
+	hasher.Write(saltBytes)
+	hasher.Write([]byte(password))
+	digest := hex.EncodeToString(hasher.Sum())
+
+	// Could be racy, but shouldn't really matter...
+	server.SuperUserPassword = "sha1$" + salt + "$" + digest
+}
+
+// Check whether password matches the set SuperUser password.
+func (server *Server) CheckSuperUserPassword(password string) bool {
+	parts := strings.Split(server.SuperUserPassword, "$", -1)
 	if len(parts) != 3 {
 		return false
 	}
@@ -186,7 +204,11 @@ func (server *Server) CheckSuperUserPassword(password string) bool {
 
 	// salt
 	if len(parts[1]) > 0 {
-		h.Write([]byte(parts[1]))
+		saltBytes, err := hex.DecodeString(parts[1])
+		if err != nil {
+			server.Fatalf("Unable to decode salt: %v", err)
+		}
+		h.Write(saltBytes)
 	}
 
 	// password

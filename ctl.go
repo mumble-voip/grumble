@@ -21,6 +21,9 @@ var CtlUsage = `grumble ctl
 	stop [id]
 		Stop a server
 
+	supw [id] [password]
+		Set the SuperUser password for server with id
+
 	setconf [id] [key] [value]
 		Set a config value for server with id
 
@@ -56,12 +59,21 @@ func GrumbleCtl(args []string) {
 			log.Fatalf("Unable to stop: %v", err)
 		}
 		log.Printf("[%v] Stopped", sid)
+	case "supw":
+		if len(args) < 3 {
+			return
+		}
+		err := client.Call("ctl.SetSuperUserPassword", &KeyValuePair{sid, "", args[2]}, nil)
+		if err != nil {
+			log.Fatalf("Unable to set SuperUser password: %v", err)
+		}
+		log.Printf("[%v] Set SuperUser password", sid)
 	case "setconf":
 		if len(args) < 4 {
 			return
 		}
-		result := &ConfigValue{}
-		err := client.Call("ctl.SetConfig", &ConfigValue{sid, args[2], args[3]}, result)
+		result := &KeyValuePair{}
+		err := client.Call("ctl.SetConfig", &KeyValuePair{sid, args[2], args[3]}, result)
 		if err != nil {
 			log.Fatalf("Unable to set config: %v", err)
 		}
@@ -70,8 +82,8 @@ func GrumbleCtl(args []string) {
 		if len(args) < 3 {
 			return
 		}
-		result := &ConfigValue{}
-		err := client.Call("ctl.GetConfig", &ConfigValue{sid, args[2], ""}, result)
+		result := &KeyValuePair{}
+		err := client.Call("ctl.GetConfig", &KeyValuePair{sid, args[2], ""}, result)
 		if err != nil {
 			log.Fatalf("Unable to get config: %v", err)
 		}
