@@ -864,7 +864,8 @@ func (server *Server) handleIncomingMessage(client *Client, msg *Message) {
 
 func (s *Server) SetupUDP() (err os.Error) {
 	addr := &net.UDPAddr{
-		Port: s.port,
+		net.ParseIP(s.address),
+		s.port,
 	}
 	s.udpconn, err = net.ListenUDP("udp", addr)
 	if err != nil {
@@ -1174,6 +1175,15 @@ func (s *Server) ListenAndMurmur() {
 	// Launch the event handler goroutine
 	go s.handler()
 
+	host := s.cfg.StringValue("Address")
+	if host != "" {
+		s.address = host
+	}
+	port := s.cfg.IntValue("Port")
+	if port != 0 {
+		s.port = port
+	}
+
 	s.running = true
 
 	// Setup our UDP listener and spawn our reader and writer goroutines
@@ -1194,7 +1204,7 @@ func (s *Server) ListenAndMurmur() {
 	s.tlscfg = cfg
 
 	tl, err := net.ListenTCP("tcp", &net.TCPAddr{
-		net.ParseIP("0.0.0.0"),
+		net.ParseIP(s.address),
 		s.port,
 	})
 	if err != nil {
