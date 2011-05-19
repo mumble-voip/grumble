@@ -134,7 +134,7 @@ func (client *Client) Panic(v ...interface{}) {
 
 // Log a formatted panic and disconnect the client.
 func (client *Client) Panicf(format string, v ...interface{}) {
-	client.Printf(format, v)
+	client.Printf(format, v...)
 	client.Disconnect()
 }
 
