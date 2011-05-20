@@ -130,6 +130,8 @@ func (server *Server) RegisterPublicServer() {
 		"digest":   digest,
 		"users":    strconv.Itoa(len(server.clients)),
 		"channels": strconv.Itoa(len(server.Channels)),
+		"version":  "1.2.4",
+		"release":  "Grumble git",
 	})
 	if err != nil {
 		server.Printf("register: unable to execute template: %v", err)
