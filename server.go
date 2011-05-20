@@ -155,6 +155,8 @@ func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 	s.clientAuthenticated = make(chan *Client)
 
 	s.Users[0], err = NewUser(0, "SuperUser")
+	s.UserNameMap["SuperUser"] = s.Users[0]
+
 	s.Channels = make(map[int]*Channel)
 	s.root = s.NewChannel(0, "Root")
 	s.aclcache = NewACLCache()

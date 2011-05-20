@@ -17,11 +17,12 @@ import (
 )
 
 type frozenServer struct {
-	Id       int               "id"
-	Config   map[string]string "config"
-	Bans     []ban.Ban         "bans"
-	Channels []frozenChannel   "channels"
-	Users    []frozenUser      "users"
+	Id                int               "id"
+	SuperUserPassword string            "supw"
+	Config            map[string]string "config"
+	Bans              []ban.Ban         "bans"
+	Channels          []frozenChannel   "channels"
+	Users             []frozenUser      "users"
 }
 
 type frozenUser struct {
@@ -104,7 +105,7 @@ func (server *Server) FreezeToFile(filename string) (err os.Error) {
 		} else if err != nil {
 			return err
 		}
-		err = os.Rename(filename, filename + ".old")
+		err = os.Rename(filename, filename+".old")
 		if e, ok := err.(*os.LinkError); ok {
 			if e.Error != os.ENOENT {
 				return err
@@ -125,6 +126,7 @@ func (server *Server) FreezeToFile(filename string) (err os.Error) {
 func (server *Server) Freeze() (fs frozenServer, err os.Error) {
 	fs.Id = int(server.Id)
 	fs.Config = server.cfg.GetAll()
+	fs.SuperUserPassword = server.SuperUserPassword
 
 	server.banlock.RLock()
 	fs.Bans = make([]ban.Ban, len(server.Bans))
@@ -258,6 +260,7 @@ func NewServerFromFrozen(filename string) (s *Server, err os.Error) {
 		s.cfg = serverconf.New(fs.Config)
 	}
 
+	s.SuperUserPassword = fs.SuperUserPassword
 	s.Bans = fs.Bans
 
 	// Add all channels, but don't hook up parent/child relationships
