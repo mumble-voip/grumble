@@ -155,6 +155,7 @@ func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 
 	s.Users[0], err = NewUser(0, "SuperUser")
 	s.UserNameMap["SuperUser"] = s.Users[0]
+	s.nextUserId = 1
 
 	s.Channels = make(map[int]*Channel)
 	s.aclcache = NewACLCache()
@@ -1053,22 +1054,22 @@ func (s *Server) FreezeServer() io.ReadCloser {
 }
 
 // Register a client on the server.
-func (s *Server) RegisterClient(client *Client) (uid uint32) {
+func (s *Server) RegisterClient(client *Client) (uid uint32, err os.Error) {
 	// Increment nextUserId only if registration succeeded.
 	defer func() {
-		if uid > 0 {
+		if err == nil {
 			s.nextUserId += 1
 		}
 	}()
 
 	user, err := NewUser(s.nextUserId, client.Username)
 	if err != nil {
-		return 0
+		return 0, err
 	}
 
 	// Grumble can only register users with certificates.
 	if len(client.CertHash) == 0 {
-		return 0
+		return 0, os.NewError("no cert hash")
 	}
 
 	user.Email = client.Email
@@ -1078,7 +1079,8 @@ func (s *Server) RegisterClient(client *Client) (uid uint32) {
 	s.Users[uid] = user
 	s.UserCertMap[client.CertHash] = user
 	s.UserNameMap[client.Username] = user
-	return uid
+
+	return uid, nil
 }
 
 // Remove a registered user.

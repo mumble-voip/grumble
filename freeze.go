@@ -332,7 +332,7 @@ func NewServerFromFrozen(filename string) (s *Server, err os.Error) {
 		u.LastActive = fu.LastActive
 
 		s.Users[u.Id] = u
-		if u.Id > s.nextUserId {
+		if u.Id >= s.nextUserId {
 			s.nextUserId = u.Id + 1
 		}
 		s.UserNameMap[u.Name] = u

@@ -803,13 +803,14 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 
 	userRegistrationChanged := false
 	if userstate.UserId != nil {
-		uid := server.RegisterClient(client)
-		if uid > 0 {
+		uid, err := server.RegisterClient(client)
+		if err != nil {
+			client.Printf("Unable to register: %v", err)
+			userstate.UserId = nil
+		} else {
 			userstate.UserId = proto.Uint32(uid)
 			client.user = server.Users[uid]
 			userRegistrationChanged = true
-		} else {
-			userstate.UserId = nil
 		}
 		broadcast = true
 	}
