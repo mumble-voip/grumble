@@ -209,7 +209,7 @@ func main() {
 		}
 		// win32 special-case
 		if matched, _ := regexp.MatchString("^[0-9]+.old$", name); matched {
-			sid, _ := strconv.Atoi64(name[0:len(name)-4])
+			sid, _ := strconv.Atoi64(name[0 : len(name)-4])
 			_, exists := servers[sid]
 			if !exists {
 				log.Printf("Recovering lost server %v", name)

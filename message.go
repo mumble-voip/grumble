@@ -1307,7 +1307,7 @@ func (server *Server) handleUserStatsMessage(client *Client, msg *Message) {
 	if details {
 		if tlsconn := target.conn.(*tls.Conn); tlsconn != nil {
 			state := tlsconn.ConnectionState()
-			for i := len(state.PeerCertificates)-1; i >= 0; i-- {
+			for i := len(state.PeerCertificates) - 1; i >= 0; i-- {
 				stats.Certificates = append(stats.Certificates, state.PeerCertificates[i].Raw)
 			}
 			// fixme(mkrautz): strong certificate checking

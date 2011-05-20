@@ -9,6 +9,7 @@ import (
 )
 
 type ControlRPC struct {
+
 }
 
 type KeyValuePair struct {
