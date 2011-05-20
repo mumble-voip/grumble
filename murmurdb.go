@@ -37,17 +37,17 @@ func NewServerFromSQLite(id int64, db *sqlite.Conn) (s *Server, err os.Error) {
 		return nil, err
 	}
 
-	err = populateChannelInfoFromDatabase(s, s.root, db)
+	err = populateChannelInfoFromDatabase(s, s.RootChannel(), db)
 	if err != nil {
 		return nil, err
 	}
 
-	err = populateChannelACLFromDatabase(s, s.root, db)
+	err = populateChannelACLFromDatabase(s, s.RootChannel(), db)
 	if err != nil {
 		return nil, err
 	}
 
-	err = populateChannelGroupsFromDatabase(s, s.root, db)
+	err = populateChannelGroupsFromDatabase(s, s.RootChannel(), db)
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +252,8 @@ func populateChannelsFromDatabase(server *Server, db *sqlite.Conn, parentId int)
 			return err
 		}
 
-		c := server.NewChannel(chanid, name)
+		c := NewChannel(chanid, name)
+		server.Channels[c.Id] = c
 		c.InheritACL = inherit
 		parent.AddChild(c)
 	}

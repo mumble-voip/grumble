@@ -538,7 +538,7 @@ func (client *Client) receiver() {
 }
 
 func (client *Client) sendChannelList() {
-	client.sendChannelTree(client.server.root)
+	client.sendChannelTree(client.server.RootChannel())
 }
 
 func (client *Client) sendChannelTree(channel *Channel) {

@@ -83,9 +83,8 @@ type Server struct {
 	PreferAlphaCodec bool
 
 	// Channels
-	chanid   int
-	root     *Channel
-	Channels map[int]*Channel
+	Channels   map[int]*Channel
+	nextChanId int
 
 	// Administration
 	SuperUserPassword string
@@ -158,12 +157,24 @@ func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 	s.UserNameMap["SuperUser"] = s.Users[0]
 
 	s.Channels = make(map[int]*Channel)
-	s.root = s.NewChannel(0, "Root")
 	s.aclcache = NewACLCache()
+
+	// Create root channel
+	s.Channels[0] = NewChannel(0, "Root")
+	s.nextChanId = 1
 
 	s.Logger = log.New(os.Stdout, fmt.Sprintf("[%v] ", s.Id), log.Ldate|log.Ltime)
 
 	return
+}
+
+// Get a pointer to the root channel
+func (server *Server) RootChannel() *Channel {
+	 root, exists := server.Channels[0]
+	 if !exists {
+		 server.Fatalf("Not Root channel found for server")
+	 }
+	 return root
 }
 
 // Set password as the new SuperUser password
@@ -300,28 +311,11 @@ func (server *Server) RemoveClient(client *Client, kicked bool) {
 	}
 }
 
-// Add an existing channel to the Server. (Do not arbitrarily pick an ID)
-func (server *Server) NewChannel(id int, name string) (channel *Channel) {
-	_, exists := server.Channels[id]
-	if exists {
-		// fime(mkrautz): Handle duplicates
-		return nil
-	}
-
-	channel = NewChannel(id, name)
-	server.Channels[id] = channel
-
-	if id > server.chanid {
-		server.chanid = id + 1
-	}
-
-	return
-}
-
 // Add a new channel to the server. Automatically assign it a channel ID.
 func (server *Server) AddChannel(name string) (channel *Channel) {
-	channel = NewChannel(server.chanid, name)
+	channel = NewChannel(server.nextChanId, name)
 	server.Channels[channel.Id] = channel
+	server.nextChanId += 1
 	return
 }
 
@@ -623,7 +617,7 @@ func (server *Server) finishAuthenticate(client *Client) {
 		}
 	}
 
-	server.userEnterChannel(client, server.root, userstate)
+	server.userEnterChannel(client, server.RootChannel(), userstate)
 	if err := server.broadcastProtoMessage(MessageUserState, userstate); err != nil {
 		// Server panic?
 	}
@@ -637,8 +631,8 @@ func (server *Server) finishAuthenticate(client *Client) {
 	if client.IsSuperUser() {
 		sync.Permissions = proto.Uint64(uint64(AllPermissions))
 	} else {
-		server.HasPermission(client, server.root, EnterPermission)
-		perm := server.aclcache.GetPermission(client, server.root)
+		server.HasPermission(client, server.RootChannel(), EnterPermission)
+		perm := server.aclcache.GetPermission(client, server.RootChannel())
 		if !perm.IsCached() {
 			client.Panic("Corrupt ACL cache")
 			return
@@ -1100,7 +1094,7 @@ func (s *Server) RemoveRegistration(uid uint32) (err os.Error) {
 	s.UserNameMap[user.Name] = nil, false
 
 	// Remove from groups and ACLs.
-	s.removeRegisteredUserFromChannel(uid, s.root)
+	s.removeRegisteredUserFromChannel(uid, s.RootChannel())
 
 	return nil
 }

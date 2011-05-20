@@ -532,8 +532,8 @@ func (server *Server) handleUserRemoveMessage(client *Client, msg *Message) {
 	if isBan {
 		perm = Permission(BanPermission)
 	}
-	if removeClient.IsSuperUser() || !server.HasPermission(client, server.root, perm) {
-		client.sendPermissionDenied(client, server.root, perm)
+	if removeClient.IsSuperUser() || !server.HasPermission(client, server.RootChannel(), perm) {
+		client.sendPermissionDenied(client, server.RootChannel(), perm)
 		return
 	}
 
@@ -647,8 +647,8 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 		if target != actor {
 			// Check if actor has 'move' permissions on the root channel. It is needed
 			// to clear another user's comment.
-			if !server.HasPermission(actor, server.root, MovePermission) {
-				client.sendPermissionDenied(actor, server.root, MovePermission)
+			if !server.HasPermission(actor, server.RootChannel(), MovePermission) {
+				client.sendPermissionDenied(actor, server.RootChannel(), MovePermission)
 				return
 			}
 
@@ -676,8 +676,8 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 			perm = Permission(SelfRegisterPermission)
 		}
 
-		if target.IsRegistered() || !server.HasPermission(actor, server.root, perm) {
-			client.sendPermissionDenied(actor, server.root, perm)
+		if target.IsRegistered() || !server.HasPermission(actor, server.RootChannel(), perm) {
+			client.sendPermissionDenied(actor, server.RootChannel(), perm)
 			return
 		}
 
@@ -895,8 +895,8 @@ func (server *Server) handleBanListMessage(client *Client, msg *Message) {
 		return
 	}
 
-	if !server.HasPermission(client, server.root, BanPermission) {
-		client.sendPermissionDenied(client, server.root, BanPermission)
+	if !server.HasPermission(client, server.RootChannel(), BanPermission) {
+		client.sendPermissionDenied(client, server.RootChannel(), BanPermission)
 		return
 	}
 
@@ -1283,7 +1283,7 @@ func (server *Server) handleUserStatsMessage(client *Client, msg *Message) {
 	}
 	// Otherwise, only send extended UserStats for people with +register permissions
 	// on the root channel.
-	if server.HasPermission(client, server.root, RegisterPermission) {
+	if server.HasPermission(client, server.RootChannel(), RegisterPermission) {
 		extended = true
 	}
 
@@ -1471,8 +1471,8 @@ func (server *Server) handleUserList(client *Client, msg *Message) {
 	}
 
 	// Only users who are allowed to register other users can access the user list.
-	if !server.HasPermission(client, server.root, RegisterPermission) {
-		client.sendPermissionDenied(client, server.root, RegisterPermission)
+	if !server.HasPermission(client, server.RootChannel(), RegisterPermission) {
+		client.sendPermissionDenied(client, server.RootChannel(), RegisterPermission)
 		return
 	}
 

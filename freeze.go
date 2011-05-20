@@ -295,6 +295,10 @@ func NewServerFromFrozen(filename string) (s *Server, err os.Error) {
 		}
 
 		s.Channels[c.Id] = c
+
+		if c.Id >= s.nextChanId {
+			s.nextChanId = c.Id + 1
+		}
 	}
 
 	// Hook up children with their parents.
@@ -312,8 +316,6 @@ func NewServerFromFrozen(filename string) (s *Server, err os.Error) {
 		}
 		parentChan.AddChild(childChan)
 	}
-
-	s.root = s.Channels[0]
 
 	// Add all users
 	for _, fu := range fs.Users {
