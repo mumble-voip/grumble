@@ -8,6 +8,7 @@ import (
 	"grumble/blobstore"
 	"flag"
 	"fmt"
+	"json"
 	"os"
 	"log"
 	"net"
@@ -56,6 +57,7 @@ var blobdir *string = flag.String("blobdir", defaultBlobDir(), "Directory to use
 var ctlnet *string = flag.String("ctlnet", defaultCtlNet(), "Network to use for ctl socket")
 var ctladdr *string = flag.String("ctladdr", defaultCtlAddr(), "Address to use for ctl socket")
 var sqlitedb *string = flag.String("murmurdb", "", "Path to murmur.sqlite to import server structure from")
+var jsonify *string = flag.String("jsonify", "", "Convert the frozen server at the specified path to JSON and output it to stdout")
 var cleanup *bool = flag.Bool("clean", false, "Clean up existing data dir content before importing Murmur data")
 var gencert *bool = flag.Bool("gencert", false, "Generate a self-signed certificate for use with Grumble")
 
@@ -118,6 +120,27 @@ func main() {
 			GrumbleCtl(os.Args[i+1:])
 			return
 		}
+	}
+
+	// JSONify?
+	if len(*jsonify) > 0 {
+		server, err := NewServerFromFrozen(*jsonify)
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
+
+		frozenServer, err := server.Freeze()
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
+
+		enc := json.NewEncoder(os.Stdout)
+		err = enc.Encode(frozenServer)
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
+
+		return
 	}
 
 	log.SetPrefix("[G] ")
