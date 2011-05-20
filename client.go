@@ -142,6 +142,9 @@ func (client *Client) Panicf(format string, v ...interface{}) {
 func (client *Client) disconnect(kicked bool) {
 	if !client.disconnected {
 		client.disconnected = true
+		client.server.RemoveClient(client, kicked)
+
+		// Close the client's UDP reciever goroutine.
 		close(client.udprecv)
 
 		// If the client paniced during authentication, before reaching
@@ -163,9 +166,7 @@ func (client *Client) disconnect(kicked bool) {
 		close(client.msgchan)
 
 		client.Printf("Disconnected")
-
 		client.conn.Close()
-		client.server.RemoveClient(client, kicked)
 	}
 }
 
