@@ -225,8 +225,11 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 
 	// Extract the description and perform sanity checks.
 	if chanstate.Description != nil {
-		description = *chanstate.Description
-		// fixme(mkrautz): Check length
+		description, err = server.FilterText(*chanstate.Description)
+		if err != nil {
+			client.sendPermissionDeniedType("TextTooLong")
+			return
+		}
 	}
 
 	// Extract the the name of channel and check whether it's valid.
@@ -467,11 +470,15 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 
 		// Description change
 		if chanstate.Description != nil {
-			key, err := blobstore.Put([]byte(*chanstate.Description))
-			if err != nil {
-				server.Panicf("Blobstore error: %v", err.String())
+			if len(description) == 0 {
+				channel.DescriptionBlob = ""
+			} else {
+				key, err := blobstore.Put([]byte(description))
+				if err != nil {
+					server.Panicf("Blobstore error: %v", err.String())
+				}
+				channel.DescriptionBlob = key
 			}
-			channel.DescriptionBlob = key
 		}
 
 		// Position change
@@ -654,17 +661,27 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 
 			// Only allow empty text.
 			if len(comment) > 0 {
-				client.Panic("Cannot clear another user's comment")
+				client.sendPermissionDeniedType("TextTooLong")
 				return
 			}
 		}
 
-		// todo(mkrautz): Check if the text is allowed.
+		filtered, err := server.FilterText(comment)
+		if err != nil {
+			client.sendPermissionDeniedType("TextTooLong")
+			return
+		}
+
+		userstate.Comment = proto.String(filtered)
 	}
 
 	// Texture change
 	if userstate.Texture != nil {
-		// Check the length of the texture
+		maximg := server.cfg.IntValue("MaxImageMessageLength")
+		if maximg > 0 && len(userstate.Texture) > maximg {
+			client.sendPermissionDeniedType("TextTooLong")
+			return
+		}
 	}
 
 	// Registration
@@ -960,8 +977,17 @@ func (server *Server) handleTextMessage(client *Client, msg *Message) {
 		return
 	}
 
-	// fixme(mkrautz): Check text message length.
-	// fixme(mkrautz): Sanitize text as well.
+	filtered, err := server.FilterText(*txtmsg.Message)
+	if err != nil {
+		client.sendPermissionDeniedType("TextTooLong")
+		return
+	}
+
+	if len(filtered) == 0 {
+		return
+	}
+
+	txtmsg.Message = proto.String(filtered)
 
 	clients := make(map[uint32]*Client)
 

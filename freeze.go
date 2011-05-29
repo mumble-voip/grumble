@@ -194,6 +194,8 @@ func (channel *Channel) Freeze() (fc frozenChannel, err os.Error) {
 	}
 	fc.Links = links
 
+	fc.DescriptionBlob = channel.DescriptionBlob
+
 	return
 }
 
