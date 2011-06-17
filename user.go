@@ -37,7 +37,7 @@ func NewUser(id uint32, name string) (user *User, err os.Error) {
 	return &User{
 		Id:   id,
 		Name: name,
-	},nil
+	}, nil
 }
 
 // Does the channel have comment?
