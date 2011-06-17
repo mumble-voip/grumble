@@ -346,6 +346,7 @@ func (server *Server) UnlinkChannels(channel *Channel, other *Channel) {
 // Important control channel messages are routed through this Goroutine
 // to keep server state synchronized.
 func (server *Server) handler() {
+	regtick := time.Tick((3600 + ((server.Id * 60) % 600)) * 1e9)
 	for {
 		select {
 		// Control channel messages
@@ -381,7 +382,7 @@ func (server *Server) handler() {
 
 		// Server registration update
 		// Tick every hour + a minute offset based on the server id.
-		case <-time.Tick((3600 + ((server.Id * 60) % 600)) * 1e9):
+		case <-regtick:
 			server.RegisterPublicServer()
 		}
 	}
