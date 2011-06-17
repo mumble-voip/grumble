@@ -17,6 +17,7 @@ PACKAGES = \
 	pkg/serverconf \
 	pkg/sessionpool \
 	pkg/ban \
+	pkg/htmlfilter \
 	pkg/sqlite
 
 GCFLAGS = \
@@ -27,6 +28,7 @@ GCFLAGS = \
 	-Ipkg/serverconf/_obj \
 	-Ipkg/sessionpool/_obj \
 	-Ipkg/ban/_obj \
+	-Ipkg/htmlfilter/_obj \
 	-Ipkg/sqlite/_obj
 
 LDFLAGS = \
@@ -37,6 +39,7 @@ LDFLAGS = \
 	-Lpkg/serverconf/_obj \
 	-Lpkg/sessionpool/_obj \
 	-Lpkg/ban/_obj \
+	-Lpkg/htmlfilter/_obj \
 	-Lpkg/sqlite/_obj
 
 GOFILES = \
