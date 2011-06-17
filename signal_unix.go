@@ -15,7 +15,7 @@ import (
 func SignalHandler() {
 	for {
 		sig := <-signal.Incoming
-		if sig != signal.SIGINT && sig != signal.SIGTERM {
+		if sig != os.SIGINT && sig != os.SIGTERM {
 			continue
 		}
 		for sid, s := range servers {
