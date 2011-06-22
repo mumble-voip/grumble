@@ -277,16 +277,16 @@ func (server *Server) NewClient(conn net.Conn) (err os.Error) {
 // internal representation.
 func (server *Server) RemoveClient(client *Client, kicked bool) {
 	server.hmutex.Lock()
-	if client.udpaddr != nil {
-		host := client.udpaddr.IP.String()
-		oldclients := server.hclients[host]
-		newclients := []*Client{}
-		for _, hostclient := range oldclients {
-			if hostclient != client {
-				newclients = append(newclients, hostclient)
-			}
+	host := client.tcpaddr.IP.String()
+	oldclients := server.hclients[host]
+	newclients := []*Client{}
+	for _, hostclient := range oldclients {
+		if hostclient != client {
+			newclients = append(newclients, hostclient)
 		}
-		server.hclients[host] = newclients
+	}
+	server.hclients[host] = newclients
+	if client.udpaddr != nil {
 		server.hpclients[client.udpaddr.String()] = nil, false
 	}
 	server.hmutex.Unlock()
