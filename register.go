@@ -4,6 +4,8 @@
 
 package main
 
+// This file handles public server list registration
+
 import (
 	"bytes"
 	"crypto/sha1"
@@ -13,35 +15,32 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
-	"strconv"
-	"template"
+	"url"
+	"xml"
 )
 
-// This file handles public server list registration
-
-const registerTemplate = `
-<server>
- {.section machash}<machash>{machash}</machash>{.end}
- {.section version}<version>{version}</version>{.end}
- {.section release}<release>{release}</release>{.end}
- {.section os}<os>{os}</os>{.end}
- {.section osver}<osver>{osver}</osver>{.end}
- {.section qt}<qt>{qt}</qt>{.end}
- {.section is64bit}<is64bit>{is64bit}</is64bit>{.end}
- {.section cpuid}<cpu_id>{cpuid}</cpu_id>{.end}
- {.section cpuextid}<cpu_extid>{cpu_extid}</cpu_extid>{.end}
- {.section cpusse2}<cpu_sse2>{cpusse2}</cpu_sse2>{.end}
- {.section name}<name>{name}</name>{.end}
- {.section host}<host>{host}</host>{.end}
- {.section password}<password>{password}</password>{.end}
- {.section port}<port>{port}</port>{.end}
- {.section url}<url>{url}</url>{.end}
- {.section digest}<digest>{digest}</digest>{.end}
- {.section users}<users>{users}</users>{.end}
- {.section channels}<channels>{channels}</channels>{.end}
- {.section location}<location>{location}</location>{.end}
-</server>
-`
+type Register struct {
+	XMLName  xml.Name `xml:"server"`
+	//MacHash  string   `xml:"machash"`
+	Version  string   `xml:"version"`
+	Release  string   `xml:"release"`
+	//OS       string   `xml:"os"`
+	//OSVer    string   `xml:"osver"`
+	//Qt       string   `xml:"qt"`
+	//Is64Bit  bool     `xml:"is64bit"`
+	//CpuId    string   `xml:"cpuid"`
+	//CpuIdExt string   `xml:"cpuidext"`
+	//CpuSSE2  bool     `xml:"cpusse2"`
+	Name     string   `xml:"name"`
+	Host     string   `xml:"host"`
+	Password string   `xml:"password"`
+	Port     int      `xml:"port"`
+	Url      string   `xml:"url"`
+	Digest   string   `xml:"digest"`
+	Users    int      `xml:"users"`
+	Channels int      `xml:"channels"`
+	Location string   `xml:"location"`
+}
 
 const (
 	registerAddr = "mumble.hive.no:443"
@@ -114,27 +113,23 @@ func (server *Server) RegisterPublicServer() {
 	digest := hex.EncodeToString(hasher.Sum())
 
 	// Render registration XML template
-	buf := bytes.NewBuffer(nil)
-	t, err := template.Parse(registerTemplate, nil)
-	if err != nil {
-		server.Printf("register: unable to parse template: %v", err)
-		return
+	reg := Register{
+		Name:     server.cfg.StringValue("RegisterName"),
+		Host:     server.cfg.StringValue("RegisterHost"),
+		Password: server.cfg.StringValue("RegisterPassword"),
+		Url:      server.cfg.StringValue("RegisterWebUrl"),
+		Location: server.cfg.StringValue("RegisterLocation"),
+		Port:     server.port,
+		Digest:   digest,
+		Users:    len(server.clients),
+		Channels: len(server.Channels),
+		Version:  "1.2.4",
+		Release:  "Grumble Git",
 	}
-	err = t.Execute(buf, map[string]string{
-		"name":     server.cfg.StringValue("RegisterName"),
-		"host":     server.cfg.StringValue("RegisterHost"),
-		"password": server.cfg.StringValue("RegisterPassword"),
-		"url":      server.cfg.StringValue("RegisterWebUrl"),
-		"location": server.cfg.StringValue("RegisterLocation"),
-		"port":     strconv.Itoa(server.port),
-		"digest":   digest,
-		"users":    strconv.Itoa(len(server.clients)),
-		"channels": strconv.Itoa(len(server.Channels)),
-		"version":  "1.2.4",
-		"release":  "Grumble git",
-	})
+	buf := bytes.NewBuffer(nil)
+	err := xml.Marshal(buf, reg)
 	if err != nil {
-		server.Printf("register: unable to execute template: %v", err)
+		server.Printf("register: unable to marshal xml: %v", err)
 		return
 	}
 
@@ -163,7 +158,7 @@ func (server *Server) RegisterPublicServer() {
 			"Content-Type": {"text/xml"},
 		}
 
-		req.URL, err = http.ParseURL(registerUrl)
+		req.URL, err = url.Parse(registerUrl)
 		if err != nil {
 			server.Printf("register: error parsing url: %v", err)
 			return
