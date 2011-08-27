@@ -5,11 +5,8 @@
 package main
 
 import (
-	"fmt"
-	"log"
 	"os"
 	"os/signal"
-	"path/filepath"
 )
 
 func SignalHandler() {
@@ -18,15 +15,6 @@ func SignalHandler() {
 		if sig != os.SIGINT && sig != os.SIGTERM {
 			continue
 		}
-		for sid, s := range servers {
-			err := s.FreezeToFile(filepath.Join(*datadir, fmt.Sprintf("%v", sid)))
-			if err != nil {
-				log.Printf("Unable to freeze server %v: %s", sid, err.String())
-				continue
-			}
-			log.Printf("Server %v frozen", sid)
-		}
-
 		os.Exit(0)
 	}
 }

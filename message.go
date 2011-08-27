@@ -180,6 +180,11 @@ func (server *Server) handleChannelRemoveMessage(client *Client, msg *Message) {
 		return
 	}
 
+	// Update datastore
+	if !channel.Temporary {
+		server.DeleteFrozenChannel(channel)
+	}
+
 	server.RemoveChannel(channel)
 }
 
@@ -511,6 +516,11 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 			return client.Version >= 0x10202
 		})
 	}
+
+	// Update channel in datastore
+	if !channel.Temporary {
+		server.UpdateFrozenChannel(channel, chanstate)
+	}
 }
 
 // Handle a user remove packet. This can either be a client disconnecting, or a
@@ -558,6 +568,7 @@ func (server *Server) handleUserRemoveMessage(client *Client, msg *Message) {
 
 		server.banlock.Lock()
 		server.Bans = append(server.Bans, ban)
+		server.UpdateFrozenBans(server.Bans)
 		server.banlock.Unlock()
 	}
 
@@ -820,7 +831,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 
 	userRegistrationChanged := false
 	if userstate.UserId != nil {
-		uid, err := server.RegisterClient(client)
+		uid, err := server.RegisterClient(target)
 		if err != nil {
 			client.Printf("Unable to register: %v", err)
 			userstate.UserId = nil
@@ -903,6 +914,10 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 			server.Panic("Unable to broadcast UserState")
 		}
 	}
+
+	if target.IsRegistered() {
+		server.UpdateFrozenUser(target.user)
+	}
 }
 
 func (server *Server) handleBanListMessage(client *Client, msg *Message) {
@@ -964,6 +979,9 @@ func (server *Server) handleBanListMessage(client *Client, msg *Message) {
 			}
 			server.Bans = append(server.Bans, ban)
 		}
+
+		server.UpdateFrozenBans(server.Bans)
+
 		client.Printf("Banlist updated")
 	}
 }
@@ -1250,6 +1268,9 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 
 			server.ClearACLCache()
 		}
+
+		// Update freezer
+		server.UpdateFrozenChannelACLs(channel)
 	}
 }
 
@@ -1260,6 +1281,8 @@ func (server *Server) handleQueryUsers(client *Client, msg *Message) {
 	if err != nil {
 		client.Panic(err.String())
 	}
+
+	server.Printf("in handleQueryUsers")
 
 	reply := &mumbleproto.QueryUsers{}
 
@@ -1525,15 +1548,18 @@ func (server *Server) handleUserList(client *Client, msg *Message) {
 			if uid == 0 {
 				continue
 			}
-			// De-register a user
-			if listUser.Name == nil {
-				server.RemoveRegistration(uid)
-				// Rename user
-			} else {
-				// todo(mkrautz): Validate name.
-				user, ok := server.Users[uid]
-				if ok {
+			user, ok := server.Users[uid]
+			if ok {
+				// De-register a user
+				if listUser.Name == nil {
+					server.RemoveRegistration(uid)
+					server.DeleteFrozenUser(user)
+
+					// Rename user
+				} else {
+					// todo(mkrautz): Validate name.
 					user.Name = *listUser.Name
+					server.UpdateFrozenUser(user)
 				}
 			}
 		}

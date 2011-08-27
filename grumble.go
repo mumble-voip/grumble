@@ -5,20 +5,16 @@
 package main
 
 import (
-	"grumble/blobstore"
 	"flag"
 	"fmt"
-	"json"
-	"os"
+	"grumble/blobstore"
 	"log"
 	"net"
-	"sqlite"
+	"os"
 	"path/filepath"
 	"regexp"
 	"rpc"
 	"runtime"
-	"strconv"
-	"time"
 )
 
 func defaultGrumbleDir() string {
@@ -56,9 +52,6 @@ var datadir *string = flag.String("datadir", defaultDataDir(), "Directory to use
 var blobdir *string = flag.String("blobdir", defaultBlobDir(), "Directory to use for blob storage")
 var ctlnet *string = flag.String("ctlnet", defaultCtlNet(), "Network to use for ctl socket")
 var ctladdr *string = flag.String("ctladdr", defaultCtlAddr(), "Address to use for ctl socket")
-var sqlitedb *string = flag.String("murmurdb", "", "Path to murmur.sqlite to import server structure from")
-var jsonify *string = flag.String("jsonify", "", "Convert the frozen server at the specified path to JSON and output it to stdout")
-var cleanup *bool = flag.Bool("clean", false, "Clean up existing data dir content before importing Murmur data")
 var gencert *bool = flag.Bool("gencert", false, "Generate a self-signed certificate for use with Grumble")
 
 var servers map[int64]*Server
@@ -67,43 +60,6 @@ func Usage() {
 	fmt.Fprintf(os.Stderr, "usage: grumble [options]\n")
 	fmt.Fprintf(os.Stderr, "remote control: grumble [options] ctl [ctlopts]\n")
 	flag.PrintDefaults()
-}
-
-func MurmurImport(filename string) (err os.Error) {
-	db, err := sqlite.Open(filename)
-	if err != nil {
-		panic(err.String())
-	}
-
-	stmt, err := db.Prepare("SELECT server_id FROM servers")
-	if err != nil {
-		panic(err.String())
-	}
-
-	var serverids []int64
-	var sid int64
-	for stmt.Next() {
-		stmt.Scan(&sid)
-		serverids = append(serverids, sid)
-	}
-
-	log.Printf("Found servers: %v (%v servers)", serverids, len(serverids))
-
-	for _, sid := range serverids {
-		m, err := NewServerFromSQLite(sid, db)
-		if err != nil {
-			return err
-		}
-
-		err = m.FreezeToFile(filepath.Join(*datadir, fmt.Sprintf("%v", sid)))
-		if err != nil {
-			return err
-		}
-
-		log.Printf("Successfully imported server %v", sid)
-	}
-
-	return
 }
 
 func main() {
@@ -120,27 +76,6 @@ func main() {
 			GrumbleCtl(os.Args[i+1:])
 			return
 		}
-	}
-
-	// JSONify?
-	if len(*jsonify) > 0 {
-		server, err := NewServerFromFrozen(*jsonify)
-		if err != nil {
-			log.Fatalf("%v", err)
-		}
-
-		frozenServer, err := server.Freeze()
-		if err != nil {
-			log.Fatalf("%v", err)
-		}
-
-		enc := json.NewEncoder(os.Stdout)
-		err = enc.Encode(frozenServer)
-		if err != nil {
-			log.Fatalf("%v", err)
-		}
-
-		return
 	}
 
 	log.SetPrefix("[G] ")
@@ -172,42 +107,6 @@ func main() {
 		return
 	}
 
-	// Should we import data from a Murmur SQLite file?
-	if len(*sqlitedb) > 0 {
-		f, err := os.Open(*datadir)
-		if err != nil {
-			log.Fatalf("Murmur import failed: %s", err.String())
-		}
-		defer f.Close()
-
-		names, err := f.Readdirnames(-1)
-		if err != nil {
-			log.Fatalf("Murmur import failed: %s", err.String())
-		}
-
-		if !*cleanup && len(names) > 0 {
-			log.Fatalf("Non-empty datadir. Refusing to import Murmur data.")
-		}
-		if *cleanup {
-			log.Printf("Cleaning up existing data directory")
-			for _, name := range names {
-				if err := os.Remove(filepath.Join(*datadir, name)); err != nil {
-					log.Fatalf("Unable to cleanup file: %s", name)
-				}
-			}
-		}
-
-		log.Printf("Importing Murmur data from '%s'", *sqlitedb)
-		if err = MurmurImport(*sqlitedb); err != nil {
-			log.Fatalf("Murmur import failed: %s", err.String())
-		}
-
-		log.Printf("Import from Murmur SQLite database succeeded.")
-		log.Printf("Please restart Grumble to make use of the imported data.")
-
-		return
-	}
-
 	f, err := os.Open(*datadir)
 	if err != nil {
 		log.Fatalf("Murmur import failed: %s", err.String())
@@ -223,26 +122,16 @@ func main() {
 	for _, name := range names {
 		if matched, _ := regexp.MatchString("^[0-9]+$", name); matched {
 			log.Printf("Loading server %v", name)
-			s, err := NewServerFromFrozen(filepath.Join(*datadir, name))
+			s, err := NewServerFromFrozen(name)
 			if err != nil {
-				log.Fatalf("Unable to load server: %s", err.String())
+				log.Fatalf("Unable to load server: %v", err)
+			}
+			err = s.FreezeToFile()
+			if err != nil {
+				log.Fatalf("Unable to freeze server to disk: %v", err)
 			}
 			servers[s.Id] = s
 			go s.ListenAndMurmur()
-		}
-		// win32 special-case
-		if matched, _ := regexp.MatchString("^[0-9]+.old$", name); matched {
-			sid, _ := strconv.Atoi64(name[0 : len(name)-4])
-			_, exists := servers[sid]
-			if !exists {
-				log.Printf("Recovering lost server %v", name)
-				s, err := NewServerFromFrozen(filepath.Join(*datadir, name))
-				if err != nil {
-					log.Fatalf("Unable to recover server: %S", err.String())
-				}
-				servers[sid] = s
-				go s.ListenAndMurmur()
-			}
 		}
 	}
 
@@ -253,6 +142,10 @@ func main() {
 		}
 
 		servers[s.Id] = s
+
+		os.Mkdir(filepath.Join(*datadir, fmt.Sprintf("%v", 1)), 0750)
+		s.FreezeToFile()
+
 		go s.ListenAndMurmur()
 	}
 
@@ -269,19 +162,7 @@ func main() {
 	go rpc.Accept(lis)
 
 	if len(servers) > 0 {
-		ticker := time.NewTicker(10e9) // 10 secs
 		go SignalHandler()
-		for {
-			select {
-			case <-ticker.C:
-				for sid, server := range servers {
-					err := server.FreezeToFile(filepath.Join(*datadir, fmt.Sprintf("%v", sid)))
-					if err != nil {
-						log.Printf("Unable to freeze server %v: %s", sid, err.String())
-						continue
-					}
-				}
-			}
-		}
+		select {}
 	}
 }

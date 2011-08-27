@@ -18,7 +18,7 @@ PACKAGES = \
 	pkg/sessionpool \
 	pkg/ban \
 	pkg/htmlfilter \
-	pkg/sqlite
+	pkg/freezer
 
 GCFLAGS = \
 	-Ipkg/cryptstate/_obj \
@@ -29,7 +29,7 @@ GCFLAGS = \
 	-Ipkg/sessionpool/_obj \
 	-Ipkg/ban/_obj \
 	-Ipkg/htmlfilter/_obj \
-	-Ipkg/sqlite/_obj
+	-Ipkg/freezer/_obj
 
 LDFLAGS = \
 	-Lpkg/cryptstate/_obj \
@@ -40,7 +40,7 @@ LDFLAGS = \
 	-Lpkg/sessionpool/_obj \
 	-Lpkg/ban/_obj \
 	-Lpkg/htmlfilter/_obj \
-	-Lpkg/sqlite/_obj
+	-Lpkg/freezer/_obj
 
 GOFILES = \
 	grumble.go \
@@ -51,7 +51,6 @@ GOFILES = \
 	acl.go \
 	group.go \
 	user.go \
-	murmurdb.go \
 	freeze.go \
 	gencert.go \
 	register.go \

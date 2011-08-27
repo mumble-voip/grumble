@@ -56,6 +56,7 @@ func (c *ControlRPC) SetConfig(in *KeyValuePair, out *KeyValuePair) os.Error {
 		return os.NewError("no such server")
 	}
 	server.cfg.Set(in.Key, in.Value)
+	server.cfgUpdate <- in
 	out.Id = in.Id
 	out.Key = in.Key
 	out.Value = in.Value

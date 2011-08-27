@@ -5,32 +5,30 @@
 package main
 
 import (
-	"log"
-	"crypto/tls"
-	"crypto/sha1"
-	"os"
-	"net"
 	"bufio"
 	"bytes"
-	"compress/gzip"
 	"crypto/rand"
+	"crypto/sha1"
+	"crypto/tls"
 	"encoding/binary"
 	"encoding/hex"
-	"sync"
-	"goprotobuf.googlecode.com/hg/proto"
-	"mumbleproto"
 	"fmt"
-	"gob"
+	"goprotobuf.googlecode.com/hg/proto"
 	"grumble/ban"
 	"grumble/blobstore"
 	"grumble/cryptstate"
+	"grumble/freezer"
 	"grumble/htmlfilter"
 	"grumble/serverconf"
 	"grumble/sessionpool"
 	"hash"
-	"io"
+	"log"
+	"mumbleproto"
+	"net"
+	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -61,7 +59,8 @@ type Server struct {
 	incoming       chan *Message
 	udpsend        chan *Message
 	voicebroadcast chan *VoiceBroadcast
-	freezeRequest  chan *freezeRequest
+	freezeRequest  chan bool
+	cfgUpdate      chan *KeyValuePair
 
 	// Signals to the server that a client has been successfully
 	// authenticated.
@@ -87,9 +86,6 @@ type Server struct {
 	Channels   map[int]*Channel
 	nextChanId int
 
-	// Administration
-	SuperUserPassword string
-
 	// Users
 	Users       map[uint32]*User
 	UserCertMap map[string]*User
@@ -98,6 +94,9 @@ type Server struct {
 
 	// Sessions
 	pool *sessionpool.SessionPool
+
+	// Freezer
+	freezelog *freezer.Log
 
 	// ACL cache
 	aclcache ACLCache
@@ -123,11 +122,6 @@ func (lf clientLogForwarder) Write(incoming []byte) (int, os.Error) {
 	return len(incoming), nil
 }
 
-type freezeRequest struct {
-	done       chan bool
-	readCloser io.ReadCloser
-}
-
 // Allocate a new Murmur instance
 func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 	s = new(Server)
@@ -151,7 +145,8 @@ func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 	s.incoming = make(chan *Message)
 	s.udpsend = make(chan *Message)
 	s.voicebroadcast = make(chan *VoiceBroadcast)
-	s.freezeRequest = make(chan *freezeRequest)
+	s.freezeRequest = make(chan bool, 1)
+	s.cfgUpdate = make(chan *KeyValuePair)
 	s.clientAuthenticated = make(chan *Client)
 
 	s.Users[0], err = NewUser(0, "SuperUser")
@@ -194,12 +189,15 @@ func (server *Server) SetSuperUserPassword(password string) {
 	digest := hex.EncodeToString(hasher.Sum())
 
 	// Could be racy, but shouldn't really matter...
-	server.SuperUserPassword = "sha1$" + salt + "$" + digest
+	key := "SuperUserPassword"
+	val := "sha1$" + salt + "$" + digest
+	server.cfg.Set(key, val)
+	server.cfgUpdate <- &KeyValuePair{Key: key, Value: val}
 }
 
 // Check whether password matches the set SuperUser password.
 func (server *Server) CheckSuperUserPassword(password string) bool {
-	parts := strings.Split(server.SuperUserPassword, "$", -1)
+	parts := strings.Split(server.cfg.StringValue("SuperUserPassword"), "$")
 	if len(parts) != 3 {
 		return false
 	}
@@ -318,6 +316,7 @@ func (server *Server) AddChannel(name string) (channel *Channel) {
 	channel = NewChannel(server.nextChanId, name)
 	server.Channels[channel.Id] = channel
 	server.nextChanId += 1
+
 	return
 }
 
@@ -327,6 +326,7 @@ func (server *Server) RemoveChanel(channel *Channel) {
 		server.Printf("Attempted to remove root channel.")
 		return
 	}
+
 	server.Channels[channel.Id] = nil, false
 }
 
@@ -373,45 +373,21 @@ func (server *Server) handler() {
 			server.finishAuthenticate(client)
 
 		// Synchonized freeze requests
-		case req := <-server.freezeRequest:
-			fs, err := server.Freeze()
+		case <-server.freezeRequest:
+			err := server.FreezeToFile()
 			if err != nil {
-				server.Panicf("Unable to freeze the server")
+				server.Fatal(err)
 			}
-			go server.handleFreezeRequest(req, &fs)
+
+		// Disk freeze config update
+		case kvp := <-server.cfgUpdate:
+			server.UpdateConfig(kvp.Key, kvp.Value)
 
 		// Server registration update
 		// Tick every hour + a minute offset based on the server id.
 		case <-regtick:
 			server.RegisterPublicServer()
 		}
-	}
-}
-
-func (server *Server) handleFreezeRequest(freq *freezeRequest, fs *frozenServer) {
-	pr, pw := io.Pipe()
-
-	freq.readCloser = pr
-	freq.done <- true
-
-	zw, err := gzip.NewWriterLevel(pw, gzip.BestCompression)
-	if err != nil {
-		if err = pw.CloseWithError(err); err != nil {
-			server.Panicf("Unable to close PipeWriter: %v", err.String())
-		}
-		return
-	}
-
-	enc := gob.NewEncoder(zw)
-	err = enc.Encode(fs)
-	if err != nil {
-		if err = pw.CloseWithError(err); err != nil {
-			server.Panicf("Unable to close PipeWriter: %v", err.String())
-		}
-	}
-
-	if err = pw.CloseWithError(zw.Close()); err != nil {
-		server.Panicf("Unable to close PipeWriter: %v", err.String())
 	}
 }
 
@@ -1035,26 +1011,6 @@ func (server *Server) userEnterChannel(client *Client, channel *Channel, usersta
 	}
 }
 
-// Create a point-in-time snapshot of Server and make it
-// accessible through the returned io.ReadCloser.
-func (s *Server) FreezeServer() io.ReadCloser {
-	if !s.running {
-		fs, err := s.Freeze()
-		if err != nil {
-			s.Panicf("Unable to freeze the server")
-		}
-		fr := &freezeRequest{done: make(chan bool)}
-		go s.handleFreezeRequest(fr, &fs)
-		<-fr.done
-		return fr.readCloser
-	}
-
-	fr := &freezeRequest{done: make(chan bool)}
-	s.freezeRequest <- fr
-	<-fr.done
-	return fr.readCloser
-}
-
 // Register a client on the server.
 func (s *Server) RegisterClient(client *Client) (uid uint32, err os.Error) {
 	// Increment nextUserId only if registration succeeded.
@@ -1247,6 +1203,12 @@ func (s *Server) ListenAndMurmur() {
 	listener := tls.NewListener(tl, s.tlscfg)
 
 	s.Printf("Started: listening on %v", tl.Addr())
+
+	// Open a fresh freezer log
+	err = s.openFreezeLog()
+	if err != nil {
+		s.Fatal(err)
+	}
 
 	// Update server registration if needed.
 	go func() {

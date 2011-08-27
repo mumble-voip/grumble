@@ -231,7 +231,7 @@ func GroupMemberCheck(current *Channel, aclchan *Channel, name string, client *C
 		// Parse the groupname to extract the values we should use
 		// for minpath (first argument), mindesc (second argument),
 		// and maxdesc (third argument).
-		args := strings.Split(name, ",", 3)
+		args := strings.SplitN(name, ",", 3)
 		nargs := len(args)
 		if nargs == 3 {
 			if len(args[2]) > 0 {
