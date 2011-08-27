@@ -667,6 +667,7 @@ func (server *Server) UpdateFrozenUser(user *User) {
 	if err != nil {
 		server.Fatal(err)
 	}
+	server.numLogOps += 1
 }
 
 // Mark a user as deleted in the datstore.
@@ -675,6 +676,7 @@ func (server *Server) DeleteFrozenUser(user *User) {
 	if err != nil {
 		server.Fatal(err)
 	}
+	server.numLogOps += 1
 }
 
 // Given a target channel and a ChannelState protocol message, create a freezer.Channel that
@@ -706,6 +708,7 @@ func (server *Server) UpdateFrozenChannel(channel *Channel, state *mumbleproto.C
 	if err != nil {
 		server.Fatal(err)
 	}
+	server.numLogOps += 1
 }
 
 // Write a channel's ACL and Group data to disk. Mumble doesn't support
@@ -741,6 +744,7 @@ func (server *Server) UpdateFrozenChannelACLs(channel *Channel) {
 	if err != nil {
 		server.Fatal(err)
 	}
+	server.numLogOps += 1
 }
 
 // Mark a channel as deleted in the datastore.
@@ -749,6 +753,7 @@ func (server *Server) DeleteFrozenChannel(channel *Channel) {
 	if err != nil {
 		server.Fatal(err)
 	}
+	server.numLogOps += 1
 }
 
 // Write the server's banlist to the datastore.
@@ -761,6 +766,7 @@ func (server *Server) UpdateFrozenBans(bans []ban.Ban) {
 	if err != nil {
 		server.Fatal(err)
 	}
+	server.numLogOps += 1
 }
 
 // Write an updated config value to the datastore.
@@ -773,6 +779,7 @@ func (server *Server) UpdateConfig(key, value string) {
 	if err != nil {
 		server.Fatal(err)
 	}
+	server.numLogOps += 1
 }
 
 // Delete the config value identified by the given key from the datastore.
@@ -784,4 +791,5 @@ func (server *Server) ResetConfig(key string) {
 	if err != nil {
 		server.Fatal(err)
 	}
+	server.numLogOps += 1
 }

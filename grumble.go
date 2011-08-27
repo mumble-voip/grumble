@@ -79,6 +79,7 @@ func main() {
 	}
 
 	log.SetPrefix("[G] ")
+	log.SetFlags(log.LstdFlags|log.Lmicroseconds)
 	log.Printf("Grumble")
 
 	log.Printf("Using blob directory: %s", *blobdir)

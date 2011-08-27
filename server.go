@@ -36,6 +36,7 @@ import (
 const DefaultPort = 64738
 const UDPPacketSize = 1024
 
+const LogOpsBeforeSync = 100
 const CeltCompatBitstream = -2147483637
 const (
 	StateClientConnected = iota
@@ -96,6 +97,7 @@ type Server struct {
 	pool *sessionpool.SessionPool
 
 	// Freezer
+	numLogOps int
 	freezelog *freezer.Log
 
 	// ACL cache
@@ -160,7 +162,7 @@ func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 	s.Channels[0] = NewChannel(0, "Root")
 	s.nextChanId = 1
 
-	s.Logger = log.New(os.Stdout, fmt.Sprintf("[%v] ", s.Id), log.Ldate|log.Ltime)
+	s.Logger = log.New(os.Stdout, fmt.Sprintf("[%v] ", s.Id), log.LstdFlags|log.Lmicroseconds)
 
 	return
 }
@@ -387,6 +389,17 @@ func (server *Server) handler() {
 		// Tick every hour + a minute offset based on the server id.
 		case <-regtick:
 			server.RegisterPublicServer()
+		}
+
+		// Check if its time to sync the server state and re-open the log
+		if server.numLogOps >= LogOpsBeforeSync {
+			server.Print("Writing full server snapshot to disk")
+			err := server.FreezeToFile()
+			if err != nil {
+				server.Fatal(err)
+			}
+			server.numLogOps = 0
+			server.Print("Wrote full server snapshot to disk")
 		}
 	}
 }
