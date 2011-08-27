@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 )
 
 // Freeze a server to disk, and re-open the log, if needed.
@@ -658,14 +659,37 @@ func NewServerFromFrozen(name string) (s *Server, err os.Error) {
 }
 
 // Update the datastore with the user's current state.
-func (server *Server) UpdateFrozenUser(user *User) {
-	fu, err := user.Freeze()
-	if err != nil {
-		server.Fatal(err)
-	}
-	err = server.freezelog.Put(fu)
-	if err != nil {
-		server.Fatal(err)
+func (server *Server) UpdateFrozenUser(user *User, state *mumbleproto.UserState) {
+	// Full sync If there's no userstate messgae provided, or if there is one, and
+	// it includes a registration operation.
+	nanos := time.Nanoseconds()
+	if state == nil || state.UserId != nil {
+		fu, err := user.Freeze()
+		if err != nil {
+			server.Fatal(err)
+		}
+		fu.LastActive = proto.Uint64(uint64(nanos))
+		err = server.freezelog.Put(fu)
+		if err != nil {
+			server.Fatal(err)
+		}
+	} else {
+		fu := &freezer.User{}
+		fu.Id = proto.Uint32(user.Id)
+		if state.ChannelId != nil {
+			fu.LastChannelId = state.ChannelId
+		}
+		if state.TextureHash != nil {
+			fu.TextureBlob = proto.String(user.TextureBlob)
+		}
+		if state.CommentHash != nil {
+			fu.CommentBlob = proto.String(user.CommentBlob)	
+		}
+		fu.LastActive = proto.Uint64(uint64(nanos))
+		err := server.freezelog.Put(fu)
+		if err != nil {
+			server.Fatal(err)
+		}
 	}
 	server.numLogOps += 1
 }

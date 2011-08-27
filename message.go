@@ -7,12 +7,13 @@ package main
 import (
 	"crypto/aes"
 	"crypto/tls"
-	"mumbleproto"
-	"goprotobuf.googlecode.com/hg/proto"
-	"net"
 	"fmt"
+	"goprotobuf.googlecode.com/hg/proto"
 	"grumble/ban"
 	"grumble/blobstore"
+	"grumble/freezer"
+	"mumbleproto"
+	"net"
 	"time"
 )
 
@@ -916,7 +917,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	}
 
 	if target.IsRegistered() {
-		server.UpdateFrozenUser(target.user)
+		server.UpdateFrozenUser(target.user, userstate)
 	}
 }
 
@@ -1543,24 +1544,36 @@ func (server *Server) handleUserList(client *Client, msg *Message) {
 		}
 		// Rename, registration removal
 	} else {
-		for _, listUser := range userlist.Users {
-			uid := *listUser.UserId
-			if uid == 0 {
-				continue
-			}
-			user, ok := server.Users[uid]
-			if ok {
-				// De-register a user
-				if listUser.Name == nil {
-					server.RemoveRegistration(uid)
-					server.DeleteFrozenUser(user)
-
-					// Rename user
-				} else {
-					// todo(mkrautz): Validate name.
-					user.Name = *listUser.Name
-					server.UpdateFrozenUser(user)
+		if len(userlist.Users) > 0 {
+			tx := server.freezelog.BeginTx()
+			for _, listUser := range userlist.Users {
+				uid := *listUser.UserId
+				if uid == 0 {
+					continue
 				}
+				user, ok := server.Users[uid]
+				if ok {
+					if listUser.Name == nil {
+						// De-register
+						server.RemoveRegistration(uid)
+						err := tx.Put(&freezer.UserRemove{Id: listUser.UserId})
+						if err != nil {
+							server.Fatal(err)
+						}
+					} else {
+						// Rename user
+						// todo(mkrautz): Validate name.
+						user.Name = *listUser.Name
+						err := tx.Put(&freezer.User{Id: listUser.UserId, Name: listUser.Name})
+						if err != nil {
+							server.Fatal(err)
+						}
+					}
+				}
+			}
+			err := tx.Commit()
+			if err != nil {
+				server.Fatal(err)
 			}
 		}
 	}
