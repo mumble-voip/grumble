@@ -41,7 +41,8 @@ func NewChannel(id int, name string) (channel *Channel) {
 	channel.clients = make(map[uint32]*Client)
 	channel.children = make(map[int]*Channel)
 	channel.ACL = []*ChannelACL{}
-	channel.Groups = map[string]*Group{}
+	channel.Groups = make(map[string]*Group)
+	channel.Links = make(map[int]*Channel)
 	return
 }
 

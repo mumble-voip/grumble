@@ -41,7 +41,7 @@ func GrumbleCtl(args []string) {
 
 	sid, _ := strconv.Atoi64(args[1])
 
-	client, err := rpc.Dial(*ctlnet, *ctladdr)
+	client, err := rpc.Dial(Args.CtlNet, Args.CtlAddr)
 	if err != nil {
 		log.Fatalf("Could not connect to control socket: %v", err)
 	}

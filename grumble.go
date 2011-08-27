@@ -14,59 +14,15 @@ import (
 	"path/filepath"
 	"regexp"
 	"rpc"
-	"runtime"
 )
 
-func defaultGrumbleDir() string {
-	dirname := ".grumble"
-	if runtime.GOOS == "windows" {
-		dirname = "grumble"
-	}
-	return filepath.Join(os.Getenv("HOME"), dirname)
-}
-
-func defaultDataDir() string {
-	return filepath.Join(defaultGrumbleDir(), "data")
-}
-
-func defaultBlobDir() string {
-	return filepath.Join(defaultGrumbleDir(), "blob")
-}
-
-func defaultCtlNet() string {
-	if runtime.GOOS == "windows" {
-		return "tcp"
-	}
-	return "unix"
-}
-
-func defaultCtlAddr() string {
-	if runtime.GOOS == "windows" {
-		return "localhost:5454"
-	}
-	return filepath.Join(defaultGrumbleDir(), ".ctl")
-}
-
-var help *bool = flag.Bool("help", false, "Show this help")
-var datadir *string = flag.String("datadir", defaultDataDir(), "Directory to use for server storage")
-var blobdir *string = flag.String("blobdir", defaultBlobDir(), "Directory to use for blob storage")
-var ctlnet *string = flag.String("ctlnet", defaultCtlNet(), "Network to use for ctl socket")
-var ctladdr *string = flag.String("ctladdr", defaultCtlAddr(), "Address to use for ctl socket")
-var gencert *bool = flag.Bool("gencert", false, "Generate a self-signed certificate for use with Grumble")
-
 var servers map[int64]*Server
-
-func Usage() {
-	fmt.Fprintf(os.Stderr, "usage: grumble [options]\n")
-	fmt.Fprintf(os.Stderr, "remote control: grumble [options] ctl [ctlopts]\n")
-	flag.PrintDefaults()
-}
 
 func main() {
 	var err os.Error
 
 	flag.Parse()
-	if *help == true {
+	if Args.ShowHelp == true {
 		Usage()
 		return
 	}
@@ -82,16 +38,15 @@ func main() {
 	log.SetFlags(log.LstdFlags|log.Lmicroseconds)
 	log.Printf("Grumble")
 
-	log.Printf("Using blob directory: %s", *blobdir)
-	err = blobstore.Open(*blobdir, true)
+	log.Printf("Using blob directory: %s", Args.BlobDir)
+	err = blobstore.Open(Args.BlobDir, true)
 	if err != nil {
 		log.Fatalf("Unable to initialize blobstore: %v", err.String())
 	}
 
-	// Generate a cert?
-	if *gencert {
-		certfn := filepath.Join(*datadir, "cert")
-		keyfn := filepath.Join(*datadir, "key")
+	if Args.GenerateCert {
+		certfn := filepath.Join(Args.DataDir, "cert")
+		keyfn := filepath.Join(Args.DataDir, "key")
 		log.Printf("Generating 2048-bit RSA keypair for self-signed certificate...")
 
 		err := GenerateSelfSignedCert(certfn, keyfn)
@@ -108,15 +63,51 @@ func main() {
 		return
 	}
 
-	f, err := os.Open(*datadir)
+	// Should we import data from a Murmur SQLite file?
+	if SQLiteSupport && len(Args.SQLiteDB) > 0 {
+		f, err := os.Open(Args.DataDir)
+		if err != nil {
+			log.Fatalf("Murmur import failed: %s", err.String())
+		}
+		defer f.Close()
+
+		names, err := f.Readdirnames(-1)
+		if err != nil {
+			log.Fatalf("Murmur import failed: %s", err.String())
+		}
+
+		if !Args.CleanUp && len(names) > 0 {
+			log.Fatalf("Non-empty datadir. Refusing to import Murmur data.")
+		}
+		if Args.CleanUp {
+			log.Print("Cleaning up existing data directory")
+			for _, name := range names {
+				if err := os.RemoveAll(filepath.Join(Args.DataDir, name)); err != nil {
+					log.Fatalf("Unable to cleanup file: %s", name)
+				}
+			}
+		}
+
+		log.Printf("Importing Murmur data from '%s'", Args.SQLiteDB)
+		if err = MurmurImport(Args.SQLiteDB); err != nil {
+			log.Fatalf("Murmur import failed: %s", err.String())
+		}
+
+		log.Printf("Import from Murmur SQLite database succeeded.")
+		log.Printf("Please restart Grumble to make use of the imported data.")
+
+		return
+	}
+
+	f, err := os.Open(Args.DataDir)
 	if err != nil {
-		log.Fatalf("Murmur import failed: %s", err.String())
+		log.Fatal(err)
 	}
 	defer f.Close()
 
 	names, err := f.Readdirnames(-1)
 	if err != nil {
-		log.Fatalf("Murmur import failed: %s", err.String())
+		log.Fatal(err)
 	}
 
 	servers = make(map[int64]*Server)
@@ -144,16 +135,16 @@ func main() {
 
 		servers[s.Id] = s
 
-		os.Mkdir(filepath.Join(*datadir, fmt.Sprintf("%v", 1)), 0750)
+		os.Mkdir(filepath.Join(Args.DataDir, fmt.Sprintf("%v", 1)), 0750)
 		s.FreezeToFile()
 
 		go s.ListenAndMurmur()
 	}
 
-	if *ctlnet == "unix" {
-		os.Remove(*ctladdr)
+	if Args.CtlNet == "unix" {
+		os.Remove(Args.CtlAddr)
 	}
-	lis, err := net.Listen(*ctlnet, *ctladdr)
+	lis, err := net.Listen(Args.CtlNet, Args.CtlAddr)
 	if err != nil {
 		log.Panicf("Unable to listen on ctl socket: %v", err)
 	}

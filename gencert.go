@@ -55,7 +55,7 @@ func GenerateSelfSignedCert(certpath, keypath string) (err os.Error) {
 		Bytes: keybuf,
 	}
 
-	certfn := filepath.Join(*datadir, "cert")
+	certfn := filepath.Join(Args.DataDir, "cert")
 	file, err := os.OpenFile(certfn, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0700)
 	if err != nil {
 		return err
@@ -66,7 +66,7 @@ func GenerateSelfSignedCert(certpath, keypath string) (err os.Error) {
 		return err
 	}
 
-	keyfn := filepath.Join(*datadir, "key")
+	keyfn := filepath.Join(Args.DataDir, "key")
 	file, err = os.OpenFile(keyfn, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0700)
 	if err != nil {
 		return err

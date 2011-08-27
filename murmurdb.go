@@ -10,9 +10,13 @@ package main
 // SQLite datbase into a format that Grumble can understand.
 
 import (
+	"grumble/ban"
 	"grumble/blobstore"
+	"grumble/sqlite"
+	"log"
+	"net"
 	"os"
-	"sqlite"
+	"path/filepath"
 	"strconv"
 )
 
@@ -29,6 +33,51 @@ const (
 	UserInfoPassword
 	UserInfoLastActive
 )
+
+const SQLiteSupport = true
+
+// Import the structure of an existing Murmur SQLite database.
+func MurmurImport(filename string) (err os.Error) {
+	db, err := sqlite.Open(filename)
+	if err != nil {
+		panic(err.String())
+	}
+
+	stmt, err := db.Prepare("SELECT server_id FROM servers")
+	if err != nil {
+		panic(err.String())
+	}
+
+	var serverids []int64
+	var sid int64
+	for stmt.Next() {
+		stmt.Scan(&sid)
+		serverids = append(serverids, sid)
+	}
+
+	log.Printf("Found servers: %v (%v servers)", serverids, len(serverids))
+
+	for _, sid := range serverids {
+		m, err := NewServerFromSQLite(sid, db)
+		if err != nil {
+			return err
+		}
+
+		err = os.Mkdir(filepath.Join(Args.DataDir, strconv.Itoa64(sid)), 0750)
+		if err != nil {
+			return err
+		}
+
+		err = m.FreezeToFile()
+		if err != nil {
+			return err
+		}
+
+		log.Printf("Successfully imported server %v", sid)
+	}
+
+	return
+}
 
 // Create a new Server from a Murmur SQLite database
 func NewServerFromSQLite(id int64, db *sqlite.Conn) (s *Server, err os.Error) {
@@ -67,6 +116,11 @@ func NewServerFromSQLite(id int64, db *sqlite.Conn) (s *Server, err os.Error) {
 		return nil, err
 	}
 
+	err = populateBans(s, db)
+	if err != nil {
+		return nil, err
+	}
+
 	return
 }
 
@@ -88,11 +142,13 @@ func populateChannelInfoFromDatabase(server *Server, c *Channel, db *sqlite.Conn
 			return err
 		}
 
-		key, err := blobstore.Put([]byte(description))
-		if err != nil {
-			return err
+		if len(description) > 0 {
+			key, err := blobstore.Put([]byte(description))
+			if err != nil {
+				return err
+			}
+			c.DescriptionBlob = key
 		}
-		c.DescriptionBlob = key
 	}
 
 	if err := stmt.Reset(); err != nil {
@@ -357,7 +413,7 @@ func populateUsers(server *Server, db *sqlite.Conn) (err os.Error) {
 		}
 
 		if UserId == 0 {
-			server.SuperUserPassword = "sha1$$" + SHA1Password
+			server.cfg.Set("SuperUserPassword", "sha1$$" + SHA1Password)
 		}
 
 		user, err := NewUser(uint32(UserId), UserName)
@@ -365,11 +421,13 @@ func populateUsers(server *Server, db *sqlite.Conn) (err os.Error) {
 			return err
 		}
 
-		key, err := blobstore.Put(Texture)
-		if err != nil {
-			return err
+		if len(Texture) > 0 {
+			key, err := blobstore.Put(Texture)
+			if err != nil {
+				return err
+			}
+			user.TextureBlob = key
 		}
-		user.TextureBlob = key
 
 		user.LastActive = uint64(LastActive)
 		user.LastChannelId = LastChannel
@@ -424,6 +482,46 @@ func populateUsers(server *Server, db *sqlite.Conn) (err os.Error) {
 				// not a kv-pair
 			}
 		}
+	}
+
+	return
+}
+
+// Populate bans
+func populateBans(server *Server, db *sqlite.Conn) (err os.Error) {
+	stmt, err := db.Prepare("SELECT base, mask, name, hash, reason, start, duration FROM bans WHERE server_id=?")
+	if err != nil {
+		return
+	}
+
+	err = stmt.Exec(server.Id)
+	if err != nil {
+		return err
+	}
+
+	for stmt.Next() {
+		var (
+			Ban ban.Ban
+			IP []byte
+			StartDate string
+			Duration int64
+		)
+
+		err = stmt.Scan(&IP, &Ban.Mask, &Ban.Username, &Ban.CertHash, &Ban.Reason, &StartDate, &Duration)
+		if err != nil {
+			return err
+		}
+
+		if len(IP) == 16 && IP[10] == 0xff && IP[11] == 0xff {
+			Ban.IP = net.IPv4(IP[12], IP[13], IP[14], IP[15])
+		} else {
+			Ban.IP = IP
+		}
+
+		Ban.SetISOStartDate(StartDate)
+		Ban.Duration = uint32(Duration)
+
+		server.Bans = append(server.Bans, Ban)
 	}
 
 	return

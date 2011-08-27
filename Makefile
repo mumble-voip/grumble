@@ -55,7 +55,17 @@ GOFILES = \
 	gencert.go \
 	register.go \
 	ctlrpc.go \
-	ctl.go
+	ctl.go \
+	args.go
+
+ifeq ($(SQLITE),1)
+	GOFILES += murmurdb.go
+	PACKAGES += pkg/sqlite
+	GCFLAGS += -Ipkg/sqlite/_obj
+	LDFLAGS += -Lpkg/sqlite/_obj
+else
+	GOFILES += murmurdb_null.go
+endif
 
 ifeq ($(GOOS),windows)
 	GOFILES += signal_windows.go

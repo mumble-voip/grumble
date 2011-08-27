@@ -1184,7 +1184,7 @@ func (s *Server) ListenAndMurmur() {
 	go s.SendUDP()
 
 	// Create a new listening TLS socket.
-	cert, err := tls.LoadX509KeyPair(filepath.Join(*datadir, "cert"), filepath.Join(*datadir, "key"))
+	cert, err := tls.LoadX509KeyPair(filepath.Join(Args.DataDir, "cert"), filepath.Join(Args.DataDir, "key"))
 	if err != nil {
 		s.Printf("Unable to load x509 key pair: %v", err)
 		return
