@@ -60,7 +60,6 @@ type Server struct {
 	incoming       chan *Message
 	udpsend        chan *Message
 	voicebroadcast chan *VoiceBroadcast
-	freezeRequest  chan bool
 	cfgUpdate      chan *KeyValuePair
 
 	// Signals to the server that a client has been successfully
@@ -147,7 +146,6 @@ func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
 	s.incoming = make(chan *Message)
 	s.udpsend = make(chan *Message)
 	s.voicebroadcast = make(chan *VoiceBroadcast)
-	s.freezeRequest = make(chan bool, 1)
 	s.cfgUpdate = make(chan *KeyValuePair)
 	s.clientAuthenticated = make(chan *Client)
 
@@ -373,13 +371,6 @@ func (server *Server) handler() {
 		// server info.
 		case client := <-server.clientAuthenticated:
 			server.finishAuthenticate(client)
-
-		// Synchonized freeze requests
-		case <-server.freezeRequest:
-			err := server.FreezeToFile()
-			if err != nil {
-				server.Fatal(err)
-			}
 
 		// Disk freeze config update
 		case kvp := <-server.cfgUpdate:
