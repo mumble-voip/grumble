@@ -5,16 +5,16 @@
 package main
 
 import (
-	"net"
 	"bufio"
-	"log"
-	"os"
 	"encoding/binary"
 	"goprotobuf.googlecode.com/hg/proto"
-	"mumbleproto"
 	"grumble/blobstore"
 	"grumble/cryptstate"
+	"grumble/mumbleproto"
 	"io"
+	"log"
+	"net"
+	"os"
 	"packetdatastream"
 	"time"
 )
@@ -187,7 +187,7 @@ func (client *Client) RejectAuth(kind, reason string) {
 		reasonString = proto.String(reason)
 	}
 
-	client.sendProtoMessage(MessageReject, &mumbleproto.Reject{
+	client.sendProtoMessage(mumbleproto.MessageReject, &mumbleproto.Reject{
 		Type:   mumbleproto.NewReject_RejectType(mumbleproto.Reject_RejectType_value[kind]),
 		Reason: reasonString,
 	})
@@ -265,7 +265,7 @@ func (c *Client) sendPermissionDeniedTypeUser(kind string, user *Client) {
 		}
 		c.msgchan <- &Message{
 			buf:  d,
-			kind: MessagePermissionDenied,
+			kind: mumbleproto.MessagePermissionDenied,
 		}
 	} else {
 		c.Panicf("Unknown permission denied type.")
@@ -285,7 +285,7 @@ func (c *Client) sendPermissionDenied(who *Client, where *Channel, what Permissi
 	}
 	c.msgchan <- &Message{
 		buf:  d,
-		kind: MessagePermissionDenied,
+		kind: mumbleproto.MessagePermissionDenied,
 	}
 }
 
@@ -307,11 +307,11 @@ func (client *Client) udpreceiver() {
 		kind := (buf[0] >> 5) & 0x07
 
 		switch kind {
-		case UDPMessageVoiceSpeex:
+		case mumbleproto.UDPMessageVoiceSpeex:
 			fallthrough
-		case UDPMessageVoiceCELTAlpha:
+		case mumbleproto.UDPMessageVoiceCELTAlpha:
 			fallthrough
-		case UDPMessageVoiceCELTBeta:
+		case mumbleproto.UDPMessageVoiceCELTBeta:
 			kind := buf[0] & 0xe0
 			target := buf[0] & 0x1f
 			var counter uint8
@@ -348,7 +348,7 @@ func (client *Client) udpreceiver() {
 				})
 			}
 
-		case UDPMessagePing:
+		case mumbleproto.UDPMessagePing:
 			client.server.udpsend <- &Message{
 				buf:    buf,
 				client: client,
@@ -363,7 +363,7 @@ func (client *Client) sendUdp(msg *Message) {
 		client.server.udpsend <- msg
 	} else {
 		client.Printf("Sent TCP!")
-		msg.kind = MessageUDPTunnel
+		msg.kind = mumbleproto.MessageUDPTunnel
 		client.msgchan <- msg
 	}
 }
@@ -445,7 +445,7 @@ func (client *Client) receiver() {
 			}
 			// Special case UDPTunnel messages. They're high priority and shouldn't
 			// go through our synchronous path.
-			if msg.kind == MessageUDPTunnel {
+			if msg.kind == mumbleproto.MessageUDPTunnel {
 				client.udp = false
 				client.udprecv <- msg.buf
 			} else {
@@ -485,7 +485,7 @@ func (client *Client) receiver() {
 		// information we must send it our version information so it knows
 		// what version of the protocol it should speak.
 		if client.state == StateClientConnected {
-			client.sendProtoMessage(MessageVersion, &mumbleproto.Version{
+			client.sendProtoMessage(mumbleproto.MessageVersion, &mumbleproto.Version{
 				Version: proto.Uint32(0x10203),
 				Release: proto.String("Grumble"),
 			})
@@ -575,7 +575,7 @@ func (client *Client) sendChannelTree(channel *Channel) {
 	}
 	chanstate.Links = links
 
-	err := client.sendProtoMessage(MessageChannelState, chanstate)
+	err := client.sendProtoMessage(mumbleproto.MessageChannelState, chanstate)
 	if err != nil {
 		client.Panicf("%v", err)
 	}
@@ -593,7 +593,7 @@ func (client *Client) cryptResync() {
 		if requestElapsed > 5 {
 			client.lastResync = time.Seconds()
 			cryptsetup := &mumbleproto.CryptSetup{}
-			err := client.sendProtoMessage(MessageCryptSetup, cryptsetup)
+			err := client.sendProtoMessage(mumbleproto.MessageCryptSetup, cryptsetup)
 			if err != nil {
 				client.Panicf("%v", err)
 			}

@@ -19,11 +19,11 @@ import (
 	"grumble/cryptstate"
 	"grumble/freezer"
 	"grumble/htmlfilter"
+	"grumble/mumbleproto"
 	"grumble/serverconf"
 	"grumble/sessionpool"
 	"hash"
 	"log"
-	"mumbleproto"
 	"net"
 	"os"
 	"path/filepath"
@@ -302,7 +302,7 @@ func (server *Server) RemoveClient(client *Client, kicked bool) {
 	// If the user is disconnect via a kick, the UserRemove message has already been sent
 	// at this point.
 	if !kicked && client.state > StateClientAuthenticated {
-		err := server.broadcastProtoMessage(MessageUserRemove, &mumbleproto.UserRemove{
+		err := server.broadcastProtoMessage(mumbleproto.MessageUserRemove, &mumbleproto.UserRemove{
 			Session: proto.Uint32(client.Session),
 		})
 		if err != nil {
@@ -403,7 +403,7 @@ func (server *Server) handler() {
 // will send the channel tree, user list, etc. to the client.
 func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	// Is this message not an authenticate message? If not, discard it...
-	if msg.kind != MessageAuthenticate {
+	if msg.kind != mumbleproto.MessageAuthenticate {
 		client.Panic("Unexpected message. Expected Authenticate.")
 		return
 	}
@@ -499,7 +499,7 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	// Send CryptState information to the client so it can establish an UDP connection,
 	// if it wishes.
 	client.lastResync = time.Seconds()
-	err = client.sendProtoMessage(MessageCryptSetup, &mumbleproto.CryptSetup{
+	err = client.sendProtoMessage(mumbleproto.MessageCryptSetup, &mumbleproto.CryptSetup{
 		Key:         client.crypt.RawKey[0:],
 		ClientNonce: client.crypt.DecryptIV[0:],
 		ServerNonce: client.crypt.EncryptIV[0:],
@@ -601,7 +601,7 @@ func (server *Server) finishAuthenticate(client *Client) {
 	}
 
 	server.userEnterChannel(client, server.RootChannel(), userstate)
-	if err := server.broadcastProtoMessage(MessageUserState, userstate); err != nil {
+	if err := server.broadcastProtoMessage(mumbleproto.MessageUserState, userstate); err != nil {
 		// Server panic?
 	}
 
@@ -623,12 +623,12 @@ func (server *Server) finishAuthenticate(client *Client) {
 		perm.ClearCacheBit()
 		sync.Permissions = proto.Uint64(uint64(perm))
 	}
-	if err := client.sendProtoMessage(MessageServerSync, sync); err != nil {
+	if err := client.sendProtoMessage(mumbleproto.MessageServerSync, sync); err != nil {
 		client.Panicf("%v", err)
 		return
 	}
 
-	err := client.sendProtoMessage(MessageServerConfig, &mumbleproto.ServerConfig{
+	err := client.sendProtoMessage(mumbleproto.MessageServerConfig, &mumbleproto.ServerConfig{
 		AllowHtml:          proto.Bool(server.cfg.BoolValue("AllowHTML")),
 		MessageLength:      proto.Uint32(server.cfg.Uint32Value("MaxTextMessageLength")),
 		ImageMessageLength: proto.Uint32(server.cfg.Uint32Value("MaxImageMessageLength")),
@@ -686,7 +686,7 @@ func (server *Server) updateCodecVersions() {
 		server.BetaCodec = winner
 	}
 
-	err := server.broadcastProtoMessage(MessageCodecVersion, &mumbleproto.CodecVersion{
+	err := server.broadcastProtoMessage(mumbleproto.MessageCodecVersion, &mumbleproto.CodecVersion{
 		Alpha:       proto.Int32(server.AlphaCodec),
 		Beta:        proto.Int32(server.BetaCodec),
 		PreferAlpha: proto.Bool(server.PreferAlphaCodec),
@@ -774,7 +774,7 @@ func (server *Server) sendUserList(client *Client) {
 			userstate.PluginIdentity = proto.String(connectedClient.PluginIdentity)
 		}
 
-		err := client.sendProtoMessage(MessageUserState, userstate)
+		err := client.sendProtoMessage(mumbleproto.MessageUserState, userstate)
 		if err != nil {
 			// Server panic?
 			continue
@@ -794,7 +794,7 @@ func (server *Server) sendClientPermissions(client *Client, channel *Channel) {
 	perm := server.aclcache.GetPermission(client, channel)
 
 	// fixme(mkrautz): Cache which permissions we've already sent.
-	client.sendProtoMessage(MessagePermissionQuery, &mumbleproto.PermissionQuery{
+	client.sendProtoMessage(mumbleproto.MessagePermissionQuery, &mumbleproto.PermissionQuery{
 		ChannelId:   proto.Uint32(uint32(channel.Id)),
 		Permissions: proto.Uint32(uint32(perm)),
 	})
@@ -826,39 +826,39 @@ func (server *Server) broadcastProtoMessage(kind uint16, msg interface{}) (err o
 
 func (server *Server) handleIncomingMessage(client *Client, msg *Message) {
 	switch msg.kind {
-	case MessageAuthenticate:
+	case mumbleproto.MessageAuthenticate:
 		server.handleAuthenticate(msg.client, msg)
-	case MessagePing:
+	case mumbleproto.MessagePing:
 		server.handlePingMessage(msg.client, msg)
-	case MessageChannelRemove:
+	case mumbleproto.MessageChannelRemove:
 		server.handleChannelRemoveMessage(msg.client, msg)
-	case MessageChannelState:
+	case mumbleproto.MessageChannelState:
 		server.handleChannelStateMessage(msg.client, msg)
-	case MessageUserState:
+	case mumbleproto.MessageUserState:
 		server.handleUserStateMessage(msg.client, msg)
-	case MessageUserRemove:
+	case mumbleproto.MessageUserRemove:
 		server.handleUserRemoveMessage(msg.client, msg)
-	case MessageBanList:
+	case mumbleproto.MessageBanList:
 		server.handleBanListMessage(msg.client, msg)
-	case MessageTextMessage:
+	case mumbleproto.MessageTextMessage:
 		server.handleTextMessage(msg.client, msg)
-	case MessageACL:
+	case mumbleproto.MessageACL:
 		server.handleAclMessage(msg.client, msg)
-	case MessageQueryUsers:
+	case mumbleproto.MessageQueryUsers:
 		server.handleQueryUsers(msg.client, msg)
-	case MessageCryptSetup:
+	case mumbleproto.MessageCryptSetup:
 		server.handleCryptSetup(msg.client, msg)
-	case MessageContextAction:
+	case mumbleproto.MessageContextAction:
 		server.Printf("MessageContextAction from client")
-	case MessageUserList:
+	case mumbleproto.MessageUserList:
 		server.handleUserList(msg.client, msg)
-	case MessageVoiceTarget:
+	case mumbleproto.MessageVoiceTarget:
 		server.Printf("MessageVoiceTarget from client")
-	case MessagePermissionQuery:
+	case mumbleproto.MessagePermissionQuery:
 		server.handlePermissionQuery(msg.client, msg)
-	case MessageUserStats:
+	case mumbleproto.MessageUserStats:
 		server.handleUserStatsMessage(msg.client, msg)
-	case MessageRequestBlob:
+	case mumbleproto.MessageRequestBlob:
 		server.handleRequestBlob(msg.client, msg)
 	}
 }
@@ -1120,7 +1120,7 @@ func (server *Server) RemoveChannel(channel *Channel) {
 		userstate.Session = proto.Uint32(client.Session)
 		userstate.ChannelId = proto.Uint32(uint32(target.Id))
 		server.userEnterChannel(client, target, userstate)
-		if err := server.broadcastProtoMessage(MessageUserState, userstate); err != nil {
+		if err := server.broadcastProtoMessage(mumbleproto.MessageUserState, userstate); err != nil {
 			server.Panicf("%v", err)
 		}
 	}
@@ -1132,7 +1132,7 @@ func (server *Server) RemoveChannel(channel *Channel) {
 	chanremove := &mumbleproto.ChannelRemove{
 		ChannelId: proto.Uint32(uint32(channel.Id)),
 	}
-	if err := server.broadcastProtoMessage(MessageChannelRemove, chanremove); err != nil {
+	if err := server.broadcastProtoMessage(mumbleproto.MessageChannelRemove, chanremove); err != nil {
 		server.Panicf("%v", err)
 	}
 }
