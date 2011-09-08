@@ -57,7 +57,7 @@ func (server *Server) handleCryptSetup(client *Client, msg *Message) {
 		if copy(cs.ClientNonce, client.crypt.EncryptIV[0:]) != aes.BlockSize {
 			return
 		}
-		client.sendProtoMessage(mumbleproto.MessageCryptSetup, cs)
+		client.sendProtoMessage(cs)
 	} else {
 		client.Printf("Received client nonce")
 		if len(cs.ClientNonce) != aes.BlockSize {
@@ -113,7 +113,7 @@ func (server *Server) handlePingMessage(client *Client, msg *Message) {
 		client.TcpPackets = *ping.TcpPackets
 	}
 
-	client.sendProtoMessage(mumbleproto.MessagePing, &mumbleproto.Ping{
+	client.sendProtoMessage(&mumbleproto.Ping{
 		Timestamp: ping.Timestamp,
 		Good:      proto.Uint32(uint32(client.crypt.Good)),
 		Late:      proto.Uint32(uint32(client.crypt.Late)),
@@ -302,7 +302,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 		chanstate.ChannelId = proto.Uint32(uint32(channel.Id))
 
 		// Broadcast channel add
-		server.broadcastProtoMessageWithPredicate(mumbleproto.MessageChannelState, chanstate, func(client *Client) bool {
+		server.broadcastProtoMessageWithPredicate(chanstate, func(client *Client) bool {
 			return client.Version < 0x10202
 		})
 
@@ -311,7 +311,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 			chanstate.Description = nil
 			chanstate.DescriptionHash = channel.DescriptionBlobHashBytes()
 		}
-		server.broadcastProtoMessageWithPredicate(mumbleproto.MessageChannelState, chanstate, func(client *Client) bool {
+		server.broadcastProtoMessageWithPredicate(chanstate, func(client *Client) bool {
 			return client.Version >= 0x10202
 		})
 
@@ -321,7 +321,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 			userstate.Session = proto.Uint32(client.Session)
 			userstate.ChannelId = proto.Uint32(uint32(channel.Id))
 			server.userEnterChannel(client, channel, userstate)
-			server.broadcastProtoMessage(mumbleproto.MessageUserState, userstate)
+			server.broadcastProtoMessage(userstate)
 		}
 	} else {
 		// Edit existing channel.
@@ -466,7 +466,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 		}
 
 		// Broadcast the update
-		server.broadcastProtoMessageWithPredicate(mumbleproto.MessageChannelState, chanstate, func(client *Client) bool {
+		server.broadcastProtoMessageWithPredicate(chanstate, func(client *Client) bool {
 			return client.Version < 0x10202
 		})
 
@@ -476,7 +476,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 			chanstate.DescriptionHash = channel.DescriptionBlobHashBytes()
 		}
 		chanstate.DescriptionHash = channel.DescriptionBlobHashBytes()
-		server.broadcastProtoMessageWithPredicate(mumbleproto.MessageChannelState, chanstate, func(client *Client) bool {
+		server.broadcastProtoMessageWithPredicate(chanstate, func(client *Client) bool {
 			return client.Version >= 0x10202
 		})
 	}
@@ -537,7 +537,7 @@ func (server *Server) handleUserRemoveMessage(client *Client, msg *Message) {
 	}
 
 	userremove.Actor = proto.Uint32(uint32(client.Session))
-	if err = server.broadcastProtoMessage(mumbleproto.MessageUserRemove, userremove); err != nil {
+	if err = server.broadcastProtoMessage(userremove); err != nil {
 		server.Panicf("Unable to broadcast UserRemove message")
 		return
 	}
@@ -786,7 +786,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 			txtmsg.Message = proto.String(fmt.Sprintf("User '%s' stopped recording", target.ShownName()))
 		}
 
-		server.broadcastProtoMessageWithPredicate(mumbleproto.MessageTextMessage, txtmsg, func(client *Client) bool {
+		server.broadcastProtoMessageWithPredicate(txtmsg, func(client *Client) bool {
 			return client.Version < 0x10203
 		})
 
@@ -829,7 +829,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 			// The sent texture is a new-style texture.  Strip it from the message
 			// we send to pre-1.2.2 clients.
 			userstate.Texture = nil
-			err := server.broadcastProtoMessageWithPredicate(mumbleproto.MessageUserState, userstate, func(client *Client) bool {
+			err := server.broadcastProtoMessageWithPredicate(userstate, func(client *Client) bool {
 				return client.Version < 0x10202
 			})
 			if err != nil {
@@ -839,7 +839,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 			userstate.Texture = texture
 		} else {
 			// Old style texture.  We can send the message as-is.
-			err := server.broadcastProtoMessageWithPredicate(mumbleproto.MessageUserState, userstate, func(client *Client) bool {
+			err := server.broadcastProtoMessageWithPredicate(userstate, func(client *Client) bool {
 				return client.Version < 0x10202
 			})
 			if err != nil {
@@ -871,7 +871,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 			server.ClearACLCache()
 		}
 
-		err := server.broadcastProtoMessageWithPredicate(mumbleproto.MessageUserState, userstate, func(client *Client) bool {
+		err := server.broadcastProtoMessageWithPredicate(userstate, func(client *Client) bool {
 			return client.Version >= 0x10203
 		})
 		if err != nil {
@@ -914,7 +914,7 @@ func (server *Server) handleBanListMessage(client *Client, msg *Message) {
 			entry.Duration = proto.Uint32(ban.Duration)
 			banlist.Bans = append(banlist.Bans, entry)
 		}
-		if err := client.sendProtoMessage(mumbleproto.MessageBanList, banlist); err != nil {
+		if err := client.sendProtoMessage(banlist); err != nil {
 			client.Panic("Unable to send BanList")
 		}
 	} else {
@@ -1014,7 +1014,7 @@ func (server *Server) handleTextMessage(client *Client, msg *Message) {
 	clients[client.Session] = nil, false
 
 	for _, target := range clients {
-		target.sendProtoMessage(mumbleproto.MessageTextMessage, &mumbleproto.TextMessage{
+		target.sendProtoMessage(&mumbleproto.TextMessage{
 			Actor:   proto.Uint32(client.Session),
 			Message: txtmsg.Message,
 		})
@@ -1143,7 +1143,7 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 			reply.Groups = append(reply.Groups, mpgroup)
 		}
 
-		if err := client.sendProtoMessage(mumbleproto.MessageACL, reply); err != nil {
+		if err := client.sendProtoMessage(reply); err != nil {
 			client.Panic(err.String())
 		}
 
@@ -1159,7 +1159,7 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 			queryusers.Names = append(queryusers.Names, user.Name)
 		}
 		if len(queryusers.Ids) > 0 {
-			client.sendProtoMessage(mumbleproto.MessageQueryUsers, queryusers)
+			client.sendProtoMessage(queryusers)
 		}
 
 		// Set new groups and ACLs
@@ -1266,7 +1266,7 @@ func (server *Server) handleQueryUsers(client *Client, msg *Message) {
 		}
 	}
 
-	if err := client.sendProtoMessage(mumbleproto.MessageQueryUsers, reply); err != nil {
+	if err := client.sendProtoMessage(reply); err != nil {
 		client.Panic(err.String())
 		return
 	}
@@ -1370,7 +1370,7 @@ func (server *Server) handleUserStatsMessage(client *Client, msg *Message) {
 
 	// fixme(mkrautz): we don't do bandwidth tracking yet
 
-	if err := client.sendProtoMessage(mumbleproto.MessageUserStats, stats); err != nil {
+	if err := client.sendProtoMessage(stats); err != nil {
 		client.Panic(err.String())
 		return
 	}
@@ -1418,7 +1418,7 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 					userstate.Reset()
 					userstate.Session = proto.Uint32(uint32(target.Session))
 					userstate.Texture = buf
-					if err := client.sendProtoMessage(mumbleproto.MessageUserState, userstate); err != nil {
+					if err := client.sendProtoMessage(userstate); err != nil {
 						client.Panic(err.String())
 						return
 					}
@@ -1442,7 +1442,7 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 					userstate.Reset()
 					userstate.Session = proto.Uint32(uint32(target.Session))
 					userstate.Comment = proto.String(string(buf))
-					if err := client.sendProtoMessage(mumbleproto.MessageUserState, userstate); err != nil {
+					if err := client.sendProtoMessage(userstate); err != nil {
 						client.Panic(err.String())
 						return
 					}
@@ -1465,7 +1465,7 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 					}
 					chanstate.ChannelId = proto.Uint32(uint32(channel.Id))
 					chanstate.Description = proto.String(string(buf))
-					if err := client.sendProtoMessage(mumbleproto.MessageChannelState, chanstate); err != nil {
+					if err := client.sendProtoMessage(chanstate); err != nil {
 						client.Panic(err.String())
 						return
 					}
@@ -1501,7 +1501,7 @@ func (server *Server) handleUserList(client *Client, msg *Message) {
 				Name:   proto.String(user.Name),
 			})
 		}
-		if err := client.sendProtoMessage(mumbleproto.MessageUserList, userlist); err != nil {
+		if err := client.sendProtoMessage(userlist); err != nil {
 			client.Panic(err.String())
 			return
 		}

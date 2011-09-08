@@ -137,7 +137,6 @@ func main() {
 
 		os.Mkdir(filepath.Join(Args.DataDir, fmt.Sprintf("%v", 1)), 0750)
 		s.FreezeToFile()
-
 		go s.ListenAndMurmur()
 	}
 

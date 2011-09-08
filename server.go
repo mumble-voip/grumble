@@ -302,7 +302,7 @@ func (server *Server) RemoveClient(client *Client, kicked bool) {
 	// If the user is disconnect via a kick, the UserRemove message has already been sent
 	// at this point.
 	if !kicked && client.state > StateClientAuthenticated {
-		err := server.broadcastProtoMessage(mumbleproto.MessageUserRemove, &mumbleproto.UserRemove{
+		err := server.broadcastProtoMessage(&mumbleproto.UserRemove{
 			Session: proto.Uint32(client.Session),
 		})
 		if err != nil {
@@ -499,7 +499,7 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	// Send CryptState information to the client so it can establish an UDP connection,
 	// if it wishes.
 	client.lastResync = time.Seconds()
-	err = client.sendProtoMessage(mumbleproto.MessageCryptSetup, &mumbleproto.CryptSetup{
+	err = client.sendProtoMessage(&mumbleproto.CryptSetup{
 		Key:         client.crypt.RawKey[0:],
 		ClientNonce: client.crypt.DecryptIV[0:],
 		ServerNonce: client.crypt.EncryptIV[0:],
@@ -601,7 +601,7 @@ func (server *Server) finishAuthenticate(client *Client) {
 	}
 
 	server.userEnterChannel(client, server.RootChannel(), userstate)
-	if err := server.broadcastProtoMessage(mumbleproto.MessageUserState, userstate); err != nil {
+	if err := server.broadcastProtoMessage(userstate); err != nil {
 		// Server panic?
 	}
 
@@ -623,12 +623,12 @@ func (server *Server) finishAuthenticate(client *Client) {
 		perm.ClearCacheBit()
 		sync.Permissions = proto.Uint64(uint64(perm))
 	}
-	if err := client.sendProtoMessage(mumbleproto.MessageServerSync, sync); err != nil {
+	if err := client.sendProtoMessage(sync); err != nil {
 		client.Panicf("%v", err)
 		return
 	}
 
-	err := client.sendProtoMessage(mumbleproto.MessageServerConfig, &mumbleproto.ServerConfig{
+	err := client.sendProtoMessage(&mumbleproto.ServerConfig{
 		AllowHtml:          proto.Bool(server.cfg.BoolValue("AllowHTML")),
 		MessageLength:      proto.Uint32(server.cfg.Uint32Value("MaxTextMessageLength")),
 		ImageMessageLength: proto.Uint32(server.cfg.Uint32Value("MaxImageMessageLength")),
@@ -686,7 +686,7 @@ func (server *Server) updateCodecVersions() {
 		server.BetaCodec = winner
 	}
 
-	err := server.broadcastProtoMessage(mumbleproto.MessageCodecVersion, &mumbleproto.CodecVersion{
+	err := server.broadcastProtoMessage(&mumbleproto.CodecVersion{
 		Alpha:       proto.Int32(server.AlphaCodec),
 		Beta:        proto.Int32(server.BetaCodec),
 		PreferAlpha: proto.Bool(server.PreferAlphaCodec),
@@ -774,7 +774,7 @@ func (server *Server) sendUserList(client *Client) {
 			userstate.PluginIdentity = proto.String(connectedClient.PluginIdentity)
 		}
 
-		err := client.sendProtoMessage(mumbleproto.MessageUserState, userstate)
+		err := client.sendProtoMessage(userstate)
 		if err != nil {
 			// Server panic?
 			continue
@@ -794,7 +794,7 @@ func (server *Server) sendClientPermissions(client *Client, channel *Channel) {
 	perm := server.aclcache.GetPermission(client, channel)
 
 	// fixme(mkrautz): Cache which permissions we've already sent.
-	client.sendProtoMessage(mumbleproto.MessagePermissionQuery, &mumbleproto.PermissionQuery{
+	client.sendProtoMessage(&mumbleproto.PermissionQuery{
 		ChannelId:   proto.Uint32(uint32(channel.Id)),
 		Permissions: proto.Uint32(uint32(perm)),
 	})
@@ -802,7 +802,7 @@ func (server *Server) sendClientPermissions(client *Client, channel *Channel) {
 
 type ClientPredicate func(client *Client) bool
 
-func (server *Server) broadcastProtoMessageWithPredicate(kind uint16, msg interface{}, clientcheck ClientPredicate) (err os.Error) {
+func (server *Server) broadcastProtoMessageWithPredicate(msg interface{}, clientcheck ClientPredicate) (err os.Error) {
 	for _, client := range server.clients {
 		if !clientcheck(client) {
 			continue
@@ -810,7 +810,7 @@ func (server *Server) broadcastProtoMessageWithPredicate(kind uint16, msg interf
 		if client.state < StateClientAuthenticated {
 			continue
 		}
-		err := client.sendProtoMessage(kind, msg)
+		err := client.sendProtoMessage(msg)
 		if err != nil {
 			return
 		}
@@ -819,8 +819,8 @@ func (server *Server) broadcastProtoMessageWithPredicate(kind uint16, msg interf
 	return
 }
 
-func (server *Server) broadcastProtoMessage(kind uint16, msg interface{}) (err os.Error) {
-	err = server.broadcastProtoMessageWithPredicate(kind, msg, func(client *Client) bool { return true })
+func (server *Server) broadcastProtoMessage(msg interface{}) (err os.Error) {
+	err = server.broadcastProtoMessageWithPredicate(msg, func(client *Client) bool { return true })
 	return
 }
 
@@ -1120,7 +1120,7 @@ func (server *Server) RemoveChannel(channel *Channel) {
 		userstate.Session = proto.Uint32(client.Session)
 		userstate.ChannelId = proto.Uint32(uint32(target.Id))
 		server.userEnterChannel(client, target, userstate)
-		if err := server.broadcastProtoMessage(mumbleproto.MessageUserState, userstate); err != nil {
+		if err := server.broadcastProtoMessage(userstate); err != nil {
 			server.Panicf("%v", err)
 		}
 	}
@@ -1132,7 +1132,7 @@ func (server *Server) RemoveChannel(channel *Channel) {
 	chanremove := &mumbleproto.ChannelRemove{
 		ChannelId: proto.Uint32(uint32(channel.Id)),
 	}
-	if err := server.broadcastProtoMessage(mumbleproto.MessageChannelRemove, chanremove); err != nil {
+	if err := server.broadcastProtoMessage(chanremove); err != nil {
 		server.Panicf("%v", err)
 	}
 }

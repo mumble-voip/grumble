@@ -187,7 +187,7 @@ func (client *Client) RejectAuth(kind, reason string) {
 		reasonString = proto.String(reason)
 	}
 
-	client.sendProtoMessage(mumbleproto.MessageReject, &mumbleproto.Reject{
+	client.sendProtoMessage(&mumbleproto.Reject{
 		Type:   mumbleproto.NewReject_RejectType(mumbleproto.Reject_RejectType_value[kind]),
 		Reason: reasonString,
 	})
@@ -230,7 +230,7 @@ func (client *Client) readProtoMessage() (msg *Message, err os.Error) {
 }
 
 // Send a protobuf-encoded message
-func (c *Client) sendProtoMessage(kind uint16, msg interface{}) (err os.Error) {
+func (c *Client) sendProtoMessage(msg interface{}) (err os.Error) {
 	d, err := proto.Marshal(msg)
 	if err != nil {
 		return
@@ -238,7 +238,7 @@ func (c *Client) sendProtoMessage(kind uint16, msg interface{}) (err os.Error) {
 
 	c.msgchan <- &Message{
 		buf:  d,
-		kind: kind,
+		kind: mumbleproto.MessageType(msg),
 	}
 
 	return
@@ -485,7 +485,7 @@ func (client *Client) receiver() {
 		// information we must send it our version information so it knows
 		// what version of the protocol it should speak.
 		if client.state == StateClientConnected {
-			client.sendProtoMessage(mumbleproto.MessageVersion, &mumbleproto.Version{
+			client.sendProtoMessage(&mumbleproto.Version{
 				Version: proto.Uint32(0x10203),
 				Release: proto.String("Grumble"),
 			})
@@ -575,7 +575,7 @@ func (client *Client) sendChannelTree(channel *Channel) {
 	}
 	chanstate.Links = links
 
-	err := client.sendProtoMessage(mumbleproto.MessageChannelState, chanstate)
+	err := client.sendProtoMessage(chanstate)
 	if err != nil {
 		client.Panicf("%v", err)
 	}
@@ -593,7 +593,7 @@ func (client *Client) cryptResync() {
 		if requestElapsed > 5 {
 			client.lastResync = time.Seconds()
 			cryptsetup := &mumbleproto.CryptSetup{}
-			err := client.sendProtoMessage(mumbleproto.MessageCryptSetup, cryptsetup)
+			err := client.sendProtoMessage(cryptsetup)
 			if err != nil {
 				client.Panicf("%v", err)
 			}

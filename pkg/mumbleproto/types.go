@@ -5,7 +5,7 @@
 package mumbleproto
 
 const (
-	MessageVersion = iota
+	MessageVersion uint16 = iota
 	MessageUDPTunnel
 	MessageAuthenticate
 	MessagePing
@@ -38,3 +38,60 @@ const (
 	UDPMessageVoiceSpeex
 	UDPMessageVoiceCELTBeta
 )
+
+// Returns the numeric value identifying the message type of msg on the wire.
+func MessageType(msg interface{}) uint16 {
+	switch msg.(type) {
+	case *Version:
+		return MessageVersion
+	case *UDPTunnel:
+		return MessageUDPTunnel
+	case *Authenticate:
+		return MessageAuthenticate
+	case *Ping:
+		return MessagePing
+	case *Reject:
+		return MessageReject
+	case *ServerSync:
+		return MessageServerSync
+	case *ChannelRemove:
+		return MessageChannelRemove
+	case *ChannelState:
+		return MessageChannelState
+	case *UserRemove:
+		return MessageUserRemove
+	case *UserState:
+		return MessageUserState
+	case *BanList:
+		return MessageBanList
+	case *TextMessage:
+		return MessageTextMessage
+	case *PermissionDenied:
+		return MessagePermissionDenied
+	case *ACL:
+		return MessageACL
+	case *QueryUsers:
+		return MessageQueryUsers
+	case *CryptSetup:
+		return MessageCryptSetup
+	case *ContextActionAdd:
+		return MessageContextActionAdd
+	case *ContextAction:
+		return MessageContextAction
+	case *UserList:
+		return MessageUserList
+	case *VoiceTarget:
+		return MessageVoiceTarget
+	case *PermissionQuery:
+		return MessagePermissionQuery
+	case *CodecVersion:
+		return MessageCodecVersion
+	case *UserStats:
+		return MessageUserStats
+	case *RequestBlob:
+		return MessageRequestBlob
+	case *ServerConfig:
+		return MessageServerConfig
+	} 
+	panic("unknown type")
+}
