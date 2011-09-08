@@ -427,7 +427,7 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 
 	// Did we get a username?
 	if auth.Username == nil || len(*auth.Username) == 0 {
-		client.RejectAuth("InvalidUsername", "Please specify a username to log in")
+		client.RejectAuth(mumbleproto.Reject_InvalidUsername, "Please specify a username to log in")
 		return
 	}
 
@@ -449,17 +449,17 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 
 	if client.Username == "SuperUser" {
 		if auth.Password == nil {
-			client.RejectAuth("WrongUserPW", "")
+			client.RejectAuth(mumbleproto.Reject_WrongUserPW, "")
 			return
 		} else {
 			if server.CheckSuperUserPassword(*auth.Password) {
 				client.user, ok = server.UserNameMap[client.Username]
 				if !ok {
-					client.RejectAuth("InvalidUsername", "")
+					client.RejectAuth(mumbleproto.Reject_InvalidUsername, "")
 					return
 				}
 			} else {
-				client.RejectAuth("WrongUserPW", "")
+				client.RejectAuth(mumbleproto.Reject_WrongUserPW, "")
 				return
 			}
 		}
@@ -470,7 +470,7 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 			if len(client.CertHash) > 0 && user.CertHash == client.CertHash {
 				client.user = user
 			} else {
-				client.RejectAuth("WrongUserPW", "Wrong certificate hash")
+				client.RejectAuth(mumbleproto.Reject_WrongUserPW, "Wrong certificate hash")
 				return
 			}
 		}
@@ -538,7 +538,7 @@ func (server *Server) finishAuthenticate(client *Client) {
 		// The user is already present on the server.
 		if found {
 			// todo(mkrautz): Do the address checking.
-			client.RejectAuth("UsernameInUse", "A client is already connected using those credentials.")
+			client.RejectAuth(mumbleproto.Reject_UsernameInUse, "A client is already connected using those credentials.")
 			return
 		}
 

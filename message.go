@@ -196,7 +196,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 	if chanstate.Description != nil {
 		description, err = server.FilterText(*chanstate.Description)
 		if err != nil {
-			client.sendPermissionDeniedType("TextTooLong")
+			client.sendPermissionDeniedType(mumbleproto.PermissionDenied_TextTooLong)
 			return
 		}
 	}
@@ -221,7 +221,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 			}
 			for _, iter := range evalp.children {
 				if iter.Name == name {
-					client.sendPermissionDeniedType("ChannelName")
+					client.sendPermissionDeniedType(mumbleproto.PermissionDenied_ChannelName)
 					return
 				}
 			}
@@ -248,13 +248,13 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 
 		// Only registered users can create channels.
 		if !client.IsRegistered() && !client.HasCertificate() {
-			client.sendPermissionDeniedTypeUser("MissingCertificate", client)
+			client.sendPermissionDeniedTypeUser(mumbleproto.PermissionDenied_MissingCertificate, client)
 			return
 		}
 
 		// We can't add channels to a temporary channel
 		if parent.Temporary {
-			client.sendPermissionDeniedType("TemporaryChannel")
+			client.sendPermissionDeniedType(mumbleproto.PermissionDenied_TemporaryChannel)
 			return
 		}
 
@@ -372,7 +372,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 
 			// A temporary channel must not have any subchannels, so deny it.
 			if parent.Temporary {
-				client.sendPermissionDeniedType("TemporaryChannel")
+				client.sendPermissionDeniedType(mumbleproto.PermissionDenied_TemporaryChannel)
 				return
 			}
 
@@ -391,7 +391,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 			// If a sibling of parent already has this name, don't allow it.
 			for _, iter := range parent.children {
 				if iter.Name == channel.Name {
-					client.sendPermissionDeniedType("ChannelName")
+					client.sendPermissionDeniedType(mumbleproto.PermissionDenied_ChannelName)
 					return
 				}
 			}
@@ -604,7 +604,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	if userstate.Mute != nil || userstate.Deaf != nil || userstate.Suppress != nil || userstate.PrioritySpeaker != nil {
 		// Disallow for SuperUser
 		if target.IsSuperUser() {
-			client.sendPermissionDeniedType("SuperUser")
+			client.sendPermissionDeniedType(mumbleproto.PermissionDenied_SuperUser)
 			return
 		}
 
@@ -636,14 +636,14 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 
 			// Only allow empty text.
 			if len(comment) > 0 {
-				client.sendPermissionDeniedType("TextTooLong")
+				client.sendPermissionDeniedType(mumbleproto.PermissionDenied_TextTooLong)
 				return
 			}
 		}
 
 		filtered, err := server.FilterText(comment)
 		if err != nil {
-			client.sendPermissionDeniedType("TextTooLong")
+			client.sendPermissionDeniedType(mumbleproto.PermissionDenied_TextTooLong)
 			return
 		}
 
@@ -654,7 +654,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	if userstate.Texture != nil {
 		maximg := server.cfg.IntValue("MaxImageMessageLength")
 		if maximg > 0 && len(userstate.Texture) > maximg {
-			client.sendPermissionDeniedType("TextTooLong")
+			client.sendPermissionDeniedType(mumbleproto.PermissionDenied_TextTooLong)
 			return
 		}
 	}
@@ -674,7 +674,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 		}
 
 		if len(target.CertHash) == 0 {
-			client.sendPermissionDeniedTypeUser("MissingCertificate", target)
+			client.sendPermissionDeniedTypeUser(mumbleproto.PermissionDenied_MissingCertificate, target)
 			return
 		}
 	}
@@ -961,7 +961,7 @@ func (server *Server) handleTextMessage(client *Client, msg *Message) {
 
 	filtered, err := server.FilterText(*txtmsg.Message)
 	if err != nil {
-		client.sendPermissionDeniedType("TextTooLong")
+		client.sendPermissionDeniedType(mumbleproto.PermissionDenied_TextTooLong)
 		return
 	}
 

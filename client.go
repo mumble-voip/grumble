@@ -181,14 +181,14 @@ func (client *Client) ForceDisconnect() {
 }
 
 // Reject an authentication attempt
-func (client *Client) RejectAuth(kind, reason string) {
+func (client *Client) RejectAuth(rejectType mumbleproto.Reject_RejectType, reason string) {
 	var reasonString *string = nil
 	if len(reason) > 0 {
 		reasonString = proto.String(reason)
 	}
 
 	client.sendProtoMessage(&mumbleproto.Reject{
-		Type:   mumbleproto.NewReject_RejectType(mumbleproto.Reject_RejectType_value[kind]),
+		Type:   mumbleproto.NewReject_RejectType(rejectType),
 		Reason: reasonString,
 	})
 
@@ -245,30 +245,26 @@ func (c *Client) sendProtoMessage(msg interface{}) (err os.Error) {
 }
 
 // Send permission denied by type
-func (c *Client) sendPermissionDeniedType(kind string) {
-	c.sendPermissionDeniedTypeUser(kind, nil)
+func (c *Client) sendPermissionDeniedType(denyType mumbleproto.PermissionDenied_DenyType) {
+	c.sendPermissionDeniedTypeUser(denyType, nil)
 }
 
 // Send permission denied by type (and user)
-func (c *Client) sendPermissionDeniedTypeUser(kind string, user *Client) {
-	val, ok := mumbleproto.PermissionDenied_DenyType_value[kind]
-	if ok {
-		pd := &mumbleproto.PermissionDenied{}
-		pd.Type = mumbleproto.NewPermissionDenied_DenyType(val)
-		if user != nil {
-			pd.Session = proto.Uint32(uint32(user.Session))
-		}
-		d, err := proto.Marshal(pd)
-		if err != nil {
-			c.Panicf("%v", err)
-			return
-		}
-		c.msgchan <- &Message{
-			buf:  d,
-			kind: mumbleproto.MessagePermissionDenied,
-		}
-	} else {
-		c.Panicf("Unknown permission denied type.")
+func (c *Client) sendPermissionDeniedTypeUser(denyType mumbleproto.PermissionDenied_DenyType, user *Client) {
+	pd := &mumbleproto.PermissionDenied{
+		Type: mumbleproto.NewPermissionDenied_DenyType(denyType),
+	}
+	if user != nil {
+		pd.Session = proto.Uint32(uint32(user.Session))
+	}
+	d, err := proto.Marshal(pd)
+	if err != nil {
+		c.Panicf("%v", err)
+		return
+	}
+	c.msgchan <- &Message{
+		buf:  d,
+		kind: mumbleproto.MessagePermissionDenied,
 	}
 }
 
@@ -290,9 +286,9 @@ func (c *Client) sendPermissionDenied(who *Client, where *Channel, what Permissi
 }
 
 // Send permission denied fallback
-func (c *Client) sendPermissionDeniedFallback(kind string, version uint32, text string) {
+func (c *Client) sendPermissionDeniedFallback(denyType mumbleproto.PermissionDenied_DenyType, version uint32, text string) {
 	// fixme(mkrautz): Do fallback kind of stuff...
-	c.sendPermissionDeniedType(kind)
+	c.sendPermissionDeniedType(denyType)
 }
 
 // UDP receiver.
