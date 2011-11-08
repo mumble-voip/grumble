@@ -55,7 +55,7 @@ func (channel *Channel) AddChild(child *Channel) {
 // Remove a child channel from a parent
 func (channel *Channel) RemoveChild(child *Channel) {
 	child.parent = nil
-	channel.children[child.Id] = nil, false
+	delete(channel.children, child.Id)
 }
 
 // Add client
@@ -66,7 +66,7 @@ func (channel *Channel) AddClient(client *Client) {
 
 // Remove client
 func (channel *Channel) RemoveClient(client *Client) {
-	channel.clients[client.Session] = nil, false
+	delete(channel.clients, client.Session)
 	client.Channel = nil
 }
 

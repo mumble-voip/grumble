@@ -59,7 +59,7 @@ func (cfg *Config) Set(key string, value string) {
 func (cfg *Config) Reset(key string) {
 	cfg.mutex.Lock()
 	defer cfg.mutex.Unlock()
-	cfg.cfgMap[key] = "", false
+	delete(cfg.cfgMap, key)
 }
 
 // Get the value of a specific config key encoded as a string

@@ -15,9 +15,9 @@ import (
 	"testing"
 )
 
-var testValues []interface{} = []interface{} {
+var testValues []interface{} = []interface{}{
 	&ConfigKeyValuePair{Key: proto.String("Foo")},
-	&BanList{Bans: []*Ban{ &Ban{ Mask: proto.Uint32(32) } } },
+	&BanList{Bans: []*Ban{&Ban{Mask: proto.Uint32(32)}}},
 	&User{Id: proto.Uint32(0), Name: proto.String("SuperUser")},
 	&UserRemove{Id: proto.Uint32(0)},
 	&Channel{Id: proto.Uint32(0), Name: proto.String("RootChannel")},
@@ -25,7 +25,7 @@ var testValues []interface{} = []interface{} {
 }
 
 // Generate a byet slice representing an entry in a Tx record
-func genTxValue(kind uint16, val []byte) (chunk []byte, crc32sum uint32, err os.Error) {
+func genTxValue(kind uint16, val []byte) (chunk []byte, crc32sum uint32, err error) {
 	buf := new(bytes.Buffer)
 
 	err = binary.Write(buf, binary.LittleEndian, kind)
@@ -53,10 +53,10 @@ func genTxValue(kind uint16, val []byte) (chunk []byte, crc32sum uint32, err os.
 }
 
 // Generate the header of a Tx record
-func genTestCaseHeader(chunk []byte, numops uint32, crc32sum uint32) (r io.Reader, err os.Error) {
+func genTestCaseHeader(chunk []byte, numops uint32, crc32sum uint32) (r io.Reader, err error) {
 	buf := new(bytes.Buffer)
 
-	err = binary.Write(buf, binary.LittleEndian, uint32(4 + 4 + len(chunk)))
+	err = binary.Write(buf, binary.LittleEndian, uint32(4+4+len(chunk)))
 	if err != nil {
 		return nil, err
 	}
@@ -101,9 +101,9 @@ func TestLogging(t *testing.T) {
 	defer os.Remove("logging.log")
 
 	for _, val := range testValues {
-		err = l.Put(val)	
+		err = l.Put(val)
 		if err != nil {
-			t.Error(err)	
+			t.Error(err)
 			return
 		}
 	}
@@ -117,13 +117,13 @@ func TestLogging(t *testing.T) {
 	i := 0
 	for {
 		entries, err := walker.Next()
-		if err == os.EOF {
+		if err == io.EOF {
 			break
 		} else if err != nil {
 			t.Error(err)
 			return
 		}
-		if len(entries)  != 1 {
+		if len(entries) != 1 {
 			t.Error("> 1 entry in log tx")
 			return
 		}
@@ -157,7 +157,7 @@ func TestCRC32MismatchLog(t *testing.T) {
 		t.Errorf("exepcted CRC32 mismatch, got %v", err)
 	}
 	_, err = walker.Next()
-	if err != os.EOF {
+	if err != io.EOF {
 		t.Errorf("expected EOF, got %v", err)
 	}
 }
@@ -187,7 +187,7 @@ func TestUnknownTypeDecode(t *testing.T) {
 		t.Errorf("expected empty entries and non-nil err (got %v entries and %v)", len(entries), err)
 	}
 	_, err = walker.Next()
-	if err != os.EOF {
+	if err != io.EOF {
 		t.Errorf("expected EOF, got %v", err)
 	}
 }
@@ -223,7 +223,7 @@ func TestTrailingBytesTxRecord(t *testing.T) {
 	}
 
 	_, err = walker.Next()
-	if err != os.EOF {
+	if err != io.EOF {
 		t.Errorf("expected EOF, got %v", err)
 	}
 }
@@ -232,7 +232,7 @@ func TestTrailingBytesTxRecord(t *testing.T) {
 // A TxRecord can hold 255 entries, and each of those can be
 // up to 16KB.
 func TestTooBigTxRecord(t *testing.T) {
-	bigValue := make([]byte, math.MaxUint16*math.MaxUint8 + 4)
+	bigValue := make([]byte, math.MaxUint16*math.MaxUint8+4)
 	r, err := genTestCaseHeader(bigValue, 1, 0)
 	if err != nil {
 		t.Error(err)
@@ -242,7 +242,7 @@ func TestTooBigTxRecord(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	
+
 	_, err = walker.Next()
 	if err != ErrRecordTooBig {
 		t.Errorf("expected ErrRecordTooBig, got %v", err)
@@ -265,7 +265,7 @@ func TestTxGroupCapacityEnforcement(t *testing.T) {
 	}
 
 	for i := 0; i <= 255; i++ {
-		entry := testValues[i % len(testValues)]
+		entry := testValues[i%len(testValues)]
 		err = tx.Put(entry)
 		if err != nil {
 			t.Error(err)

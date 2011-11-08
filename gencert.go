@@ -20,7 +20,7 @@ import (
 // Generate a 2048-bit RSA keypair and a Grumble auto-generated X509
 // certificate. Output PEM-encoded DER representations of the resulting
 // certificate and private key to certpath and keypath.
-func GenerateSelfSignedCert(certpath, keypath string) (err os.Error) {
+func GenerateSelfSignedCert(certpath, keypath string) (err error) {
 	now := time.Seconds()
 	tmpl := &x509.Certificate{
 		SerialNumber: big.NewInt(0),

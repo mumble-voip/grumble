@@ -4,18 +4,18 @@
 
 package freezer
 
-import "os"
+import "errors"
 
 // Writer errors
 var (
-	ErrTxGroupFull = os.NewError("transction group is full")
-	ErrTxGroupValueTooBig = os.NewError("value too big to put inside the txgroup")
+	ErrTxGroupFull        = errors.New("transction group is full")
+	ErrTxGroupValueTooBig = errors.New("value too big to put inside the txgroup")
 )
 
 // Walker errors
 var (
-	ErrUnexpectedEndOfRecord = os.NewError("unexpected end of record")
-	ErrCRC32Mismatch = os.NewError("CRC32 mismatch")
-	ErrRemainingBytesForRecord = os.NewError("remaining bytes in record")
-	ErrRecordTooBig = os.NewError("the record in the file is too big")
+	ErrUnexpectedEndOfRecord   = errors.New("unexpected end of record")
+	ErrCRC32Mismatch           = errors.New("CRC32 mismatch")
+	ErrRemainingBytesForRecord = errors.New("remaining bytes in record")
+	ErrRecordTooBig            = errors.New("the record in the file is too big")
 )

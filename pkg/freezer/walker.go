@@ -16,8 +16,8 @@ import (
 
 // Checks whether the error err is an EOF
 // error.
-func isEOF(err os.Error) bool {
-	if err == os.EOF || err == io.ErrUnexpectedEOF {
+func isEOF(err error) bool {
+	if err == io.EOF || err == io.ErrUnexpectedEOF {
 		return true
 	}
 	return false
@@ -52,9 +52,9 @@ func newTxReader(r io.Reader) *txReader {
 
 // walkReader's Read method. Reads from walkReader's Reader
 // and checksums while reading.
-func (txr *txReader) Read(p []byte) (n int, err os.Error) {
+func (txr *txReader) Read(p []byte) (n int, err error) {
 	n, err = txr.r.Read(p)
-	if err != nil && err != os.EOF {
+	if err != nil && err != io.EOF {
 		return
 	}
 	txr.consumed += n
@@ -80,7 +80,7 @@ func (txr *txReader) Consumed() int {
 }
 
 // Create a new Walker that iterates over the entries of the given log file.
-func NewFileWalker(fn string) (walker *Walker, err os.Error) {
+func NewFileWalker(fn string) (walker *Walker, err error) {
 	f, err := os.Open(fn)
 	if err != nil {
 		return nil, err
@@ -93,7 +93,7 @@ func NewFileWalker(fn string) (walker *Walker, err os.Error) {
 }
 
 // Create a new Walker that iterates over the log entries of a given Reader.
-func NewReaderWalker(r io.Reader) (walker *Walker, err os.Error) {
+func NewReaderWalker(r io.Reader) (walker *Walker, err error) {
 	walker = new(Walker)
 	walker.r = r
 	return walker, nil
@@ -108,18 +108,18 @@ func NewReaderWalker(r io.Reader) (walker *Walker, err os.Error) {
 //
 // On error, Next returns a nil slice and a non-nil err.
 // When the end of the file is reached, Next returns nil, os.EOF.
-func (walker *Walker) Next() (entries []interface{}, err os.Error) {
+func (walker *Walker) Next() (entries []interface{}, err error) {
 	var (
-		remainBytes  uint32
-		remainOps    uint32
-		crcsum       uint32
-		kind         uint16
-		length       uint16
+		remainBytes uint32
+		remainOps   uint32
+		crcsum      uint32
+		kind        uint16
+		length      uint16
 	)
 
 	err = binary.Read(walker.r, binary.LittleEndian, &remainBytes)
 	if isEOF(err) {
-		return nil, os.EOF
+		return nil, io.EOF
 	} else if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func (walker *Walker) Next() (entries []interface{}, err os.Error) {
 		return nil, ErrUnexpectedEndOfRecord
 	}
 	if remainBytes-8 > math.MaxUint8*math.MaxUint16 {
-		return nil,  ErrRecordTooBig
+		return nil, ErrRecordTooBig
 	}
 
 	err = binary.Read(walker.r, binary.LittleEndian, &remainOps)
@@ -140,7 +140,7 @@ func (walker *Walker) Next() (entries []interface{}, err os.Error) {
 
 	err = binary.Read(walker.r, binary.LittleEndian, &crcsum)
 	if isEOF(err) {
-		return nil, ErrUnexpectedEndOfRecord	
+		return nil, ErrUnexpectedEndOfRecord
 	} else if err != nil {
 		return nil, err
 	}
@@ -151,14 +151,14 @@ func (walker *Walker) Next() (entries []interface{}, err os.Error) {
 	for remainOps > 0 {
 		err = binary.Read(reader, binary.LittleEndian, &kind)
 		if isEOF(err) {
-			break	
+			break
 		} else if err != nil {
 			return nil, err
 		}
 
 		err = binary.Read(reader, binary.LittleEndian, &length)
 		if isEOF(err) {
-			break	
+			break
 		} else if err != nil {
 			return nil, err
 		}
@@ -166,7 +166,7 @@ func (walker *Walker) Next() (entries []interface{}, err os.Error) {
 		buf := make([]byte, length)
 		_, err = io.ReadFull(reader, buf)
 		if isEOF(err) {
-			break	
+			break
 		} else if err != nil {
 			return nil, err
 		}

@@ -4,17 +4,14 @@
 
 package blobstore
 
-import (
-	"os"
-	"syscall"
-)
+import "syscall"
 
 const (
 	FILE_FLAG_DELETE_ON_CLOSE = 0x04000000
 )
 
 // Acquire a lockfile at path.
-func AcquireLockFile(path string) os.Error {
+func AcquireLockFile(path string) error {
 	handle, _ := syscall.CreateFile(syscall.StringToUTF16Ptr(path), syscall.GENERIC_WRITE, 0, nil, syscall.CREATE_ALWAYS, FILE_FLAG_DELETE_ON_CLOSE, 0)
 	if handle < 0 {
 		return ErrLocked
@@ -23,7 +20,7 @@ func AcquireLockFile(path string) os.Error {
 }
 
 // Release the lockfile at path.
-func ReleaseLockFile(path string) os.Error {
+func ReleaseLockFile(path string) error {
 	// No-op because we use FLAG_DELETE_ON_CLOSE.
 	return nil
 }

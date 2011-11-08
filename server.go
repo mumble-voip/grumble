@@ -12,6 +12,7 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"goprotobuf.googlecode.com/hg/proto"
 	"grumble/ban"
@@ -115,7 +116,7 @@ type clientLogForwarder struct {
 	logger *log.Logger
 }
 
-func (lf clientLogForwarder) Write(incoming []byte) (int, os.Error) {
+func (lf clientLogForwarder) Write(incoming []byte) (int, error) {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteString(fmt.Sprintf("<%v:%v(%v)> ", lf.client.Session, lf.client.ShownName(), lf.client.UserId()))
 	buf.Write(incoming)
@@ -124,7 +125,7 @@ func (lf clientLogForwarder) Write(incoming []byte) (int, os.Error) {
 }
 
 // Allocate a new Murmur instance
-func NewServer(id int64, addr string, port int) (s *Server, err os.Error) {
+func NewServer(id int64, addr string, port int) (s *Server, err error) {
 	s = new(Server)
 
 	s.Id = id
@@ -236,11 +237,11 @@ func (server *Server) CheckSuperUserPassword(password string) bool {
 }
 
 // Called by the server to initiate a new client connection.
-func (server *Server) NewClient(conn net.Conn) (err os.Error) {
+func (server *Server) NewClient(conn net.Conn) (err error) {
 	client := new(Client)
 	addr := conn.RemoteAddr()
 	if addr == nil {
-		err = os.NewError("Unable to extract address for client.")
+		err = errors.New("Unable to extract address for client.")
 		return
 	}
 
@@ -285,11 +286,11 @@ func (server *Server) RemoveClient(client *Client, kicked bool) {
 	}
 	server.hclients[host] = newclients
 	if client.udpaddr != nil {
-		server.hpclients[client.udpaddr.String()] = nil, false
+		delete(server.hpclients, client.udpaddr.String())
 	}
 	server.hmutex.Unlock()
 
-	server.clients[client.Session] = nil, false
+	delete(server.clients, client.Session)
 	server.pool.Reclaim(client.Session)
 
 	// Remove client from channel
@@ -327,7 +328,7 @@ func (server *Server) RemoveChanel(channel *Channel) {
 		return
 	}
 
-	server.Channels[channel.Id] = nil, false
+	delete(server.Channels, channel.Id)
 }
 
 // Link two channels
@@ -338,8 +339,8 @@ func (server *Server) LinkChannels(channel *Channel, other *Channel) {
 
 // Unlink two channels
 func (server *Server) UnlinkChannels(channel *Channel, other *Channel) {
-	channel.Links[other.Id] = nil, false
-	other.Links[channel.Id] = nil, false
+	delete(channel.Links, other.Id)
+	delete(other.Links, channel.Id)
 }
 
 // This is the synchronous handler goroutine.
@@ -580,7 +581,7 @@ func (server *Server) finishAuthenticate(client *Client) {
 			} else {
 				buf, err := blobstore.Get(client.user.TextureBlob)
 				if err != nil {
-					server.Panicf("Blobstore error: %v", err.String())
+					server.Panicf("Blobstore error: %v", err.Error())
 				}
 				userstate.Texture = buf
 			}
@@ -593,7 +594,7 @@ func (server *Server) finishAuthenticate(client *Client) {
 			} else {
 				buf, err := blobstore.Get(client.user.CommentBlob)
 				if err != nil {
-					server.Panicf("Blobstore error: %v", err.String())
+					server.Panicf("Blobstore error: %v", err.Error())
 				}
 				userstate.Comment = proto.String(string(buf))
 			}
@@ -729,7 +730,7 @@ func (server *Server) sendUserList(client *Client) {
 				} else {
 					buf, err := blobstore.Get(connectedClient.user.TextureBlob)
 					if err != nil {
-						server.Panicf("Blobstore error: %v", err.String())
+						server.Panicf("Blobstore error: %v", err.Error())
 					}
 					userstate.Texture = buf
 				}
@@ -742,7 +743,7 @@ func (server *Server) sendUserList(client *Client) {
 				} else {
 					buf, err := blobstore.Get(connectedClient.user.CommentBlob)
 					if err != nil {
-						server.Panicf("Blobstore error: %v", err.String())
+						server.Panicf("Blobstore error: %v", err.Error())
 					}
 					userstate.Comment = proto.String(string(buf))
 				}
@@ -802,7 +803,7 @@ func (server *Server) sendClientPermissions(client *Client, channel *Channel) {
 
 type ClientPredicate func(client *Client) bool
 
-func (server *Server) broadcastProtoMessageWithPredicate(msg interface{}, clientcheck ClientPredicate) (err os.Error) {
+func (server *Server) broadcastProtoMessageWithPredicate(msg interface{}, clientcheck ClientPredicate) error {
 	for _, client := range server.clients {
 		if !clientcheck(client) {
 			continue
@@ -812,14 +813,14 @@ func (server *Server) broadcastProtoMessageWithPredicate(msg interface{}, client
 		}
 		err := client.sendProtoMessage(msg)
 		if err != nil {
-			return
+			return err
 		}
 	}
 
-	return
+	return nil
 }
 
-func (server *Server) broadcastProtoMessage(msg interface{}) (err os.Error) {
+func (server *Server) broadcastProtoMessage(msg interface{}) (err error) {
 	err = server.broadcastProtoMessageWithPredicate(msg, func(client *Client) bool { return true })
 	return
 }
@@ -863,7 +864,7 @@ func (server *Server) handleIncomingMessage(client *Client, msg *Message) {
 	}
 }
 
-func (s *Server) SetupUDP() (err os.Error) {
+func (s *Server) SetupUDP() (err error) {
 	addr := &net.UDPAddr{
 		net.ParseIP(s.address),
 		s.port,
@@ -1016,7 +1017,7 @@ func (server *Server) userEnterChannel(client *Client, channel *Channel, usersta
 }
 
 // Register a client on the server.
-func (s *Server) RegisterClient(client *Client) (uid uint32, err os.Error) {
+func (s *Server) RegisterClient(client *Client) (uid uint32, err error) {
 	// Increment nextUserId only if registration succeeded.
 	defer func() {
 		if err == nil {
@@ -1031,7 +1032,7 @@ func (s *Server) RegisterClient(client *Client) (uid uint32, err os.Error) {
 
 	// Grumble can only register users with certificates.
 	if len(client.CertHash) == 0 {
-		return 0, os.NewError("no cert hash")
+		return 0, errors.New("no cert hash")
 	}
 
 	user.Email = client.Email
@@ -1046,16 +1047,16 @@ func (s *Server) RegisterClient(client *Client) (uid uint32, err os.Error) {
 }
 
 // Remove a registered user.
-func (s *Server) RemoveRegistration(uid uint32) (err os.Error) {
+func (s *Server) RemoveRegistration(uid uint32) (err error) {
 	user, ok := s.Users[uid]
 	if !ok {
-		return os.NewError("Unknown user ID")
+		return errors.New("Unknown user ID")
 	}
 
 	// Remove from user maps
-	s.Users[uid] = nil, false
-	s.UserCertMap[user.CertHash] = nil, false
-	s.UserNameMap[user.Name] = nil, false
+	delete(s.Users, uid)
+	delete(s.UserCertMap, user.CertHash)
+	delete(s.UserNameMap, user.Name)
 
 	// Remove from groups and ACLs.
 	s.removeRegisteredUserFromChannel(uid, s.RootChannel())
@@ -1077,13 +1078,13 @@ func (s *Server) removeRegisteredUserFromChannel(uid uint32, channel *Channel) {
 
 	for _, grp := range channel.Groups {
 		if _, ok := grp.Add[int(uid)]; ok {
-			grp.Add[int(uid)] = false, false
+			delete(grp.Add, int(uid))
 		}
 		if _, ok := grp.Remove[int(uid)]; ok {
-			grp.Remove[int(uid)] = false, false
+			delete(grp.Remove, int(uid))
 		}
 		if _, ok := grp.Temporary[int(uid)]; ok {
-			grp.Temporary[int(uid)] = false, false
+			delete(grp.Temporary, int(uid))
 		}
 	}
 
@@ -1101,7 +1102,7 @@ func (server *Server) RemoveChannel(channel *Channel) {
 
 	// Remove all links
 	for _, linkedChannel := range channel.Links {
-		linkedChannel.Links[channel.Id] = nil, false
+		delete(linkedChannel.Links, channel.Id)
 	}
 
 	// Remove all subchannels
@@ -1127,8 +1128,8 @@ func (server *Server) RemoveChannel(channel *Channel) {
 
 	// Remove the channel itself
 	parent := channel.parent
-	parent.children[channel.Id] = nil, false
-	server.Channels[channel.Id] = nil, false
+	delete(parent.children, channel.Id)
+	delete(server.Channels, channel.Id)
 	chanremove := &mumbleproto.ChannelRemove{
 		ChannelId: proto.Uint32(uint32(channel.Id)),
 	}
@@ -1153,7 +1154,7 @@ func (server *Server) IsBanned(conn net.Conn) bool {
 }
 
 // Filter incoming text according to the server's current rules.
-func (server *Server) FilterText(text string) (filtered string, err os.Error) {
+func (server *Server) FilterText(text string) (filtered string, err error) {
 	options := &htmlfilter.Options{
 		StripHTML:             !server.cfg.BoolValue("AllowHTML"),
 		MaxTextMessageLength:  server.cfg.IntValue("MaxTextMessageLength"),

@@ -4,9 +4,7 @@
 
 package main
 
-import (
-	"os"
-)
+import "errors"
 
 type ControlRPC struct {
 
@@ -19,30 +17,30 @@ type KeyValuePair struct {
 }
 
 // Start a server
-func (c *ControlRPC) Start(Id int64, out *int64) os.Error {
+func (c *ControlRPC) Start(Id int64, out *int64) error {
 	server, exists := servers[Id]
 	if !exists {
-		return os.NewError("no such server")
+		return errors.New("no such server")
 	}
 	_ = server
 	return nil
 }
 
 // Stop a server
-func (c *ControlRPC) Stop(Id int64, out *int) os.Error {
+func (c *ControlRPC) Stop(Id int64, out *int) error {
 	server, exists := servers[Id]
 	if !exists {
-		return os.NewError("no such server")
+		return errors.New("no such server")
 	}
 	_ = server
 	return nil
 }
 
 // Set SuperUser password
-func (c *ControlRPC) SetSuperUserPassword(in *KeyValuePair, out *int64) os.Error {
+func (c *ControlRPC) SetSuperUserPassword(in *KeyValuePair, out *int64) error {
 	server, exists := servers[in.Id]
 	if !exists {
-		return os.NewError("no such server")
+		return errors.New("no such server")
 	}
 	server.SetSuperUserPassword(in.Value)
 	*out = in.Id
@@ -50,10 +48,10 @@ func (c *ControlRPC) SetSuperUserPassword(in *KeyValuePair, out *int64) os.Error
 }
 
 // Set a config value
-func (c *ControlRPC) SetConfig(in *KeyValuePair, out *KeyValuePair) os.Error {
+func (c *ControlRPC) SetConfig(in *KeyValuePair, out *KeyValuePair) error {
 	server, exists := servers[in.Id]
 	if !exists {
-		return os.NewError("no such server")
+		return errors.New("no such server")
 	}
 	server.cfg.Set(in.Key, in.Value)
 	server.cfgUpdate <- in
@@ -64,10 +62,10 @@ func (c *ControlRPC) SetConfig(in *KeyValuePair, out *KeyValuePair) os.Error {
 }
 
 // Get a config value
-func (c *ControlRPC) GetConfig(in *KeyValuePair, out *KeyValuePair) os.Error {
+func (c *ControlRPC) GetConfig(in *KeyValuePair, out *KeyValuePair) error {
 	server, exists := servers[in.Id]
 	if !exists {
-		return os.NewError("no such server")
+		return errors.New("no such server")
 	}
 	out.Id = in.Id
 	out.Key = in.Key

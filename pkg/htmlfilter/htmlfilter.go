@@ -6,7 +6,8 @@ package htmlfilter
 
 import (
 	"bytes"
-	"os"
+	"errors"
+	"io"
 	"strings"
 	"xml"
 )
@@ -24,12 +25,12 @@ var defaultOptions Options = Options{
 }
 
 var (
-	ErrExceedsTextMessageLength = os.NewError("Exceeds text message length")
-	ErrExceedsImageMessageLength = os.NewError("Exceeds image message length")
+	ErrExceedsTextMessageLength  = errors.New("Exceeds text message length")
+	ErrExceedsImageMessageLength = errors.New("Exceeds image message length")
 )
 
 // Filter text according to options.
-func Filter(text string, options *Options) (filtered string, err os.Error) {
+func Filter(text string, options *Options) (filtered string, err error) {
 	// This function filters incoming text from clients according to the three options:
 	//
 	// StripHTML:
@@ -64,7 +65,7 @@ func Filter(text string, options *Options) (filtered string, err os.Error) {
 			parser.Entity = xml.HTMLEntity
 			for {
 				tok, err := parser.Token()
-				if err == os.EOF {
+				if err == io.EOF {
 					break
 				} else if err != nil {
 					return "", err
@@ -117,7 +118,7 @@ func Filter(text string, options *Options) (filtered string, err os.Error) {
 		parser.Entity = xml.HTMLEntity
 		for {
 			tok, err := parser.Token()
-			if err == os.EOF {
+			if err == io.EOF {
 				break
 			} else if err != nil {
 				return "", err

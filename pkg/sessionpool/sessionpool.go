@@ -86,7 +86,7 @@ func (pool *SessionPool) Reclaim(id uint32) {
 		if !inUse {
 			panic("Attempt to reclaim invalid session ID")
 		}
-		pool.used[id] = false, false
+		delete(pool.used, id)
 	}
 
 	pool.unused = append(pool.unused, id)

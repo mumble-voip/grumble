@@ -14,7 +14,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"os"
 	"packetdatastream"
 	"time"
 )
@@ -196,7 +195,7 @@ func (client *Client) RejectAuth(rejectType mumbleproto.Reject_RejectType, reaso
 }
 
 // Read a protobuf message from a client
-func (client *Client) readProtoMessage() (msg *Message, err os.Error) {
+func (client *Client) readProtoMessage() (msg *Message, err error) {
 	var (
 		length uint32
 		kind   uint16
@@ -230,7 +229,7 @@ func (client *Client) readProtoMessage() (msg *Message, err os.Error) {
 }
 
 // Send a protobuf-encoded message
-func (c *Client) sendProtoMessage(msg interface{}) (err os.Error) {
+func (c *Client) sendProtoMessage(msg interface{}) (err error) {
 	d, err := proto.Marshal(msg)
 	if err != nil {
 		return
@@ -277,7 +276,7 @@ func (c *Client) sendPermissionDenied(who *Client, where *Channel, what Permissi
 		Type:       mumbleproto.NewPermissionDenied_DenyType(mumbleproto.PermissionDenied_Permission),
 	})
 	if err != nil {
-		c.Panicf(err.String())
+		c.Panicf(err.Error())
 	}
 	c.msgchan <- &Message{
 		buf:  d,
@@ -370,7 +369,7 @@ func (client *Client) sendUdp(msg *Message) {
 // This method should only be called from within the client's own
 // sender goroutine, since it serializes access to the underlying
 // buffered writer.
-func (client *Client) sendMessage(msg *Message) os.Error {
+func (client *Client) sendMessage(msg *Message) error {
 	// Write message kind
 	err := binary.Write(client.writer, binary.BigEndian, msg.kind)
 	if err != nil {
@@ -432,7 +431,7 @@ func (client *Client) receiver() {
 			// Try to read the next message in the pool
 			msg, err := client.readProtoMessage()
 			if err != nil {
-				if err == os.EOF {
+				if err == io.EOF {
 					client.Disconnect()
 				} else {
 					client.Panicf("%v", err)
@@ -454,7 +453,7 @@ func (client *Client) receiver() {
 			// Try to read the next message in the pool
 			msg, err := client.readProtoMessage()
 			if err != nil {
-				if err == os.EOF {
+				if err == io.EOF {
 					client.Disconnect()
 				} else {
 					client.Panicf("%v", err)
@@ -492,7 +491,7 @@ func (client *Client) receiver() {
 		} else if client.state == StateServerSentVersion {
 			msg, err := client.readProtoMessage()
 			if err != nil {
-				if err == os.EOF {
+				if err == io.EOF {
 					client.Disconnect()
 				} else {
 					client.Panicf("%v", err)

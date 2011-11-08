@@ -17,14 +17,14 @@ import (
 func TestMakeAllCreateAll(t *testing.T) {
 	dir, err := ioutil.TempDir("", "blobstore")
 	if err != nil {
-		t.Errorf(err.String())
+		t.Error(err)
 		return
 	}
 	defer os.RemoveAll(dir)
 
 	bs, err := NewBlobStore(dir, true)
 	if err != nil {
-		t.Errorf(err.String())
+		t.Error(err)
 		return
 	}
 	defer bs.Close()
@@ -35,7 +35,7 @@ func TestMakeAllCreateAll(t *testing.T) {
 			dirname := filepath.Join(dir, hex.EncodeToString([]byte{byte(i)}), hex.EncodeToString([]byte{byte(j)}))
 			fi, err := os.Stat(dirname)
 			if err != nil {
-				t.Errorf(err.String())
+				t.Error(err)
 			}
 			if !fi.IsDirectory() {
 				t.Errorf("Not a directory")
@@ -47,65 +47,65 @@ func TestMakeAllCreateAll(t *testing.T) {
 func TestAllInvalidFiles(t *testing.T) {
 	dir, err := ioutil.TempDir("", "blobstore")
 	if err != nil {
-		t.Errorf(err.String())
+		t.Error(err)
 		return
 	}
 	defer os.RemoveAll(dir)
 
 	err = ioutil.WriteFile(filepath.Join(dir, "00"), []byte{0x0f, 0x00}, 0600)
 	if err != nil {
-		t.Errorf(err.String())
+		t.Error(err)
 	}
 
 	_, err = NewBlobStore(dir, true)
 	if err == ErrBadFile {
 		// Success
 	} else if err != nil {
-		t.Errorf(err.String())
+		t.Error(err)
 	} else {
-		t.Errorf("NewBlobStore returned without error")
+		t.Error("NewBlobStore returned without error")
 	}
 }
 
 func TestAllInvalidFilesLevel2(t *testing.T) {
 	dir, err := ioutil.TempDir("", "blobstore")
 	if err != nil {
-		t.Errorf(err.String())
+		t.Error(err)
 		return
 	}
 	defer os.RemoveAll(dir)
 
 	err = os.Mkdir(filepath.Join(dir, "00"), 0700)
 	if err != nil {
-		t.Errorf(err.String())
+		t.Error(err)
 	}
 
 	err = ioutil.WriteFile(filepath.Join(dir, "00", "00"), []byte{0x0f, 0x00}, 0600)
 	if err != nil {
-		t.Errorf(err.String())
+		t.Error(err)
 	}
 
 	_, err = NewBlobStore(dir, true)
 	if err == ErrBadFile {
 		// Success
 	} else if err != nil {
-		t.Errorf(err.String())
+		t.Error(err)
 	} else {
-		t.Errorf("NewBlobStore returned without error")
+		t.Error("NewBlobStore returned without error")
 	}
 }
 
 func TestStoreRetrieve(t *testing.T) {
 	dir, err := ioutil.TempDir("", "blobstore")
 	if err != nil {
-		t.Errorf(err.String())
+		t.Error(err)
 		return
 	}
 	defer os.RemoveAll(dir)
 
 	bs, err := NewBlobStore(dir, false)
 	if err != nil {
-		t.Errorf(err.String())
+		t.Error(err)
 		return
 	}
 	defer bs.Close()
@@ -114,13 +114,13 @@ func TestStoreRetrieve(t *testing.T) {
 
 	key, err := bs.Put(data)
 	if err != nil {
-		t.Errorf(err.String())
+		t.Error(err)
 		return
 	}
 
 	recv, err := bs.Get(key)
 	if err != nil {
-		t.Errorf(err.String())
+		t.Error(err)
 	}
 
 	if !bytes.Equal(recv, data) {
@@ -131,14 +131,14 @@ func TestStoreRetrieve(t *testing.T) {
 func TestReadNonExistantKey(t *testing.T) {
 	dir, err := ioutil.TempDir("", "blobstore")
 	if err != nil {
-		t.Errorf(err.String())
+		t.Error(err)
 		return
 	}
 	defer os.RemoveAll(dir)
 
 	bs, err := NewBlobStore(dir, false)
 	if err != nil {
-		t.Errorf(err.String())
+		t.Error(err)
 		return
 	}
 	defer bs.Close()
@@ -148,7 +148,7 @@ func TestReadNonExistantKey(t *testing.T) {
 	key := hex.EncodeToString(h.Sum())
 	buf, err := bs.Get(key)
 	if err != ErrNoSuchKey {
-		t.Errorf("Expected no such key %v, found it anyway. (buf=%v, err=%v)", key, buf, err)
+		t.Error("Expected no such key %v, found it anyway. (buf=%v, err=%v)", key, buf, err)
 		return
 	}
 }
@@ -156,13 +156,13 @@ func TestReadNonExistantKey(t *testing.T) {
 func TestReadInvalidKeyLength(t *testing.T) {
 	dir, err := ioutil.TempDir("", "blobstore")
 	if err != nil {
-		t.Errorf(err.String())
+		t.Error(err)
 	}
 	defer os.RemoveAll(dir)
 
 	bs, err := NewBlobStore(dir, false)
 	if err != nil {
-		t.Errorf(err.String())
+		t.Error(err)
 		return
 	}
 	defer bs.Close()
@@ -174,7 +174,7 @@ func TestReadInvalidKeyLength(t *testing.T) {
 
 	_, err = bs.Get(key)
 	if err != ErrInvalidKey {
-		t.Errorf("Expected invalid key for %v, got %v", key, err)
+		t.Error("Expected invalid key for %v, got %v", key, err)
 		return
 	}
 }
@@ -182,14 +182,14 @@ func TestReadInvalidKeyLength(t *testing.T) {
 func TestReadInvalidKeyNonHex(t *testing.T) {
 	dir, err := ioutil.TempDir("", "blobstore")
 	if err != nil {
-		t.Errorf(err.String())
+		t.Error(err)
 		return
 	}
 	defer os.RemoveAll(dir)
 
 	bs, err := NewBlobStore(dir, false)
 	if err != nil {
-		t.Errorf(err.String())
+		t.Error(err)
 		return
 	}
 	defer bs.Close()
@@ -209,26 +209,26 @@ func TestReadInvalidKeyNonHex(t *testing.T) {
 func TestDefaultBlobStore(t *testing.T) {
 	dir, err := ioutil.TempDir("", "blobstore")
 	if err != nil {
-		t.Errorf(err.String())
+		t.Error(err)
 		return
 	}
 	defer os.RemoveAll(dir)
 
 	err = Open(dir, false)
 	if err != nil {
-		t.Errorf(err.String())
+		t.Error(err)
 	}
 
 	data := []byte{0xf, 0x0, 0x0, 0xb, 0xa, 0xf}
 
 	key, err := Put(data)
 	if err != nil {
-		t.Errorf(err.String())
+		t.Error(err)
 	}
 
 	fetchedData, err := Get(key)
 	if err != nil {
-		t.Errorf(err.String())
+		t.Error(err)
 	}
 
 	if !bytes.Equal(fetchedData, data) {

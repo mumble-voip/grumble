@@ -6,8 +6,8 @@ package main
 
 import (
 	"log"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 type Group struct {
@@ -117,7 +117,7 @@ func (group *Group) Members() map[int]bool {
 			members[uid] = true
 		}
 		for uid, _ := range curgroup.Remove {
-			members[uid] = false, false
+			delete(members, uid)
 		}
 	}
 
@@ -374,7 +374,7 @@ func (channel *Channel) GroupNames() map[string]bool {
 		for _, group := range iter.Groups {
 			// A non-inheritable group in parent. Discard it.
 			if channel != iter && !group.Inheritable {
-				names[group.Name] = false, false
+				delete(names, group.Name)
 				// An inheritable group. Add it to the list.
 			} else {
 				names[group.Name] = true

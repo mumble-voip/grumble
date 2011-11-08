@@ -13,17 +13,14 @@ import (
 	"encoding/hex"
 	"http"
 	"io/ioutil"
-	"net"
-	"os"
-	"url"
 	"xml"
 )
 
 type Register struct {
-	XMLName  xml.Name `xml:"server"`
+	XMLName xml.Name `xml:"server"`
 	//MacHash  string   `xml:"machash"`
-	Version  string   `xml:"version"`
-	Release  string   `xml:"release"`
+	Version string `xml:"version"`
+	Release string `xml:"release"`
 	//OS       string   `xml:"os"`
 	//OSVer    string   `xml:"osver"`
 	//Qt       string   `xml:"qt"`
@@ -31,41 +28,21 @@ type Register struct {
 	//CpuId    string   `xml:"cpuid"`
 	//CpuIdExt string   `xml:"cpuidext"`
 	//CpuSSE2  bool     `xml:"cpusse2"`
-	Name     string   `xml:"name"`
-	Host     string   `xml:"host"`
-	Password string   `xml:"password"`
-	Port     int      `xml:"port"`
-	Url      string   `xml:"url"`
-	Digest   string   `xml:"digest"`
-	Users    int      `xml:"users"`
-	Channels int      `xml:"channels"`
-	Location string   `xml:"location"`
+	Name     string `xml:"name"`
+	Host     string `xml:"host"`
+	Password string `xml:"password"`
+	Port     int    `xml:"port"`
+	Url      string `xml:"url"`
+	Digest   string `xml:"digest"`
+	Users    int    `xml:"users"`
+	Channels int    `xml:"channels"`
+	Location string `xml:"location"`
 }
 
 const (
 	registerAddr = "mumble.hive.no:443"
 	registerUrl  = "https://mumble.hive.no/register.cgi"
 )
-
-// Create a persistent HTTP ClientConn to server at addr with TLS configuration cfg.
-func newTLSClientAuthConn(addr string, cfg *tls.Config) (c *http.ClientConn, err os.Error) {
-	tcpaddr, err := net.ResolveTCPAddr("tcp", addr)
-	if err != nil {
-		return nil, err
-	}
-
-	tcpconn, err := net.DialTCP("tcp", nil, tcpaddr)
-	if err != nil {
-		return nil, err
-	}
-
-	tlsconn := tls.Client(tcpconn, cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	return http.NewClientConn(tlsconn, nil), nil
-}
 
 // Determines whether a server is public by checking whether the
 // config values required for public registration are set.
@@ -135,41 +112,16 @@ func (server *Server) RegisterPublicServer() {
 
 	// Post registration XML data to server asynchronously in its own goroutine
 	go func() {
-		// Go's http package does not allow HTTP clients to set their own
-		// certificate chain, so we use our own wrapper instead.
-		hc, err := newTLSClientAuthConn(registerAddr, config)
+		tr := &http.Transport{
+			TLSClientConfig:    config,
+			DisableCompression: true,
+		}
+		client := &http.Client{Transport: tr}
+		r, err := client.Post(registerUrl, "text/xml", ioutil.NopCloser(buf))
 		if err != nil {
-			server.Printf("register: unable to create https client: %v", err)
-			return
-		}
-		defer hc.Close()
-
-		// The master registration server requires
-		// that a Content-Length be specified in incoming HTTP requests.
-		// Make sure we don't send a chunked request by hand-crafting it.
-		var req http.Request
-		req.Method = "POST"
-		req.ProtoMajor = 1
-		req.ProtoMinor = 1
-		req.Close = true
-		req.Body = ioutil.NopCloser(buf)
-		req.ContentLength = int64(buf.Len())
-		req.Header = http.Header{
-			"Content-Type": {"text/xml"},
-		}
-
-		req.URL, err = url.Parse(registerUrl)
-		if err != nil {
-			server.Printf("register: error parsing url: %v", err)
-			return
-		}
-
-		r, err := hc.Do(&req)
-		if err != nil && err != http.ErrPersistEOF {
 			server.Printf("register: unable to post registration request: %v", err)
 			return
 		}
-
 		bodyBytes, err := ioutil.ReadAll(r.Body)
 		if err == nil {
 			registerMsg := string(bodyBytes)

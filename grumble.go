@@ -19,7 +19,7 @@ import (
 var servers map[int64]*Server
 
 func main() {
-	var err os.Error
+	var err error
 
 	flag.Parse()
 	if Args.ShowHelp == true {
@@ -35,13 +35,13 @@ func main() {
 	}
 
 	log.SetPrefix("[G] ")
-	log.SetFlags(log.LstdFlags|log.Lmicroseconds)
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 	log.Printf("Grumble")
 
 	log.Printf("Using blob directory: %s", Args.BlobDir)
 	err = blobstore.Open(Args.BlobDir, true)
 	if err != nil {
-		log.Fatalf("Unable to initialize blobstore: %v", err.String())
+		log.Fatalf("Unable to initialize blobstore: %v", err.Error())
 	}
 
 	if Args.GenerateCert {
@@ -67,13 +67,13 @@ func main() {
 	if SQLiteSupport && len(Args.SQLiteDB) > 0 {
 		f, err := os.Open(Args.DataDir)
 		if err != nil {
-			log.Fatalf("Murmur import failed: %s", err.String())
+			log.Fatalf("Murmur import failed: %s", err.Error())
 		}
 		defer f.Close()
 
 		names, err := f.Readdirnames(-1)
 		if err != nil {
-			log.Fatalf("Murmur import failed: %s", err.String())
+			log.Fatalf("Murmur import failed: %s", err.Error())
 		}
 
 		if !Args.CleanUp && len(names) > 0 {
@@ -90,7 +90,7 @@ func main() {
 
 		log.Printf("Importing Murmur data from '%s'", Args.SQLiteDB)
 		if err = MurmurImport(Args.SQLiteDB); err != nil {
-			log.Fatalf("Murmur import failed: %s", err.String())
+			log.Fatalf("Murmur import failed: %s", err.Error())
 		}
 
 		log.Printf("Import from Murmur SQLite database succeeded.")
@@ -130,7 +130,7 @@ func main() {
 	if len(servers) == 0 {
 		s, err := NewServer(1, "0.0.0.0", 64738)
 		if err != nil {
-			log.Fatalf("Couldn't start server: %s", err.String())
+			log.Fatalf("Couldn't start server: %s", err.Error())
 		}
 
 		servers[s.Id] = s

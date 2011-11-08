@@ -10,6 +10,7 @@ package main
 // SQLite datbase into a format that Grumble can understand.
 
 import (
+	"errors"
 	"grumble/ban"
 	"grumble/blobstore"
 	"grumble/sqlite"
@@ -37,15 +38,15 @@ const (
 const SQLiteSupport = true
 
 // Import the structure of an existing Murmur SQLite database.
-func MurmurImport(filename string) (err os.Error) {
+func MurmurImport(filename string) (err error) {
 	db, err := sqlite.Open(filename)
 	if err != nil {
-		panic(err.String())
+		panic(err.Error())
 	}
 
 	stmt, err := db.Prepare("SELECT server_id FROM servers")
 	if err != nil {
-		panic(err.String())
+		panic(err.Error())
 	}
 
 	var serverids []int64
@@ -80,7 +81,7 @@ func MurmurImport(filename string) (err os.Error) {
 }
 
 // Create a new Server from a Murmur SQLite database
-func NewServerFromSQLite(id int64, db *sqlite.Conn) (s *Server, err os.Error) {
+func NewServerFromSQLite(id int64, db *sqlite.Conn) (s *Server, err error) {
 	s, err = NewServer(id, "", int(DefaultPort+id-1))
 	if err != nil {
 		return nil, err
@@ -125,7 +126,7 @@ func NewServerFromSQLite(id int64, db *sqlite.Conn) (s *Server, err os.Error) {
 }
 
 // Add channel metadata (channel_info table from SQLite) by reading the SQLite database.
-func populateChannelInfoFromDatabase(server *Server, c *Channel, db *sqlite.Conn) os.Error {
+func populateChannelInfoFromDatabase(server *Server, c *Channel, db *sqlite.Conn) error {
 	stmt, err := db.Prepare("SELECT value FROM channel_info WHERE server_id=? AND channel_id=? AND key=?")
 	if err != nil {
 		return err
@@ -172,7 +173,7 @@ func populateChannelInfoFromDatabase(server *Server, c *Channel, db *sqlite.Conn
 }
 
 // Populate channel with its ACLs by reading the SQLite databse.
-func populateChannelACLFromDatabase(server *Server, c *Channel, db *sqlite.Conn) os.Error {
+func populateChannelACLFromDatabase(server *Server, c *Channel, db *sqlite.Conn) error {
 	stmt, err := db.Prepare("SELECT user_id, group_name, apply_here, apply_sub, grantpriv, revokepriv FROM acl WHERE server_id=? AND channel_id=? ORDER BY priority")
 	if err != nil {
 		return err
@@ -206,7 +207,7 @@ func populateChannelACLFromDatabase(server *Server, c *Channel, db *sqlite.Conn)
 		} else if len(Group) > 0 {
 			acl.Group = Group
 		} else {
-			return os.NewError("Invalid ACL: Neither Group or UserId specified")
+			return errors.New("Invalid ACL: Neither Group or UserId specified")
 		}
 
 		acl.Deny = Permission(Deny)
@@ -218,7 +219,7 @@ func populateChannelACLFromDatabase(server *Server, c *Channel, db *sqlite.Conn)
 }
 
 // Populate channel with groups by reading the SQLite database.
-func populateChannelGroupsFromDatabase(server *Server, c *Channel, db *sqlite.Conn) os.Error {
+func populateChannelGroupsFromDatabase(server *Server, c *Channel, db *sqlite.Conn) error {
 	stmt, err := db.Prepare("SELECT group_id, name, inherit, inheritable FROM groups WHERE server_id=? AND channel_id=?")
 	if err != nil {
 		return err
@@ -281,10 +282,10 @@ func populateChannelGroupsFromDatabase(server *Server, c *Channel, db *sqlite.Co
 }
 
 // Populate the Server with Channels from the database.
-func populateChannelsFromDatabase(server *Server, db *sqlite.Conn, parentId int) os.Error {
+func populateChannelsFromDatabase(server *Server, db *sqlite.Conn, parentId int) error {
 	parent, exists := server.Channels[parentId]
 	if !exists {
-		return os.NewError("Non-existant parent")
+		return errors.New("Non-existant parent")
 	}
 
 	stmt, err := db.Prepare("SELECT channel_id, name, inheritacl FROM channels WHERE server_id=? AND parent_id=?")
@@ -350,7 +351,7 @@ func populateChannelsFromDatabase(server *Server, db *sqlite.Conn, parentId int)
 }
 
 // Link a Server's channels together
-func populateChannelLinkInfo(server *Server, db *sqlite.Conn) (err os.Error) {
+func populateChannelLinkInfo(server *Server, db *sqlite.Conn) (err error) {
 	stmt, err := db.Prepare("SELECT channel_id, link_id FROM channel_links WHERE server_id=?")
 	if err != nil {
 		return err
@@ -371,12 +372,12 @@ func populateChannelLinkInfo(server *Server, db *sqlite.Conn) (err os.Error) {
 
 		channel, exists := server.Channels[ChannelId]
 		if !exists {
-			return os.NewError("Attempt to perform link operation on non-existant channel.")
+			return errors.New("Attempt to perform link operation on non-existant channel.")
 		}
 
 		other, exists := server.Channels[LinkId]
 		if !exists {
-			return os.NewError("Attempt to perform link operation on non-existant channel.")
+			return errors.New("Attempt to perform link operation on non-existant channel.")
 		}
 
 		server.LinkChannels(channel, other)
@@ -385,7 +386,7 @@ func populateChannelLinkInfo(server *Server, db *sqlite.Conn) (err os.Error) {
 	return nil
 }
 
-func populateUsers(server *Server, db *sqlite.Conn) (err os.Error) {
+func populateUsers(server *Server, db *sqlite.Conn) (err error) {
 	// Populate the server with regular user data
 	stmt, err := db.Prepare("SELECT user_id, name, pw, lastchannel, texture, strftime('%s', last_active) FROM users WHERE server_id=?")
 	if err != nil {
@@ -413,7 +414,7 @@ func populateUsers(server *Server, db *sqlite.Conn) (err os.Error) {
 		}
 
 		if UserId == 0 {
-			server.cfg.Set("SuperUserPassword", "sha1$$" + SHA1Password)
+			server.cfg.Set("SuperUserPassword", "sha1$$"+SHA1Password)
 		}
 
 		user, err := NewUser(uint32(UserId), UserName)
@@ -488,7 +489,7 @@ func populateUsers(server *Server, db *sqlite.Conn) (err os.Error) {
 }
 
 // Populate bans
-func populateBans(server *Server, db *sqlite.Conn) (err os.Error) {
+func populateBans(server *Server, db *sqlite.Conn) (err error) {
 	stmt, err := db.Prepare("SELECT base, mask, name, hash, reason, start, duration FROM bans WHERE server_id=?")
 	if err != nil {
 		return
@@ -501,10 +502,10 @@ func populateBans(server *Server, db *sqlite.Conn) (err os.Error) {
 
 	for stmt.Next() {
 		var (
-			Ban ban.Ban
-			IP []byte
+			Ban       ban.Ban
+			IP        []byte
 			StartDate string
-			Duration int64
+			Duration  int64
 		)
 
 		err = stmt.Scan(&IP, &Ban.Mask, &Ban.Username, &Ban.CertHash, &Ban.Reason, &StartDate, &Duration)

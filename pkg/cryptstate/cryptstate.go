@@ -8,7 +8,7 @@ package cryptstate
 import (
 	"crypto/aes"
 	"crypto/rand"
-	"os"
+	"errors"
 	"time"
 )
 
@@ -20,27 +20,27 @@ type CryptState struct {
 	DecryptIV      [aes.BlockSize]byte
 	decryptHistory [DecryptHistorySize]byte
 
-	LastGoodTime   int64
+	LastGoodTime int64
 
-	Good           uint32
-	Late           uint32
-	Lost           uint32
-	Resync         uint32
-	RemoteGood     uint32
-	RemoteLate     uint32
-	RemoteLost     uint32
-	RemoteResync   uint32
+	Good         uint32
+	Late         uint32
+	Lost         uint32
+	Resync       uint32
+	RemoteGood   uint32
+	RemoteLate   uint32
+	RemoteLost   uint32
+	RemoteResync uint32
 
 	cipher *aes.Cipher
 }
 
-func New() (cs *CryptState, err os.Error) {
+func New() (cs *CryptState, err error) {
 	cs = new(CryptState)
 
 	return
 }
 
-func (cs *CryptState) GenerateKey() (err os.Error) {
+func (cs *CryptState) GenerateKey() (err error) {
 	rand.Read(cs.RawKey[0:])
 	rand.Read(cs.EncryptIV[0:])
 	rand.Read(cs.DecryptIV[0:])
@@ -53,19 +53,19 @@ func (cs *CryptState) GenerateKey() (err os.Error) {
 	return
 }
 
-func (cs *CryptState) SetKey(key []byte, eiv []byte, div []byte) (err os.Error) {
+func (cs *CryptState) SetKey(key []byte, eiv []byte, div []byte) (err error) {
 	if copy(cs.RawKey[0:], key[0:]) != aes.BlockSize {
-		err = os.NewError("Unable to copy key")
+		err = errors.New("Unable to copy key")
 		return
 	}
 
 	if copy(cs.EncryptIV[0:], eiv[0:]) != aes.BlockSize {
-		err = os.NewError("Unable to copy EIV")
+		err = errors.New("Unable to copy EIV")
 		return
 	}
 
 	if copy(cs.DecryptIV[0:], div[0:]) != aes.BlockSize {
-		err = os.NewError("Unable to copy DIV")
+		err = errors.New("Unable to copy DIV")
 		return
 	}
 
@@ -77,15 +77,15 @@ func (cs *CryptState) SetKey(key []byte, eiv []byte, div []byte) (err os.Error) 
 	return
 }
 
-func (cs *CryptState) Decrypt(dst, src []byte) (err os.Error) {
+func (cs *CryptState) Decrypt(dst, src []byte) (err error) {
 	if len(src) < 4 {
-		err = os.NewError("Crypted length too short to decrypt")
+		err = errors.New("Crypted length too short to decrypt")
 		return
 	}
 
 	plain_len := len(src) - 4
 	if len(dst) != plain_len {
-		err = os.NewError("plain_len and src len mismatch")
+		err = errors.New("plain_len and src len mismatch")
 		return
 	}
 
@@ -100,7 +100,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err os.Error) {
 	restore = false
 
 	if copy(saveiv[0:], cs.DecryptIV[0:]) != aes.BlockSize {
-		err = os.NewError("Copy failed")
+		err = errors.New("Copy failed")
 		return
 	}
 
@@ -117,7 +117,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err os.Error) {
 				}
 			}
 		} else {
-			err = os.NewError("invalid ivbyte")
+			err = errors.New("invalid ivbyte")
 		}
 	} else {
 		// Out of order or repeat
@@ -162,13 +162,13 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err os.Error) {
 				}
 			}
 		} else {
-			err = os.NewError("No matching ivbyte")
+			err = errors.New("No matching ivbyte")
 			return
 		}
 
 		if cs.decryptHistory[cs.DecryptIV[0]] == cs.DecryptIV[0] {
 			if copy(cs.DecryptIV[0:], saveiv[0:]) != aes.BlockSize {
-				err = os.NewError("Failed to copy aes.BlockSize bytes")
+				err = errors.New("Failed to copy aes.BlockSize bytes")
 				return
 			}
 		}
@@ -179,10 +179,10 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err os.Error) {
 	for i := 0; i < 3; i++ {
 		if tag[i] != src[i+1] {
 			if copy(cs.DecryptIV[0:], saveiv[0:]) != aes.BlockSize {
-				err = os.NewError("Error while trying to recover from error")
+				err = errors.New("Error while trying to recover from error")
 				return
 			}
-			err = os.NewError("tag mismatch")
+			err = errors.New("tag mismatch")
 			return
 		}
 	}
@@ -191,7 +191,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err os.Error) {
 
 	if restore {
 		if copy(cs.DecryptIV[0:], saveiv[0:]) != aes.BlockSize {
-			err = os.NewError("Error while trying to recover IV")
+			err = errors.New("Error while trying to recover IV")
 			return
 		}
 	}
@@ -262,7 +262,7 @@ func times3(block []byte) {
 	block[aes.BlockSize-1] ^= ((block[aes.BlockSize-1] << 1) ^ (carry * 135))
 }
 
-func (cs *CryptState) OCBEncrypt(dst []byte, src []byte, nonce []byte, tag []byte) (err os.Error) {
+func (cs *CryptState) OCBEncrypt(dst []byte, src []byte, nonce []byte, tag []byte) (err error) {
 	var delta [aes.BlockSize]byte
 	var checksum [aes.BlockSize]byte
 	var tmp [aes.BlockSize]byte
@@ -292,17 +292,17 @@ func (cs *CryptState) OCBEncrypt(dst []byte, src []byte, nonce []byte, tag []byt
 	cs.cipher.Encrypt(pad[0:], tmp[0:])
 	copied := copy(tmp[0:], src[off:])
 	if copied != remain {
-		err = os.NewError("Copy failed")
+		err = errors.New("Copy failed")
 		return
 	}
 	if copy(tmp[copied:], pad[copied:]) != (aes.BlockSize - remain) {
-		err = os.NewError("Copy failed")
+		err = errors.New("Copy failed")
 		return
 	}
 	xor(checksum[0:], checksum[0:], tmp[0:])
 	xor(tmp[0:], pad[0:], tmp[0:])
 	if copy(dst[off:], tmp[0:]) != remain {
-		err = os.NewError("Copy failed")
+		err = errors.New("Copy failed")
 		return
 	}
 
@@ -313,7 +313,7 @@ func (cs *CryptState) OCBEncrypt(dst []byte, src []byte, nonce []byte, tag []byt
 	return
 }
 
-func (cs *CryptState) OCBDecrypt(plain []byte, encrypted []byte, nonce []byte, tag []byte) (err os.Error) {
+func (cs *CryptState) OCBDecrypt(plain []byte, encrypted []byte, nonce []byte, tag []byte) (err error) {
 	var checksum [aes.BlockSize]byte
 	var delta [aes.BlockSize]byte
 	var tmp [aes.BlockSize]byte
@@ -344,14 +344,14 @@ func (cs *CryptState) OCBDecrypt(plain []byte, encrypted []byte, nonce []byte, t
 	zeros(tmp[0:])
 	copied := copy(tmp[0:remain], encrypted[off:off+remain])
 	if copied != remain {
-		err = os.NewError("Copy failed")
+		err = errors.New("Copy failed")
 		return
 	}
 	xor(tmp[0:], tmp[0:], pad[0:])
 	xor(checksum[0:], checksum[0:], tmp[0:])
 	copied = copy(plain[off:off+remain], tmp[0:remain])
 	if copied != remain {
-		err = os.NewError("Copy failed")
+		err = errors.New("Copy failed")
 		return
 	}
 

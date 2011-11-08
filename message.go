@@ -45,7 +45,7 @@ func (server *Server) handleCryptSetup(client *Client, msg *Message) {
 	cs := &mumbleproto.CryptSetup{}
 	err := proto.Unmarshal(msg.buf, cs)
 	if err != nil {
-		client.Panic(err.String())
+		client.Panic(err)
 		return
 	}
 
@@ -76,7 +76,7 @@ func (server *Server) handlePingMessage(client *Client, msg *Message) {
 	ping := &mumbleproto.Ping{}
 	err := proto.Unmarshal(msg.buf, ping)
 	if err != nil {
-		client.Panic(err.String())
+		client.Panic(err)
 		return
 	}
 
@@ -126,7 +126,7 @@ func (server *Server) handleChannelRemoveMessage(client *Client, msg *Message) {
 	chanremove := &mumbleproto.ChannelRemove{}
 	err := proto.Unmarshal(msg.buf, chanremove)
 	if err != nil {
-		client.Panic(err.String())
+		client.Panic(err)
 		return
 	}
 
@@ -157,7 +157,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 	chanstate := &mumbleproto.ChannelState{}
 	err := proto.Unmarshal(msg.buf, chanstate)
 	if err != nil {
-		client.Panic(err.String())
+		client.Panic(err)
 		return
 	}
 
@@ -262,7 +262,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 		if len(description) > 0 {
 			key, err = blobstore.Put([]byte(description))
 			if err != nil {
-				server.Panicf("Blobstore error: %v", err.String())
+				server.Panicf("Blobstore error: %v", err)
 			}
 		}
 
@@ -444,7 +444,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 			} else {
 				key, err := blobstore.Put([]byte(description))
 				if err != nil {
-					server.Panicf("Blobstore error: %v", err.String())
+					server.Panicf("Blobstore error: %v", err)
 				}
 				channel.DescriptionBlob = key
 			}
@@ -493,7 +493,8 @@ func (server *Server) handleUserRemoveMessage(client *Client, msg *Message) {
 	userremove := &mumbleproto.UserRemove{}
 	err := proto.Unmarshal(msg.buf, userremove)
 	if err != nil {
-		client.Panic(err.String())
+		client.Panic(err)
+		return
 	}
 
 	// Get the client to be removed.
@@ -556,7 +557,8 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	userstate := &mumbleproto.UserState{}
 	err := proto.Unmarshal(msg.buf, userstate)
 	if err != nil {
-		client.Panic(err.String())
+		client.Panic(err)
+		return
 	}
 
 	actor, ok := server.clients[client.Session]
@@ -700,7 +702,8 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	if userstate.Texture != nil && target.user != nil {
 		key, err := blobstore.Put(userstate.Texture)
 		if err != nil {
-			server.Panicf("Blobstore error: %v", err.String())
+			server.Panicf("Blobstore error: %v", err)
+			return
 		}
 
 		if target.user.TextureBlob != key {
@@ -740,7 +743,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	if userstate.Comment != nil && target.user != nil {
 		key, err := blobstore.Put([]byte(*userstate.Comment))
 		if err != nil {
-			server.Panicf("Blobstore error: %v", err.String())
+			server.Panicf("Blobstore error: %v", err)
 		}
 
 		if target.user.CommentBlob != key {
@@ -888,7 +891,7 @@ func (server *Server) handleBanListMessage(client *Client, msg *Message) {
 	banlist := &mumbleproto.BanList{}
 	err := proto.Unmarshal(msg.buf, banlist)
 	if err != nil {
-		client.Panic(err.String())
+		client.Panic(err)
 		return
 	}
 
@@ -955,7 +958,7 @@ func (server *Server) handleTextMessage(client *Client, msg *Message) {
 	txtmsg := &mumbleproto.TextMessage{}
 	err := proto.Unmarshal(msg.buf, txtmsg)
 	if err != nil {
-		client.Panic(err.String())
+		client.Panic(err)
 		return
 	}
 
@@ -1011,7 +1014,7 @@ func (server *Server) handleTextMessage(client *Client, msg *Message) {
 	}
 
 	// Remove ourselves
-	clients[client.Session] = nil, false
+	delete(clients, client.Session)
 
 	for _, target := range clients {
 		target.sendProtoMessage(&mumbleproto.TextMessage{
@@ -1026,7 +1029,8 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 	acl := &mumbleproto.ACL{}
 	err := proto.Unmarshal(msg.buf, acl)
 	if err != nil {
-		client.Panic(err.String())
+		client.Panic(err)
+		return
 	}
 
 	// Look up the channel this ACL message operates on.
@@ -1127,7 +1131,7 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 				}
 				for uid, _ := range group.Remove {
 					users[uid] = true
-					toadd[uid] = false, false
+					delete(toadd, uid)
 				}
 				for uid, _ := range toadd {
 					mpgroup.Add = append(mpgroup.Add, uint32(uid))
@@ -1144,7 +1148,8 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 		}
 
 		if err := client.sendProtoMessage(reply); err != nil {
-			client.Panic(err.String())
+			client.Panic(err)
+			return
 		}
 
 		// Map the user ids in the user map to usernames of users.
@@ -1243,7 +1248,8 @@ func (server *Server) handleQueryUsers(client *Client, msg *Message) {
 	query := &mumbleproto.QueryUsers{}
 	err := proto.Unmarshal(msg.buf, query)
 	if err != nil {
-		client.Panic(err.String())
+		client.Panic(err)
+		return
 	}
 
 	server.Printf("in handleQueryUsers")
@@ -1267,7 +1273,7 @@ func (server *Server) handleQueryUsers(client *Client, msg *Message) {
 	}
 
 	if err := client.sendProtoMessage(reply); err != nil {
-		client.Panic(err.String())
+		client.Panic(err)
 		return
 	}
 }
@@ -1278,7 +1284,8 @@ func (server *Server) handleUserStatsMessage(client *Client, msg *Message) {
 	stats := &mumbleproto.UserStats{}
 	err := proto.Unmarshal(msg.buf, stats)
 	if err != nil {
-		client.Panic(err.String())
+		client.Panic(err)
+		return
 	}
 
 	if stats.Session == nil {
@@ -1371,7 +1378,7 @@ func (server *Server) handleUserStatsMessage(client *Client, msg *Message) {
 	// fixme(mkrautz): we don't do bandwidth tracking yet
 
 	if err := client.sendProtoMessage(stats); err != nil {
-		client.Panic(err.String())
+		client.Panic(err)
 		return
 	}
 }
@@ -1381,7 +1388,8 @@ func (server *Server) handlePermissionQuery(client *Client, msg *Message) {
 	query := &mumbleproto.PermissionQuery{}
 	err := proto.Unmarshal(msg.buf, query)
 	if err != nil {
-		client.Panic(err.String())
+		client.Panic(err)
+		return
 	}
 
 	if query.ChannelId == nil {
@@ -1397,7 +1405,7 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 	blobreq := &mumbleproto.RequestBlob{}
 	err := proto.Unmarshal(msg.buf, blobreq)
 	if err != nil {
-		client.Panic(err.String())
+		client.Panic(err)
 		return
 	}
 
@@ -1413,13 +1421,14 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 				if target.user.HasTexture() {
 					buf, err := blobstore.Get(target.user.TextureBlob)
 					if err != nil {
-						server.Panicf("Blobstore error: %v", err.String())
+						server.Panicf("Blobstore error: %v", err)
+						return
 					}
 					userstate.Reset()
 					userstate.Session = proto.Uint32(uint32(target.Session))
 					userstate.Texture = buf
 					if err := client.sendProtoMessage(userstate); err != nil {
-						client.Panic(err.String())
+						client.Panic(err)
 						return
 					}
 				}
@@ -1437,13 +1446,14 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 				if target.user.HasComment() {
 					buf, err := blobstore.Get(target.user.CommentBlob)
 					if err != nil {
-						server.Panicf("Blobstore error: %v", err.String())
+						server.Panicf("Blobstore error: %v", err)
+						return
 					}
 					userstate.Reset()
 					userstate.Session = proto.Uint32(uint32(target.Session))
 					userstate.Comment = proto.String(string(buf))
 					if err := client.sendProtoMessage(userstate); err != nil {
-						client.Panic(err.String())
+						client.Panic(err)
 						return
 					}
 				}
@@ -1461,12 +1471,13 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 					chanstate.Reset()
 					buf, err := blobstore.Get(channel.DescriptionBlob)
 					if err != nil {
-						server.Panicf("Blobstore error: %v", err.String())
+						server.Panicf("Blobstore error: %v", err)
+						return
 					}
 					chanstate.ChannelId = proto.Uint32(uint32(channel.Id))
 					chanstate.Description = proto.String(string(buf))
 					if err := client.sendProtoMessage(chanstate); err != nil {
-						client.Panic(err.String())
+						client.Panic(err)
 						return
 					}
 				}
@@ -1480,7 +1491,7 @@ func (server *Server) handleUserList(client *Client, msg *Message) {
 	userlist := &mumbleproto.UserList{}
 	err := proto.Unmarshal(msg.buf, userlist)
 	if err != nil {
-		client.Panic(err.String())
+		client.Panic(err)
 		return
 	}
 
@@ -1502,7 +1513,7 @@ func (server *Server) handleUserList(client *Client, msg *Message) {
 			})
 		}
 		if err := client.sendProtoMessage(userlist); err != nil {
-			client.Panic(err.String())
+			client.Panic(err)
 			return
 		}
 		// Rename, registration removal

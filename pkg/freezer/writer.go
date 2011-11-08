@@ -37,21 +37,21 @@ import (
 // whole transaction group. In case of a failure, none of the
 // entries of a transaction will be applied.
 type Log struct {
-	wc  io.WriteCloser
+	wc io.WriteCloser
 }
 
 // Type LogTx represents a transaction in the log.
 // Transactions can be used to group several changes into an
 // atomic entity in the log file.
 type LogTx struct {
-	log     *Log
-	crc     hash.Hash32
-	buf     *bytes.Buffer
-	numops  int
+	log    *Log
+	crc    hash.Hash32
+	buf    *bytes.Buffer
+	numops int
 }
 
 // Create a new log file
-func NewLogFile(fn string) (*Log, os.Error) {
+func NewLogFile(fn string) (*Log, error) {
 	f, err := os.Create(fn)
 	if err != nil {
 		return nil, err
@@ -64,7 +64,7 @@ func NewLogFile(fn string) (*Log, os.Error) {
 }
 
 // Close a Log
-func (log *Log) Close() os.Error {
+func (log *Log) Close() error {
 	return log.wc.Close()
 }
 
@@ -73,7 +73,7 @@ func (log *Log) Close() os.Error {
 // This method implicitly creates a transaction
 // group for this single Put operation. It is merely
 // a convenience wrapper.
-func (log *Log) Put(value interface{}) (err os.Error) {
+func (log *Log) Put(value interface{}) (err error) {
 	tx := log.BeginTx()
 	err = tx.Put(value)
 	if err != nil {
@@ -94,7 +94,7 @@ func (log *Log) BeginTx() *LogTx {
 // Append a log entry to the transaction.
 // The transaction's log entries will not be persisted to
 // the log until the Commit has been called on the transaction.
-func (tx *LogTx) Put(value interface{}) (err os.Error) {
+func (tx *LogTx) Put(value interface{}) (err error) {
 	var (
 		buf  []byte
 		kind typeKind
@@ -155,17 +155,17 @@ func (tx *LogTx) Put(value interface{}) (err os.Error) {
 		return err
 	}
 
-	tx.numops += 1;
+	tx.numops += 1
 
 	return nil
 }
 
 // Commit all changes of the transaction to the log
 // as a single atomic entry.
-func (tx *LogTx) Commit() (err os.Error) {
+func (tx *LogTx) Commit() (err error) {
 	buf := new(bytes.Buffer)
 
-	err = binary.Write(buf, binary.LittleEndian, uint32(4 + 4 + tx.buf.Len()))
+	err = binary.Write(buf, binary.LittleEndian, uint32(4+4+tx.buf.Len()))
 	if err != nil {
 		return err
 	}

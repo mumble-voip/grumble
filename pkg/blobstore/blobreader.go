@@ -8,9 +8,9 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
+	"errors"
 	"hash"
 	"io"
-	"os"
 )
 
 // blobReader is based on the principles of the checksumReader from the archive/zip
@@ -18,7 +18,7 @@ import (
 
 // ErrHashMismatch is returned if a blobReader has read a file whose computed hash
 // did not match its key.
-var ErrHashMismatch = os.NewError("hash mismatch")
+var ErrHashMismatch = errors.New("hash mismatch")
 
 // blobReader reads a blob from disk, hashing all incoming data. On EOF, it checks
 // whether the read data matches the key.
@@ -28,7 +28,7 @@ type blobReader struct {
 	hash hash.Hash
 }
 
-func newBlobReader(rc io.ReadCloser, key string) (br *blobReader, err os.Error) {
+func newBlobReader(rc io.ReadCloser, key string) (br *blobReader, err error) {
 	sum, err := hex.DecodeString(key)
 	if err != nil {
 		return
@@ -36,10 +36,10 @@ func newBlobReader(rc io.ReadCloser, key string) (br *blobReader, err os.Error) 
 	return &blobReader{rc, sum, sha1.New()}, nil
 }
 
-func (r *blobReader) Read(b []byte) (n int, err os.Error) {
+func (r *blobReader) Read(b []byte) (n int, err error) {
 	n, err = r.rc.Read(b)
 	r.hash.Write(b[:n])
-	if err != os.EOF {
+	if err != io.EOF {
 		return
 	}
 	if !bytes.Equal(r.sum, r.hash.Sum()) {
@@ -48,6 +48,6 @@ func (r *blobReader) Read(b []byte) (n int, err os.Error) {
 	return
 }
 
-func (r *blobReader) Close() os.Error {
+func (r *blobReader) Close() error {
 	return r.rc.Close()
 }

@@ -66,7 +66,7 @@ func init() {
 	flag.BoolVar(&Args.GenerateCert, "gencert", false, "Generate a self-signed certificate for use with Grumble")
 
 	// SQLite related
-	if (SQLiteSupport) {
+	if SQLiteSupport {
 		flag.StringVar(&Args.SQLiteDB, "murmurdb", "", "Path to a Murmur SQLite database to import from")
 		flag.BoolVar(&Args.CleanUp, "cleanup", false, "Clean up Grumble's data directory on launch")
 	}

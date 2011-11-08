@@ -5,20 +5,20 @@
 package blobstore
 
 import (
+	"io/ioutil"
 	"os"
 	"path/filepath"
-	"io/ioutil"
 	"strconv"
 	"syscall"
 )
 
 // Acquire lockfile at path.
-func AcquireLockFile(path string) os.Error {
+func AcquireLockFile(path string) error {
 	dir, fn := filepath.Split(path)
 	lockfn := filepath.Join(dir, fn)
 
 	lockfile, err := os.OpenFile(lockfn, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
-	if e, ok := err.(*os.PathError); ok && e.Error == os.EEXIST {
+	if e, ok := err.(*os.PathError); ok && e.Err == os.EEXIST {
 		content, err := ioutil.ReadFile(lockfn)
 		if err != nil {
 			return err
@@ -68,6 +68,6 @@ func AcquireLockFile(path string) os.Error {
 }
 
 // Release lockfile at path.
-func ReleaseLockFile(path string) os.Error {
+func ReleaseLockFile(path string) error {
 	return os.Remove(path)
 }

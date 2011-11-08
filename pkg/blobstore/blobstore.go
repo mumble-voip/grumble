@@ -9,6 +9,7 @@ package blobstore
 import (
 	"crypto/sha1"
 	"encoding/hex"
+	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -26,11 +27,11 @@ const (
 )
 
 var (
-	ErrLocked          = os.NewError("lockfile acquired by another process")
-	ErrLockAcquirement = os.NewError("unable to acquire lockfile")
-	ErrBadFile         = os.NewError("a bad file exists in the blobstore directory. unable to create container directores.")
-	ErrNoSuchKey       = os.NewError("no such key")
-	ErrInvalidKey      = os.NewError("invalid key")
+	ErrLocked          = errors.New("lockfile acquired by another process")
+	ErrLockAcquirement = errors.New("unable to acquire lockfile")
+	ErrBadFile         = errors.New("a bad file exists in the blobstore directory. unable to create container directores.")
+	ErrNoSuchKey       = errors.New("no such key")
+	ErrInvalidKey      = errors.New("invalid key")
 )
 
 var (
@@ -41,7 +42,7 @@ var (
 // Open an existing, or create a new BlobStore at path.
 // Path must point to a directory, and must already exist.
 // See NewBlobStore for more information.
-func Open(path string, makeall bool) (err os.Error) {
+func Open(path string, makeall bool) (err error) {
 	defaultMutex.Lock()
 	defer defaultMutex.Unlock()
 
@@ -55,7 +56,7 @@ func Open(path string, makeall bool) (err os.Error) {
 
 // Close the open default BlobStore. This removes the lockfile allowing
 // other processes to open the BlobStore.
-func Close() (err os.Error) {
+func Close() (err error) {
 	if defaultStore == nil {
 		panic("DefaultStore not open")
 	}
@@ -71,16 +72,15 @@ func Close() (err os.Error) {
 
 // Lookup a blob by its key and return a buffer containing the contents
 // of the blob.
-func Get(key string) (buf []byte, err os.Error) {
+func Get(key string) (buf []byte, err error) {
 	return defaultStore.Get(key)
 }
 
 // Store a blob. If the blob was successfully stored, the returned key
 // can be used to retrieve the buf from the BlobStore.
-func Put(buf []byte) (key string, err os.Error) {
+func Put(buf []byte) (key string, err error) {
 	return defaultStore.Put(buf)
 }
-
 
 // Open an existing, or create a new BlobStore residing at path.
 // Path must point to a directory, and must already exist.
@@ -92,7 +92,7 @@ func Put(buf []byte) (key string, err os.Error) {
 // some I/O operations when writing blobs. (Since the BlobStore
 // knows that all directories will exist, it does not need to check
 // whether they do, and create them if they do not.).
-func NewBlobStore(path string, makeall bool) (bs *BlobStore, err os.Error) {
+func NewBlobStore(path string, makeall bool) (bs *BlobStore, err error) {
 	// Does the directory exist?
 	dir, err := os.Open(path)
 	if err != nil {
@@ -130,7 +130,7 @@ func NewBlobStore(path string, makeall bool) (bs *BlobStore, err os.Error) {
 					if !fi.IsDirectory() {
 						return nil, ErrBadFile
 					}
-				} else if e.Error == os.ENOTDIR {
+				} else if e.Err == os.ENOTDIR {
 					return nil, ErrBadFile
 				}
 			} else if err != nil {
@@ -150,7 +150,7 @@ func NewBlobStore(path string, makeall bool) (bs *BlobStore, err os.Error) {
 						if !fi.IsDirectory() {
 							return nil, ErrBadFile
 						}
-					} else if e.Error == os.ENOTDIR {
+					} else if e.Err == os.ENOTDIR {
 						return nil, ErrBadFile
 					}
 				} else if err != nil {
@@ -170,14 +170,14 @@ func NewBlobStore(path string, makeall bool) (bs *BlobStore, err os.Error) {
 
 // Close an open BlobStore. This removes the lockfile allowing
 // other processes to open the BlobStore.
-func (bs *BlobStore) Close() (err os.Error) {
+func (bs *BlobStore) Close() (err error) {
 	return os.Remove(bs.lockfn)
 }
 
 // Checks that a given key is a valid key for the BlobStore.
 // If it is, it returns the three components that make up the on-disk path
 // the given key can be found or should be stored at.
-func getKeyComponents(key string) (dir1, dir2, fn string, err os.Error) {
+func getKeyComponents(key string) (dir1, dir2, fn string, err error) {
 	// SHA1 digests are 40 bytes long when hex-encoded
 	if len(key) != 40 {
 		err = ErrInvalidKey
@@ -195,7 +195,7 @@ func getKeyComponents(key string) (dir1, dir2, fn string, err os.Error) {
 
 // Lookup the path hat a key would have on disk.
 // Returns an error if the key is not a valid BlobStore key.
-func (bs *BlobStore) pathForKey(key string) (fn string, err os.Error) {
+func (bs *BlobStore) pathForKey(key string) (fn string, err error) {
 	dir1, dir2, rest, err := getKeyComponents(key)
 	if err != nil {
 		return
@@ -207,14 +207,14 @@ func (bs *BlobStore) pathForKey(key string) (fn string, err os.Error) {
 
 // Lookup a blob by its key and return a buffer containing the contents
 // of the blob.
-func (bs *BlobStore) Get(key string) (buf []byte, err os.Error) {
+func (bs *BlobStore) Get(key string) (buf []byte, err error) {
 	fn, err := bs.pathForKey(key)
 	if err != nil {
 		return
 	}
 
 	file, err := os.Open(fn)
-	if e, ok := err.(*os.PathError); ok && (e.Error == os.ENOENT || e.Error == os.ENOTDIR) {
+	if e, ok := err.(*os.PathError); ok && (e.Err == os.ENOENT || e.Err == os.ENOTDIR) {
 		err = ErrNoSuchKey
 		return
 	} else if err != nil {
@@ -238,7 +238,7 @@ func (bs *BlobStore) Get(key string) (buf []byte, err os.Error) {
 
 // Store a blob. If the blob was successfully stored, the returned key
 // can be used to retrieve the buf from the BlobStore.
-func (bs *BlobStore) Put(buf []byte) (key string, err os.Error) {
+func (bs *BlobStore) Put(buf []byte) (key string, err error) {
 	// Calculate the key for the blob.  We can't really delay it more than this,
 	// since we need to know the key for the blob to check whether it's already on
 	// disk.
@@ -263,7 +263,7 @@ func (bs *BlobStore) Put(buf []byte) (key string, err os.Error) {
 		file.Close()
 		return
 	} else {
-		if e, ok := err.(*os.PathError); ok && (e.Error == os.ENOENT || e.Error == os.ENOTDIR) {
+		if e, ok := err.(*os.PathError); ok && (e.Err == os.ENOENT || e.Err == os.ENOTDIR) {
 			// No such file exists on disk. Ready to rock!
 		} else {
 			return
@@ -315,10 +315,10 @@ func (bs *BlobStore) Put(buf []byte) (key string, err os.Error) {
 // On Unix, it checks for EEXIST. On Windows, it checks for EEXIST
 // and Errno code 183 (ERROR_ALREADY_EXISTS)
 func isExistError(err *os.PathError) (exists bool) {
-	if e, ok := err.Error.(os.Errno); ok && e == win32AlreadyExists {
+	if e, ok := err.Err.(os.Errno); ok && e == win32AlreadyExists {
 		exists = true
 	}
-	if err.Error == os.EEXIST {
+	if err.Err == os.EEXIST {
 		exists = true
 	}
 	return

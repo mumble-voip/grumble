@@ -5,11 +5,13 @@
 package main
 
 import (
+	"errors"
 	"goprotobuf.googlecode.com/hg/proto"
 	"grumble/ban"
 	"grumble/freezer"
 	"grumble/mumbleproto"
 	"grumble/serverconf"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -20,7 +22,7 @@ import (
 
 // Freeze a server to disk, and re-open the log, if needed.
 // This must be called from within the Server's synchronous handler.
-func (server *Server) FreezeToFile() (err os.Error) {
+func (server *Server) FreezeToFile() (err error) {
 	// Close the log file, if it's open
 	if server.freezelog != nil {
 		err = server.freezelog.Close()
@@ -69,10 +71,10 @@ func (server *Server) FreezeToFile() (err os.Error) {
 }
 
 // Open a new freeze log
-func (server *Server) openFreezeLog() (err os.Error) {
+func (server *Server) openFreezeLog() (err error) {
 	logfn := filepath.Join(Args.DataDir, strconv.Itoa64(server.Id), "log.fz")
 	err = os.Remove(logfn)
-	if pe, ok := err.(*os.PathError); ok && pe.Error == os.ENOENT {
+	if pe, ok := err.(*os.PathError); ok && pe.Err == os.ENOENT {
 		// OK. File does not exist...
 	} else if err != nil {
 		return err
@@ -86,7 +88,7 @@ func (server *Server) openFreezeLog() (err os.Error) {
 
 // Freeze a server to a flattened protobuf-based structure ready to
 // persist to disk.
-func (server *Server) Freeze() (fs *freezer.Server, err os.Error) {
+func (server *Server) Freeze() (fs *freezer.Server, err error) {
 	fs = new(freezer.Server)
 
 	// Freeze all config kv-pairs
@@ -112,7 +114,7 @@ func (server *Server) Freeze() (fs *freezer.Server, err os.Error) {
 	for _, c := range server.Channels {
 		fc, err := c.Freeze()
 		if err != nil {
-			return
+			return nil, err
 		}
 		channels = append(channels, fc)
 	}
@@ -123,13 +125,13 @@ func (server *Server) Freeze() (fs *freezer.Server, err os.Error) {
 	for _, u := range server.Users {
 		fu, err := u.Freeze()
 		if err != nil {
-			return
+			return nil, err
 		}
 		users = append(users, fu)
 	}
 	fs.Users = users
 
-	return
+	return fs, nil
 }
 
 // Merge the contents of a freezer.BanList into the server's
@@ -180,7 +182,7 @@ func FreezeBan(ban ban.Ban) (fb *freezer.Ban) {
 
 // Freeze a channel into a flattened protobuf-based struct
 // ready to be persisted to disk.
-func (channel *Channel) Freeze() (fc *freezer.Channel, err os.Error) {
+func (channel *Channel) Freeze() (fc *freezer.Channel, err error) {
 	fc = new(freezer.Channel)
 
 	fc.Id = proto.Uint32(uint32(channel.Id))
@@ -196,7 +198,7 @@ func (channel *Channel) Freeze() (fc *freezer.Channel, err os.Error) {
 	for _, acl := range channel.ACL {
 		facl, err := acl.Freeze()
 		if err != nil {
-			return
+			return nil, err
 		}
 		acls = append(acls, facl)
 	}
@@ -207,7 +209,7 @@ func (channel *Channel) Freeze() (fc *freezer.Channel, err os.Error) {
 	for _, grp := range channel.Groups {
 		fgrp, err := grp.Freeze()
 		if err != nil {
-			return
+			return nil, err
 		}
 		groups = append(groups, fgrp)
 	}
@@ -294,7 +296,7 @@ func (c *Channel) Unfreeze(fc *freezer.Channel) {
 
 // Freeze a User into a flattened protobuf-based structure
 // ready to be persisted to disk.
-func (user *User) Freeze() (fu *freezer.User, err os.Error) {
+func (user *User) Freeze() (fu *freezer.User, err error) {
 	fu = new(freezer.User)
 
 	fu.Id = proto.Uint32(user.Id)
@@ -336,7 +338,7 @@ func (u *User) Unfreeze(fu *freezer.User) {
 
 // Freeze a ChannelACL into it a flattened protobuf-based structure
 // ready to be persisted to disk.
-func (acl *ChannelACL) Freeze() (facl *freezer.ACL, err os.Error) {
+func (acl *ChannelACL) Freeze() (facl *freezer.ACL, err error) {
 	facl = new(freezer.ACL)
 
 	if acl.UserId != -1 {
@@ -354,7 +356,7 @@ func (acl *ChannelACL) Freeze() (facl *freezer.ACL, err os.Error) {
 
 // Freeze a Group into a flattened protobuf-based structure
 // ready to be persisted to disk.
-func (group *Group) Freeze() (fgrp *freezer.Group, err os.Error) {
+func (group *Group) Freeze() (fgrp *freezer.Group, err error) {
 	fgrp = new(freezer.Group)
 
 	fgrp.Name = proto.String(group.Name)
@@ -382,7 +384,7 @@ func (group *Group) Freeze() (fgrp *freezer.Group, err os.Error) {
 // Once both the full server and the log file has been merged together
 // in memory, a new full seralized server will be written and synced to
 // disk, and the existing log file will be removed.
-func NewServerFromFrozen(name string) (s *Server, err os.Error) {
+func NewServerFromFrozen(name string) (s *Server, err error) {
 	id, err := strconv.Atoi64(name)
 	if err != nil {
 		return nil, err
@@ -457,7 +459,7 @@ func NewServerFromFrozen(name string) (s *Server, err os.Error) {
 		if fc.ParentId != nil {
 			parents[*fc.Id] = *fc.ParentId
 		} else {
-			parents[*fc.Id] = 0, false
+			delete(parents, *fc.Id)
 		}
 	}
 
@@ -495,7 +497,7 @@ func NewServerFromFrozen(name string) (s *Server, err os.Error) {
 
 	for {
 		values, err := walker.Next()
-		if err == os.EOF {
+		if err == io.EOF {
 			break
 		} else if err != nil {
 			return nil, err
@@ -566,10 +568,10 @@ func NewServerFromFrozen(name string) (s *Server, err os.Error) {
 				user, ok := s.Users[userId]
 				if ok {
 					// Clear the server maps. That should do it.
-					s.Users[userId] = nil, false
-					s.UserNameMap[user.Name] = nil, false
+					delete(s.Users, userId)
+					delete(s.UserNameMap, user.Name)
 					if len(user.CertHash) > 0 {
-						s.UserCertMap[user.CertHash] = nil, false
+						delete(s.UserCertMap, user.CertHash)
 					}
 				} else {
 					log.Printf("Skipped UserRemove log entry: No user for given id.")
@@ -611,7 +613,7 @@ func NewServerFromFrozen(name string) (s *Server, err os.Error) {
 				if fc.ParentId != nil {
 					parents[*fc.Id] = *fc.ParentId
 				} else {
-					parents[*fc.Id] = 0, false
+					delete(parents, *fc.Id)
 				}
 
 			case *freezer.ChannelRemove:
@@ -621,7 +623,7 @@ func NewServerFromFrozen(name string) (s *Server, err os.Error) {
 					continue
 				}
 				s.Channels[int(*fc.Id)] = nil
-				parents[*fc.Id] = 0, false
+				delete(parents, *fc.Id)
 
 			case *freezer.BanList:
 				fbl := val.(*freezer.BanList)
@@ -646,11 +648,11 @@ func NewServerFromFrozen(name string) (s *Server, err os.Error) {
 	for chanId, parentId := range parents {
 		childChan, exists := s.Channels[int(chanId)]
 		if !exists {
-			return nil, os.NewError("Non-existant child channel")
+			return nil, errors.New("Non-existant child channel")
 		}
 		parentChan, exists := s.Channels[int(parentId)]
 		if !exists {
-			return nil, os.NewError("Non-existant parent channel")
+			return nil, errors.New("Non-existant parent channel")
 		}
 		parentChan.AddChild(childChan)
 	}
@@ -683,7 +685,7 @@ func (server *Server) UpdateFrozenUser(user *User, state *mumbleproto.UserState)
 			fu.TextureBlob = proto.String(user.TextureBlob)
 		}
 		if state.CommentHash != nil {
-			fu.CommentBlob = proto.String(user.CommentBlob)	
+			fu.CommentBlob = proto.String(user.CommentBlob)
 		}
 		fu.LastActive = proto.Uint64(uint64(nanos))
 		err := server.freezelog.Put(fu)
