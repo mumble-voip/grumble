@@ -22,7 +22,7 @@ func TestMakeAllCreateAll(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	bs, err := NewBlobStore(dir, true)
+	bs, err := NewBlobStore(dir)
 	if err != nil {
 		t.Error(err)
 		return
@@ -35,7 +35,7 @@ func TestMakeAllCreateAll(t *testing.T) {
 			dirname := filepath.Join(dir, hex.EncodeToString([]byte{byte(i)}), hex.EncodeToString([]byte{byte(j)}))
 			fi, err := os.Stat(dirname)
 			if err != nil {
-				t.Error(err)
+				t.Fatal(err)
 			}
 			if !fi.IsDirectory() {
 				t.Errorf("Not a directory")
@@ -57,7 +57,7 @@ func TestAllInvalidFiles(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = NewBlobStore(dir, true)
+	_, err = NewBlobStore(dir)
 	if err == ErrBadFile {
 		// Success
 	} else if err != nil {
@@ -85,7 +85,7 @@ func TestAllInvalidFilesLevel2(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = NewBlobStore(dir, true)
+	_, err = NewBlobStore(dir)
 	if err == ErrBadFile {
 		// Success
 	} else if err != nil {
@@ -103,7 +103,7 @@ func TestStoreRetrieve(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	bs, err := NewBlobStore(dir, false)
+	bs, err := NewBlobStore(dir)
 	if err != nil {
 		t.Error(err)
 		return
@@ -136,7 +136,7 @@ func TestReadNonExistantKey(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	bs, err := NewBlobStore(dir, false)
+	bs, err := NewBlobStore(dir)
 	if err != nil {
 		t.Error(err)
 		return
@@ -160,7 +160,7 @@ func TestReadInvalidKeyLength(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	bs, err := NewBlobStore(dir, false)
+	bs, err := NewBlobStore(dir)
 	if err != nil {
 		t.Error(err)
 		return
@@ -187,7 +187,7 @@ func TestReadInvalidKeyNonHex(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	bs, err := NewBlobStore(dir, false)
+	bs, err := NewBlobStore(dir)
 	if err != nil {
 		t.Error(err)
 		return
@@ -214,7 +214,7 @@ func TestDefaultBlobStore(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	err = Open(dir, false)
+	err = Open(dir)
 	if err != nil {
 		t.Error(err)
 	}

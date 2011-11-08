@@ -19,7 +19,6 @@ import (
 type BlobStore struct {
 	dir     string
 	lockfn  string
-	makeall bool
 }
 
 const (
@@ -42,7 +41,7 @@ var (
 // Open an existing, or create a new BlobStore at path.
 // Path must point to a directory, and must already exist.
 // See NewBlobStore for more information.
-func Open(path string, makeall bool) (err error) {
+func Open(path string) (err error) {
 	defaultMutex.Lock()
 	defer defaultMutex.Unlock()
 
@@ -50,7 +49,7 @@ func Open(path string, makeall bool) (err error) {
 		panic("Default BlobStore already open")
 	}
 
-	defaultStore, err = NewBlobStore(path, makeall)
+	defaultStore, err = NewBlobStore(path)
 	return
 }
 
@@ -84,15 +83,7 @@ func Put(buf []byte) (key string, err error) {
 
 // Open an existing, or create a new BlobStore residing at path.
 // Path must point to a directory, and must already exist.
-//
-// The makeall argument determines whether the BlobStore should
-// create all possible blob-container directories a priori.
-// This can take up a bit of disk space since the metadata for
-// those directories can take up a lot of space. However, tt saves
-// some I/O operations when writing blobs. (Since the BlobStore
-// knows that all directories will exist, it does not need to check
-// whether they do, and create them if they do not.).
-func NewBlobStore(path string, makeall bool) (bs *BlobStore, err error) {
+func NewBlobStore(path string) (bs *BlobStore, err error) {
 	// Does the directory exist?
 	dir, err := os.Open(path)
 	if err != nil {
@@ -115,7 +106,21 @@ func NewBlobStore(path string, makeall bool) (bs *BlobStore, err error) {
 		}
 	}()
 
-	if makeall {
+	dirStructureExists := true
+	// Check whether a 'blobstore' file exists in the directory.
+	// The existence of the file signals that the directory already
+	// has the correct hierarchy structure.
+	bsf, err := os.Open(filepath.Join(path, "blobstore"))
+	if err != nil {
+		if e, ok := err.(*os.PathError); ok {
+			if e.Err == os.ENOENT {
+				dirStructureExists = false
+			}
+		}
+	}
+	bsf.Close()
+
+	if !dirStructureExists {
 		for i := 0; i < 256; i++ {
 			outer := filepath.Join(path, hex.EncodeToString([]byte{byte(i)}))
 			err = os.Mkdir(outer, 0700)
@@ -158,12 +163,19 @@ func NewBlobStore(path string, makeall bool) (bs *BlobStore, err error) {
 				}
 			}
 		}
+
+		// Add a blobstore file to signal that a correct directory
+		// structure exists for this blobstore.
+		bsf, err = os.Create(filepath.Join(path, "blobstore"))
+		if err != nil {
+			return nil, err
+		}
+		bsf.Close()
 	}
 
 	bs = &BlobStore{
 		dir:     path,
 		lockfn:  lockfn,
-		makeall: makeall,
 	}
 	return bs, nil
 }
@@ -266,14 +278,6 @@ func (bs *BlobStore) Put(buf []byte) (key string, err error) {
 		if e, ok := err.(*os.PathError); ok && (e.Err == os.ENOENT || e.Err == os.ENOTDIR) {
 			// No such file exists on disk. Ready to rock!
 		} else {
-			return
-		}
-	}
-
-	if !bs.makeall {
-		// Make sure the leading directories exist...
-		err = os.MkdirAll(filepath.ToSlash(blobdir), 0700)
-		if err != nil {
 			return
 		}
 	}
