@@ -39,7 +39,7 @@ func main() {
 	log.Printf("Grumble")
 
 	log.Printf("Using blob directory: %s", Args.BlobDir)
-	err = blobstore.Open(Args.BlobDir, true)
+	err = blobstore.Open(Args.BlobDir)
 	if err != nil {
 		log.Fatalf("Unable to initialize blobstore: %v", err.Error())
 	}
