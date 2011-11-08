@@ -44,23 +44,35 @@ func main() {
 		log.Fatalf("Unable to initialize blobstore: %v", err.Error())
 	}
 
-	if Args.GenerateCert {
-		certfn := filepath.Join(Args.DataDir, "cert")
-		keyfn := filepath.Join(Args.DataDir, "key")
-		log.Printf("Generating 2048-bit RSA keypair for self-signed certificate...")
+	certFn := filepath.Join(Args.DataDir, "cert")
+	keyFn := filepath.Join(Args.DataDir, "key")
+	shouldRegen := false
+	if Args.RegenKeys {
+		shouldRegen = true
+	} else {
+		files := []string{certFn, keyFn}
+		for _, fn := range files {
+			_, err := os.Stat(fn)
+			if err != nil {
+				if e, ok := err.(*os.PathError); ok {
+					if e.Err == os.ENOENT {
+						shouldRegen = true
+					}
+				}
+			}
+		}
+	}
+	if shouldRegen {
+		log.Printf("Generating 4096-bit RSA keypair for self-signed certificate...")
 
-		err := GenerateSelfSignedCert(certfn, keyfn)
+		err := GenerateSelfSignedCert(certFn, keyFn)
 		if err != nil {
 			log.Printf("Error: %v", err)
 			return
 		}
 
-		log.Printf("Certificate output to %v", certfn)
-		log.Printf("Private key output to %v", keyfn)
-
-		log.Printf("Done generating certificate and private key.")
-		log.Printf("Please restart Grumble to make use of the generated certificate and private key.")
-		return
+		log.Printf("Certificate output to %v", certFn)
+		log.Printf("Private key output to %v", keyFn)
 	}
 
 	// Should we import data from a Murmur SQLite file?
