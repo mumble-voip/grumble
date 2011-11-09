@@ -38,8 +38,23 @@ func main() {
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 	log.Printf("Grumble")
 
-	log.Printf("Using blob directory: %s", Args.BlobDir)
-	err = blobstore.Open(Args.BlobDir)
+	log.Printf("Using data directory: %s", Args.DataDir)
+
+	// Open the blobstore
+	blobDir := filepath.Join(Args.DataDir, "blob")
+	err = os.Mkdir(blobDir, 0700)
+	if err != nil {
+		exists := false
+		if e, ok := err.(*os.PathError); ok {
+			if e.Err == os.EEXIST {
+				exists = true	
+			}
+		}
+		if !exists {
+			log.Fatal("Unable to create blob directory: %v", err.Error())
+		}
+	}
+	err = blobstore.Open(blobDir)
 	if err != nil {
 		log.Fatalf("Unable to initialize blobstore: %v", err.Error())
 	}

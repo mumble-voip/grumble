@@ -11,7 +11,6 @@ import (
 type args struct {
 	ShowHelp  bool
 	DataDir   string
-	BlobDir   string
 	CtlNet    string
 	CtlAddr   string
 	RegenKeys bool
@@ -19,20 +18,12 @@ type args struct {
 	CleanUp   bool
 }
 
-func defaultGrumbleDir() string {
+func defaultDataDir() string {
 	dirname := ".grumble"
 	if runtime.GOOS == "windows" {
 		dirname = "grumble"
 	}
 	return filepath.Join(os.Getenv("HOME"), dirname)
-}
-
-func defaultDataDir() string {
-	return filepath.Join(defaultGrumbleDir(), "data")
-}
-
-func defaultBlobDir() string {
-	return filepath.Join(defaultGrumbleDir(), "blob")
 }
 
 func defaultCtlNet() string {
@@ -46,7 +37,7 @@ func defaultCtlAddr() string {
 	if runtime.GOOS == "windows" {
 		return "localhost:5454"
 	}
-	return filepath.Join(defaultGrumbleDir(), ".ctl")
+	return filepath.Join(defaultDataDir(), ".ctl")
 }
 
 func Usage() {
@@ -60,7 +51,6 @@ var Args args
 func init() {
 	flag.BoolVar(&Args.ShowHelp, "help", false, "Show this help")
 	flag.StringVar(&Args.DataDir, "datadir", defaultDataDir(), "Directory to use for server storage")
-	flag.StringVar(&Args.BlobDir, "blobdir", defaultBlobDir(), "Directory to use for blob storage")
 	flag.StringVar(&Args.CtlNet, "ctlnet", defaultCtlNet(), "Network to use for ctl socket")
 	flag.StringVar(&Args.CtlAddr, "ctladdr", defaultCtlAddr(), "Address to use for ctl socket")
 	flag.BoolVar(&Args.RegenKeys, "regenkeys", false, "Force Grumble to regenerate its global RSA keypair and certificate")
