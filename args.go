@@ -11,8 +11,7 @@ import (
 type args struct {
 	ShowHelp  bool
 	DataDir   string
-	CtlNet    string
-	CtlAddr   string
+	SshAddr   string
 	RegenKeys bool
 	SQLiteDB  string
 	CleanUp   bool
@@ -26,20 +25,6 @@ func defaultDataDir() string {
 	return filepath.Join(os.Getenv("HOME"), dirname)
 }
 
-func defaultCtlNet() string {
-	if runtime.GOOS == "windows" {
-		return "tcp"
-	}
-	return "unix"
-}
-
-func defaultCtlAddr() string {
-	if runtime.GOOS == "windows" {
-		return "localhost:5454"
-	}
-	return filepath.Join(defaultDataDir(), ".ctl")
-}
-
 func Usage() {
 	fmt.Fprintf(os.Stderr, "usage: grumble [options]\n")
 	fmt.Fprintf(os.Stderr, "remote control: grumble [options] ctl [ctlopts]\n")
@@ -51,8 +36,7 @@ var Args args
 func init() {
 	flag.BoolVar(&Args.ShowHelp, "help", false, "Show this help")
 	flag.StringVar(&Args.DataDir, "datadir", defaultDataDir(), "Directory to use for server storage")
-	flag.StringVar(&Args.CtlNet, "ctlnet", defaultCtlNet(), "Network to use for ctl socket")
-	flag.StringVar(&Args.CtlAddr, "ctladdr", defaultCtlAddr(), "Address to use for ctl socket")
+	flag.StringVar(&Args.SshAddr, "ssh", "localhost:46545", "Address to use for SSH admin prompt")
 	flag.BoolVar(&Args.RegenKeys, "regenkeys", false, "Force Grumble to regenerate its global RSA keypair and certificate")
 
 	// SQLite related

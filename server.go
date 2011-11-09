@@ -48,6 +48,11 @@ const (
 	StateClientDead
 )
 
+type KeyValuePair struct {
+	Key   string
+	Value string
+}
+
 // A Murmur server instance
 type Server struct {
 	Id       int64

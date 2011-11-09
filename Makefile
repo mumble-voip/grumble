@@ -54,9 +54,8 @@ GOFILES = \
 	freeze.go \
 	gencert.go \
 	register.go \
-	ctlrpc.go \
-	ctl.go \
-	args.go
+	ssh.go \
+	args.go \
 
 ifeq ($(SQLITE),1)
 	GOFILES += murmurdb.go

@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"grumble/blobstore"
 	"log"
-	"net"
-	"net/rpc"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -25,13 +23,6 @@ func main() {
 	if Args.ShowHelp == true {
 		Usage()
 		return
-	}
-
-	for i, str := range os.Args {
-		if str == "ctl" {
-			GrumbleCtl(os.Args[i+1:])
-			return
-		}
 	}
 
 	log.SetPrefix("[G] ")
@@ -167,17 +158,7 @@ func main() {
 		go s.ListenAndMurmur()
 	}
 
-	if Args.CtlNet == "unix" {
-		os.Remove(Args.CtlAddr)
-	}
-	lis, err := net.Listen(Args.CtlNet, Args.CtlAddr)
-	if err != nil {
-		log.Panicf("Unable to listen on ctl socket: %v", err)
-	}
-
-	ctl := &ControlRPC{}
-	rpc.RegisterName("ctl", ctl)
-	go rpc.Accept(lis)
+	go RunSSH()
 
 	if len(servers) > 0 {
 		go SignalHandler()
