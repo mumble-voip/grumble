@@ -11,9 +11,9 @@ import (
 	"crypto/sha1"
 	"crypto/tls"
 	"encoding/hex"
-	"http"
+	"encoding/xml"
 	"io/ioutil"
-	"xml"
+	"net/http"
 )
 
 type Register struct {

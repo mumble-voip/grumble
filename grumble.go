@@ -10,10 +10,10 @@ import (
 	"grumble/blobstore"
 	"log"
 	"net"
+	"net/rpc"
 	"os"
 	"path/filepath"
 	"regexp"
-	"rpc"
 )
 
 var servers map[int64]*Server

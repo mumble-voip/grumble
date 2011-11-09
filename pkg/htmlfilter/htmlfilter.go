@@ -6,10 +6,10 @@ package htmlfilter
 
 import (
 	"bytes"
+	"encoding/xml"
 	"errors"
 	"io"
 	"strings"
-	"xml"
 )
 
 type Options struct {

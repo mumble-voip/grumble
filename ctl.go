@@ -6,7 +6,7 @@ package main
 
 import (
 	"log"
-	"rpc"
+	"net/rpc"
 	"strconv"
 )
 
