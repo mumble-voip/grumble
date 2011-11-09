@@ -38,7 +38,7 @@ func Usage() {
 var Args args
 
 func init() {
-	flag.BoolVar(&Args.ShowHelp, "help", false, "Show this help")
+	flag.BoolVar(&Args.ShowHelp, "help", false, "Show this help listing")
 	flag.StringVar(&Args.DataDir, "datadir", defaultDataDir(), "Directory to use for server storage")
 	flag.StringVar(&Args.LogPath, "log", defaultLogPath(), "Log file path")
 	flag.StringVar(&Args.SshAddr, "ssh", "localhost:46545", "Address to use for SSH admin prompt")
