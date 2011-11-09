@@ -11,6 +11,7 @@ import (
 type args struct {
 	ShowHelp  bool
 	DataDir   string
+	LogPath   string
 	SshAddr   string
 	RegenKeys bool
 	SQLiteDB  string
@@ -25,6 +26,10 @@ func defaultDataDir() string {
 	return filepath.Join(os.Getenv("HOME"), dirname)
 }
 
+func defaultLogPath() string {
+	return filepath.Join(defaultDataDir(), "grumble.log")
+}
+
 func Usage() {
 	fmt.Fprintf(os.Stderr, "usage: grumble [options]\n")
 	fmt.Fprintf(os.Stderr, "remote control: grumble [options] ctl [ctlopts]\n")
@@ -36,6 +41,7 @@ var Args args
 func init() {
 	flag.BoolVar(&Args.ShowHelp, "help", false, "Show this help")
 	flag.StringVar(&Args.DataDir, "datadir", defaultDataDir(), "Directory to use for server storage")
+	flag.StringVar(&Args.LogPath, "log", defaultLogPath(), "Log file path")
 	flag.StringVar(&Args.SshAddr, "ssh", "localhost:46545", "Address to use for SSH admin prompt")
 	flag.BoolVar(&Args.RegenKeys, "regenkeys", false, "Force Grumble to regenerate its global RSA keypair and certificate")
 

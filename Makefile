@@ -55,6 +55,7 @@ GOFILES = \
 	gencert.go \
 	register.go \
 	ssh.go \
+	log.go \
 	args.go \
 
 ifeq ($(SQLITE),1)

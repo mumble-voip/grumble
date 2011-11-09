@@ -25,8 +25,16 @@ func main() {
 		return
 	}
 
+	err = LogTarget.OpenFile(Args.LogPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to open log file: %v", err)
+		return
+	}
+
 	log.SetPrefix("[G] ")
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+	log.SetOutput(&LogTarget)
+
 	log.Printf("Grumble")
 
 	log.Printf("Using data directory: %s", Args.DataDir)

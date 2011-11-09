@@ -5,6 +5,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 )
@@ -12,9 +13,17 @@ import (
 func SignalHandler() {
 	for {
 		sig := <-signal.Incoming
-		if sig != os.SIGINT && sig != os.SIGTERM {
+
+		if sig == os.SIGUSR2 {
+			err := LogTarget.Rotate()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Unable to rotate log file: %v", err)
+			}
 			continue
 		}
-		os.Exit(0)
+	
+		if sig == os.SIGINT || sig == os.SIGTERM {
+			os.Exit(0)
+		}
 	}
 }

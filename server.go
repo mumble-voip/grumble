@@ -26,7 +26,6 @@ import (
 	"hash"
 	"log"
 	"net"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -122,7 +121,7 @@ type clientLogForwarder struct {
 }
 
 func (lf clientLogForwarder) Write(incoming []byte) (int, error) {
-	buf := bytes.NewBuffer(nil)
+	buf := new(bytes.Buffer)
 	buf.WriteString(fmt.Sprintf("<%v:%v(%v)> ", lf.client.Session, lf.client.ShownName(), lf.client.UserId()))
 	buf.Write(incoming)
 	lf.logger.Output(3, buf.String())
@@ -166,7 +165,7 @@ func NewServer(id int64, addr string, port int) (s *Server, err error) {
 	s.Channels[0] = NewChannel(0, "Root")
 	s.nextChanId = 1
 
-	s.Logger = log.New(os.Stdout, fmt.Sprintf("[%v] ", s.Id), log.LstdFlags|log.Lmicroseconds)
+	s.Logger = log.New(&LogTarget, fmt.Sprintf("[%v] ", s.Id), log.LstdFlags|log.Lmicroseconds)
 
 	return
 }
