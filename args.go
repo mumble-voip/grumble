@@ -32,7 +32,6 @@ func defaultLogPath() string {
 
 func Usage() {
 	fmt.Fprintf(os.Stderr, "usage: grumble [options]\n")
-	fmt.Fprintf(os.Stderr, "remote control: grumble [options] ctl [ctlopts]\n")
 	flag.PrintDefaults()
 }
 
