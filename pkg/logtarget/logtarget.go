@@ -29,7 +29,17 @@ func (target *LogTarget) Write(in []byte) (int, error) {
 	target.mu.Lock()
 	defer target.mu.Unlock()
 
-	return target.file.Write(in)
+	n, err := os.Stderr.Write(in)
+	if err != nil {
+		return n, err 	
+	}
+
+	n, err = target.file.Write(in)
+	if err != nil {
+		return n, err
+	}
+
+	return len(in), nil
 }
 
 // OpenFile opens the main log file for writing.
