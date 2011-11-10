@@ -27,23 +27,25 @@ type SshCmdReply interface {
 type SshCmdFunc func(reply SshCmdReply, args []string) error
 
 type SshCmd struct {
-	CmdFunc      SshCmdFunc
-	Args         string
-	Description  string
+	Name        string
+	CmdFunc     SshCmdFunc
+	Args        string
+	Description string
 }
 
 func (c SshCmd) Call(reply SshCmdReply, args []string) error {
 	return c.CmdFunc(reply, args)
 }
 
-var cmdMap = map[string]SshCmd{}
+var commands = []SshCmd{}
 
 func RegisterSSHCmd(name string, cmdFunc SshCmdFunc, args string, desc string) {
-	cmdMap[name] = SshCmd{
-		CmdFunc: cmdFunc,
-		Args: args,
+	commands = append(commands, SshCmd{
+		Name:        name,
+		CmdFunc:     cmdFunc,
+		Args:        args,
 		Description: desc,
-	}
+	})
 }
 
 func RunSSH() {
@@ -141,11 +143,18 @@ func handleChannel(channel ssh.Channel) {
 					continue
 				}
 
-				if args[0] == "exit" {
+				if args[0] == "exit" || args[0] == "quit" {
 					return
 				}
 
-				if cmd, ok := cmdMap[args[0]]; ok {
+				var cmd *SshCmd
+				for i := range commands {
+					if commands[i].Name == args[0] {
+						cmd = &commands[i]
+						break
+					}
+				}
+				if cmd != nil {
 					buf := new(bytes.Buffer)
 					err = cmd.Call(buf, args)
 					if err != nil {
@@ -156,9 +165,17 @@ func handleChannel(channel ssh.Channel) {
 						continue
 					}
 
-					_, err = shell.Write(buf.Bytes())
-					if err != nil {
-						return						
+					bufBytes := buf.Bytes()
+					chunkSize := int(64)
+					for len(bufBytes) > 0 {
+						if len(bufBytes) < chunkSize {
+							chunkSize = len(bufBytes)
+						}
+						nwritten, err := shell.Write(bufBytes[0:chunkSize])
+						if err != nil {
+							return
+						}
+						bufBytes = bufBytes[nwritten:]
 					}
 				} else {
 					_, err = shell.Write([]byte("error: unknown command\r\n"))
@@ -172,23 +189,25 @@ func handleChannel(channel ssh.Channel) {
 }
 
 func HelpCmd(reply SshCmdReply, args []string) error {
-	if len(args) == 1 {
-		for cmdName, cmd := range cmdMap {
+	onlyShow := ""
+	didShow := false
+	if len(args) > 1 {
+		onlyShow = args[1]
+	}
+
+	for _, cmd := range commands {
+		if cmd.Name == onlyShow || onlyShow == "" {
 			reply.WriteString("\r\n")
-			reply.WriteString(" " + cmdName + " " + cmd.Args + "\r\n")
+			reply.WriteString(" " + cmd.Name + " " + cmd.Args + "\r\n")
 			reply.WriteString("    " + cmd.Description + "\r\n")
-		}
-	} else if len(args) > 1 {
-		cmdName := args[1]
-		if cmd, ok := cmdMap[cmdName]; ok {
-			reply.WriteString("\r\n")
-			reply.WriteString(" " + cmdName + " " + cmd.Args + "\r\n")
-			reply.WriteString("    " + cmd.Description + "\r\n")
-		} else {
-			return errors.New("no such command name")
+			didShow = true
 		}
 	}
+	if onlyShow != "" && !didShow {
+		return errors.New("no such command")
+	}
 	reply.WriteString("\r\n")
+
 	return nil
 }
 
