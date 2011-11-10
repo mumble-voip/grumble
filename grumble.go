@@ -35,11 +35,24 @@ func main() {
 	log.SetPrefix("[G] ")
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 	log.SetOutput(&logtarget.Target)
-
 	log.Printf("Grumble")
 	log.Printf("Using data directory: %s", Args.DataDir)
 
-	// Open the blobstore
+	// Open the data dir.  We need it later for looking up
+	// the virtual server folders in the data dir.
+	// We need it now to make sure the data dir actually exists.
+	dataDir, err := os.Open(Args.DataDir)
+	if err != nil {
+		log.Fatalf("Unable to open data directory: %v", err)
+		return
+	}
+
+	// Open the blobstore.  If the directory doesn't
+	// already exist, create the directory and open
+	// the blobstore.
+	// The Open method of the blobstore performs simple
+	// sanity checking of content of the blob directory,
+	// and will return an error if something's amiss.
 	blobDir := filepath.Join(Args.DataDir, "blob")
 	err = os.Mkdir(blobDir, 0700)
 	if err != nil {
@@ -58,6 +71,11 @@ func main() {
 		log.Fatalf("Unable to initialize blobstore: %v", err.Error())
 	}
 
+	// Check whether we should regenerate the default global keypair
+	// and corresponding certificate.
+	// These are used as the default certificate of all virtual servers
+	// and the SSH admin console, but can be overridden using the "key"
+	// and "cert" arguments to Grumble.
 	certFn := filepath.Join(Args.DataDir, "cert")
 	keyFn := filepath.Join(Args.DataDir, "key")
 	shouldRegen := false
@@ -125,34 +143,39 @@ func main() {
 		return
 	}
 
-	f, err := os.Open(Args.DataDir)
+	// Read all entries of the data directory.
+	// We need these to load our virtual servers.
+	names, err := dataDir.Readdirnames(-1)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Unable to read file from data directory: %v", err.Error())
 	}
-	defer f.Close()
-
-	names, err := f.Readdirnames(-1)
+	// The data dir file descriptor.
+	err = dataDir.Close()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Unable to close data directory: %v", err.Error())
+		return
 	}
 
+	// Look through the list of files in the data directory, and
+	// load all virtual servers from disk.
 	servers = make(map[int64]*Server)
 	for _, name := range names {
 		if matched, _ := regexp.MatchString("^[0-9]+$", name); matched {
 			log.Printf("Loading server %v", name)
 			s, err := NewServerFromFrozen(name)
 			if err != nil {
-				log.Fatalf("Unable to load server: %v", err)
+				log.Fatalf("Unable to load server: %v", err.Error())
 			}
 			err = s.FreezeToFile()
 			if err != nil {
-				log.Fatalf("Unable to freeze server to disk: %v", err)
+				log.Fatalf("Unable to freeze server to disk: %v", err.Error())
 			}
 			servers[s.Id] = s
 			go s.ListenAndMurmur()
 		}
 	}
 
+	// If no servers were found, create the default virtual server.
 	if len(servers) == 0 {
 		s, err := NewServer(1, "0.0.0.0", 64738)
 		if err != nil {
@@ -166,8 +189,11 @@ func main() {
 		go s.ListenAndMurmur()
 	}
 
+	// Run the SSH admin console.
 	go RunSSH()
 
+	// If any servers were loaded, launch the signal
+	// handler goroutine and sleep...
 	if len(servers) > 0 {
 		go SignalHandler()
 		select {}
