@@ -76,21 +76,42 @@ func main() {
 	// These are used as the default certificate of all virtual servers
 	// and the SSH admin console, but can be overridden using the "key"
 	// and "cert" arguments to Grumble.
-	certFn := filepath.Join(Args.DataDir, "cert")
-	keyFn := filepath.Join(Args.DataDir, "key")
+	certFn := filepath.Join(Args.DataDir, "cert.pem")
+	keyFn := filepath.Join(Args.DataDir, "key.pem")
 	shouldRegen := false
 	if Args.RegenKeys {
 		shouldRegen = true
 	} else {
-		files := []string{certFn, keyFn}
-		for _, fn := range files {
-			_, err := os.Stat(fn)
-			if err != nil {
-				if e, ok := err.(*os.PathError); ok {
-					if e.Err == os.ENOENT {
-						shouldRegen = true
-					}
+		// OK. Here's the idea:  We check for the existence of the cert.pem
+		// and key.pem files in the data directory on launch. Although these
+		// might be deleted later (and this check could be deemed useless),
+		// it's simply here to be convenient for admins.
+		hasKey := true
+		hasCert := true
+		_, err = os.Stat(certFn)
+		if err != nil {
+			if e, ok := err.(*os.PathError); ok {
+				if e.Err == os.ENOENT {
+					hasCert = false
 				}
+			}
+		}
+		_, err = os.Stat(keyFn)
+		if err != nil {
+			if e, ok := err.(*os.PathError); ok {
+				if e.Err == os.ENOENT {
+					hasKey = false
+				}
+			}
+		}
+		if !hasCert && !hasKey {
+			shouldRegen = true
+		} else if !hasCert || !hasKey {
+			if !hasCert {
+				log.Fatal("Grumble could not find its default certificate (cert.pem)")
+			}
+			if !hasKey {
+				log.Fatal("Grumble could not find its default private key (key.pem)")
 			}
 		}
 	}
@@ -143,6 +164,9 @@ func main() {
 		return
 	}
 
+	// Run the SSH admin console.
+	RunSSH()
+
 	// Read all entries of the data directory.
 	// We need these to load our virtual servers.
 	names, err := dataDir.Readdirnames(-1)
@@ -188,9 +212,6 @@ func main() {
 		s.FreezeToFile()
 		go s.ListenAndMurmur()
 	}
-
-	// Run the SSH admin console.
-	go RunSSH()
 
 	// If any servers were loaded, launch the signal
 	// handler goroutine and sleep...

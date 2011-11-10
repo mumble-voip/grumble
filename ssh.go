@@ -72,7 +72,7 @@ func RunSSH() {
 		"<id> <key> <value>",
 		"Get a config value for the server with the given id")
 
-	pemBytes, err := ioutil.ReadFile(filepath.Join(Args.DataDir, "key"))
+	pemBytes, err := ioutil.ReadFile(filepath.Join(Args.DataDir, "key.pem"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -89,32 +89,34 @@ func RunSSH() {
 
 	log.Printf("Listening for SSH connections on '%v'", Args.SshAddr)
 
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			log.Fatalf("ssh: unable to accept incoming connection: %v", err)
-		}
-
-		err = conn.Handshake()
-		if err == io.EOF {
-			continue
-		} else if err != nil {
-			log.Fatalf("ssh: unable to perform handshake: %v", err)
-		}
-
-		go func() {
-			for {
-				channel, err := conn.Accept()
-				if err == io.EOF {
-					return
-				} else if err != nil {
-					log.Fatalf("ssh: unable to accept channel: %v", err)
-				}
-
-				go handleChannel(channel)
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				log.Fatalf("ssh: unable to accept incoming connection: %v", err)
 			}
-		}()
-	}
+
+			err = conn.Handshake()
+			if err == io.EOF {
+				continue
+			} else if err != nil {
+				log.Fatalf("ssh: unable to perform handshake: %v", err)
+			}
+
+			go func() {
+				for {
+					channel, err := conn.Accept()
+					if err == io.EOF {
+						return
+					} else if err != nil {
+						log.Fatalf("ssh: unable to accept channel: %v", err)
+					}
+
+					go handleChannel(channel)
+				}
+			}()
+		}
+	}()
 }
 
 func handleChannel(channel ssh.Channel) {
