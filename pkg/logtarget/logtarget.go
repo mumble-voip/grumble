@@ -29,6 +29,10 @@ func (target *LogTarget) Write(in []byte) (int, error) {
 	target.mu.Lock()
 	defer target.mu.Unlock()
 
+	if target.file == nil {
+		panic("no log file opened")
+	}
+
 	n, err := os.Stderr.Write(in)
 	if err != nil {
 		return n, err 	
