@@ -17,32 +17,21 @@ import (
 )
 
 type Register struct {
-	XMLName xml.Name `xml:"server"`
-	//MacHash  string   `xml:"machash"`
-	Version string `xml:"version"`
-	Release string `xml:"release"`
-	//OS       string   `xml:"os"`
-	//OSVer    string   `xml:"osver"`
-	//Qt       string   `xml:"qt"`
-	//Is64Bit  bool     `xml:"is64bit"`
-	//CpuId    string   `xml:"cpuid"`
-	//CpuIdExt string   `xml:"cpuidext"`
-	//CpuSSE2  bool     `xml:"cpusse2"`
-	Name     string `xml:"name"`
-	Host     string `xml:"host"`
-	Password string `xml:"password"`
-	Port     int    `xml:"port"`
-	Url      string `xml:"url"`
-	Digest   string `xml:"digest"`
-	Users    int    `xml:"users"`
-	Channels int    `xml:"channels"`
-	Location string `xml:"location"`
+	XMLName  xml.Name `xml:"server"`
+	Version  string   `xml:"version"`
+	Release  string   `xml:"release"`
+	Name     string   `xml:"name"`
+	Host     string   `xml:"host"`
+	Password string   `xml:"password"`
+	Port     int      `xml:"port"`
+	Url      string   `xml:"url"`
+	Digest   string   `xml:"digest"`
+	Users    int      `xml:"users"`
+	Channels int      `xml:"channels"`
+	Location string   `xml:"location"`
 }
 
-const (
-	registerAddr = "mumble.hive.no:443"
-	registerUrl  = "https://mumble.hive.no/register.cgi"
-)
+const registerUrl  = "https://mumble.hive.no/register.cgi"
 
 // Determines whether a server is public by checking whether the
 // config values required for public registration are set.
@@ -114,7 +103,6 @@ func (server *Server) RegisterPublicServer() {
 	go func() {
 		tr := &http.Transport{
 			TLSClientConfig:    config,
-			DisableCompression: true,
 		}
 		client := &http.Client{Transport: tr}
 		r, err := client.Post(registerUrl, "text/xml", ioutil.NopCloser(buf))
