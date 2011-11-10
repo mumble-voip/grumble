@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"grumble/blobstore"
+	"grumble/logtarget"
 	"log"
 	"os"
 	"path/filepath"
@@ -25,7 +26,7 @@ func main() {
 		return
 	}
 
-	err = LogTarget.OpenFile(Args.LogPath)
+	err = logtarget.Target.OpenFile(Args.LogPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to open log file: %v", err)
 		return
@@ -33,10 +34,9 @@ func main() {
 
 	log.SetPrefix("[G] ")
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
-	log.SetOutput(&LogTarget)
+	log.SetOutput(&logtarget.Target)
 
 	log.Printf("Grumble")
-
 	log.Printf("Using data directory: %s", Args.DataDir)
 
 	// Open the blobstore

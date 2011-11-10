@@ -6,6 +6,7 @@ package main
 
 import (
 	"fmt"
+	"grumble/logtarget"
 	"os"
 	"os/signal"
 )
@@ -15,7 +16,7 @@ func SignalHandler() {
 		sig := <-signal.Incoming
 
 		if sig == os.SIGUSR2 {
-			err := LogTarget.Rotate()
+			err := logtarget.Target.Rotate()
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Unable to rotate log file: %v", err)
 			}

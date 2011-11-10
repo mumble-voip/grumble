@@ -20,6 +20,7 @@ import (
 	"grumble/cryptstate"
 	"grumble/freezer"
 	"grumble/htmlfilter"
+	"grumble/logtarget"
 	"grumble/mumbleproto"
 	"grumble/serverconf"
 	"grumble/sessionpool"
@@ -165,7 +166,7 @@ func NewServer(id int64, addr string, port int) (s *Server, err error) {
 	s.Channels[0] = NewChannel(0, "Root")
 	s.nextChanId = 1
 
-	s.Logger = log.New(&LogTarget, fmt.Sprintf("[%v] ", s.Id), log.LstdFlags|log.Lmicroseconds)
+	s.Logger = log.New(&logtarget.Target, fmt.Sprintf("[%v] ", s.Id), log.LstdFlags|log.Lmicroseconds)
 
 	return
 }
