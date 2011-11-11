@@ -64,7 +64,6 @@ type Server struct {
 	running  bool
 
 	incoming       chan *Message
-	udpsend        chan *Message
 	voicebroadcast chan *VoiceBroadcast
 	cfgUpdate      chan *KeyValuePair
 
@@ -150,7 +149,6 @@ func NewServer(id int64, addr string, port int) (s *Server, err error) {
 	s.hpclients = make(map[string]*Client)
 
 	s.incoming = make(chan *Message)
-	s.udpsend = make(chan *Message)
 	s.voicebroadcast = make(chan *VoiceBroadcast)
 	s.cfgUpdate = make(chan *KeyValuePair)
 	s.clientAuthenticated = make(chan *Client)
@@ -362,10 +360,10 @@ func (server *Server) handler() {
 				channel := vb.client.Channel
 				for _, client := range channel.clients {
 					if client != vb.client {
-						client.sendUdp(&Message{
-							buf:    vb.buf,
-							client: client,
-						})
+						err := client.SendUDP(vb.buf)
+						if err != nil {
+							client.Panic("Unable to send UDP: %v", err.Error())
+						}
 					}
 				}
 			}
@@ -878,21 +876,10 @@ func (s *Server) SetupUDP() (err error) {
 	return
 }
 
-func (s *Server) SendUDP() {
-	for {
-		msg := <-s.udpsend
-		// Encrypted
-		if msg.client != nil {
-			crypted := make([]byte, len(msg.buf)+4)
-			msg.client.crypt.Encrypt(crypted, msg.buf)
-			s.udpconn.WriteTo(crypted, msg.client.udpaddr)
-			// Non-encrypted
-		} else if msg.address != nil {
-			s.udpconn.WriteTo(msg.buf, msg.address)
-		} else {
-			// Skipping
-		}
-	}
+// Send the content of buf as a UDP packet to addr.
+func (s *Server) SendUDP(buf []byte, addr *net.UDPAddr) (err error) {
+	_, err = s.udpconn.WriteTo(buf, addr)
+	return
 }
 
 // Listen for and handle UDP packets.
@@ -928,10 +915,11 @@ func (server *Server) ListenUDP() {
 			_ = binary.Write(buffer, binary.BigEndian, server.cfg.Uint32Value("MaxUsers"))
 			_ = binary.Write(buffer, binary.BigEndian, server.cfg.Uint32Value("MaxBandwidth"))
 
-			server.udpsend <- &Message{
-				buf:     buffer.Bytes(),
-				address: udpaddr,
+			err = server.SendUDP(buffer.Bytes(), udpaddr)
+			if err != nil {
+				server.Print("Unable to write UDP packet: %v", err.Error())
 			}
+
 		} else {
 			server.handleUdpPacket(udpaddr, buf, nread)
 		}
@@ -1183,7 +1171,6 @@ func (s *Server) ListenAndMurmur() {
 	// Setup our UDP listener and spawn our reader and writer goroutines
 	s.SetupUDP()
 	go s.ListenUDP()
-	go s.SendUDP()
 
 	// Create a new listening TLS socket.
 	certFn := filepath.Join(Args.DataDir, "cert.pem")

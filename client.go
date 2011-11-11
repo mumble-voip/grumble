@@ -298,37 +298,41 @@ func (client *Client) udpreceiver() {
 			outgoing.PutBytes(buf[1 : 1+(len(buf)-1)])
 			outbuf[0] = kind
 
-			// VoiceTarget
-			if target != 0x1f {
+			if target != 0x1f { // VoiceTarget
 				client.server.voicebroadcast <- &VoiceBroadcast{
 					client: client,
 					buf:    outbuf[0 : 1+outgoing.Size()],
 					target: target,
 				}
-				// Server loopback
-			} else {
-				client.sendUdp(&Message{
-					buf:    outbuf[0 : 1+outgoing.Size()],
-					client: client,
-				})
+			} else { // Server loopback
+				buf := outbuf[0 : 1+outgoing.Size()]
+				err := client.SendUDP(buf)
+				if err != nil {
+					client.Panicf("Unable to send UDP message: %v", err.Error())
+				}
 			}
 
 		case mumbleproto.UDPMessagePing:
-			client.server.udpsend <- &Message{
-				buf:    buf,
-				client: client,
+			err := client.SendUDP(buf)
+			if err != nil {
+				client.Panicf("Unable to send UDP message: %v", err.Error())
 			}
 		}
 	}
 }
 
-func (client *Client) sendUdp(msg *Message) {
+// Send buf as a UDP message. If the client does not have
+// an established UDP connection, the datagram will be tunelled
+// through the client's control channel (TCP).
+func (client *Client) SendUDP(buf []byte) error {
 	if client.udp {
-		client.Printf("Sent UDP!")
-		client.server.udpsend <- msg
+		crypted := make([]byte, len(buf)+4)
+		client.crypt.Encrypt(crypted, buf)
+		return client.server.SendUDP(crypted, client.udpaddr)
 	} else {
-		client.sendMessage(msg.buf)
+		return client.sendMessage(buf)
 	}
+	panic("unreachable")
 }
 
 // Send a Message to the client.  The Message in msg to the client's
