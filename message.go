@@ -57,7 +57,7 @@ func (server *Server) handleCryptSetup(client *Client, msg *Message) {
 		if copy(cs.ClientNonce, client.crypt.EncryptIV[0:]) != aes.BlockSize {
 			return
 		}
-		client.sendProtoMessage(cs)
+		client.sendMessage(cs)
 	} else {
 		client.Printf("Received client nonce")
 		if len(cs.ClientNonce) != aes.BlockSize {
@@ -113,7 +113,7 @@ func (server *Server) handlePingMessage(client *Client, msg *Message) {
 		client.TcpPackets = *ping.TcpPackets
 	}
 
-	client.sendProtoMessage(&mumbleproto.Ping{
+	client.sendMessage(&mumbleproto.Ping{
 		Timestamp: ping.Timestamp,
 		Good:      proto.Uint32(uint32(client.crypt.Good)),
 		Late:      proto.Uint32(uint32(client.crypt.Late)),
@@ -917,7 +917,7 @@ func (server *Server) handleBanListMessage(client *Client, msg *Message) {
 			entry.Duration = proto.Uint32(ban.Duration)
 			banlist.Bans = append(banlist.Bans, entry)
 		}
-		if err := client.sendProtoMessage(banlist); err != nil {
+		if err := client.sendMessage(banlist); err != nil {
 			client.Panic("Unable to send BanList")
 		}
 	} else {
@@ -1017,7 +1017,7 @@ func (server *Server) handleTextMessage(client *Client, msg *Message) {
 	delete(clients, client.Session)
 
 	for _, target := range clients {
-		target.sendProtoMessage(&mumbleproto.TextMessage{
+		target.sendMessage(&mumbleproto.TextMessage{
 			Actor:   proto.Uint32(client.Session),
 			Message: txtmsg.Message,
 		})
@@ -1147,7 +1147,7 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 			reply.Groups = append(reply.Groups, mpgroup)
 		}
 
-		if err := client.sendProtoMessage(reply); err != nil {
+		if err := client.sendMessage(reply); err != nil {
 			client.Panic(err)
 			return
 		}
@@ -1164,7 +1164,7 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 			queryusers.Names = append(queryusers.Names, user.Name)
 		}
 		if len(queryusers.Ids) > 0 {
-			client.sendProtoMessage(queryusers)
+			client.sendMessage(queryusers)
 		}
 
 		// Set new groups and ACLs
@@ -1272,7 +1272,7 @@ func (server *Server) handleQueryUsers(client *Client, msg *Message) {
 		}
 	}
 
-	if err := client.sendProtoMessage(reply); err != nil {
+	if err := client.sendMessage(reply); err != nil {
 		client.Panic(err)
 		return
 	}
@@ -1377,7 +1377,7 @@ func (server *Server) handleUserStatsMessage(client *Client, msg *Message) {
 
 	// fixme(mkrautz): we don't do bandwidth tracking yet
 
-	if err := client.sendProtoMessage(stats); err != nil {
+	if err := client.sendMessage(stats); err != nil {
 		client.Panic(err)
 		return
 	}
@@ -1427,7 +1427,7 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 					userstate.Reset()
 					userstate.Session = proto.Uint32(uint32(target.Session))
 					userstate.Texture = buf
-					if err := client.sendProtoMessage(userstate); err != nil {
+					if err := client.sendMessage(userstate); err != nil {
 						client.Panic(err)
 						return
 					}
@@ -1452,7 +1452,7 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 					userstate.Reset()
 					userstate.Session = proto.Uint32(uint32(target.Session))
 					userstate.Comment = proto.String(string(buf))
-					if err := client.sendProtoMessage(userstate); err != nil {
+					if err := client.sendMessage(userstate); err != nil {
 						client.Panic(err)
 						return
 					}
@@ -1476,7 +1476,7 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 					}
 					chanstate.ChannelId = proto.Uint32(uint32(channel.Id))
 					chanstate.Description = proto.String(string(buf))
-					if err := client.sendProtoMessage(chanstate); err != nil {
+					if err := client.sendMessage(chanstate); err != nil {
 						client.Panic(err)
 						return
 					}
@@ -1512,7 +1512,7 @@ func (server *Server) handleUserList(client *Client, msg *Message) {
 				Name:   proto.String(user.Name),
 			})
 		}
-		if err := client.sendProtoMessage(userlist); err != nil {
+		if err := client.sendMessage(userlist); err != nil {
 			client.Panic(err)
 			return
 		}

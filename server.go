@@ -260,19 +260,15 @@ func (server *Server) NewClient(conn net.Conn) (err error) {
 	client.server = server
 	client.conn = conn
 	client.reader = bufio.NewReader(client.conn)
-	client.writer = bufio.NewWriter(client.conn)
+
 	client.state = StateClientConnected
 
-	client.msgchan = make(chan *Message)
 	client.udprecv = make(chan []byte)
 
 	client.user = nil
 
 	go client.receiver()
 	go client.udpreceiver()
-
-	client.doneSending = make(chan bool)
-	go client.sender()
 
 	return
 }
@@ -505,7 +501,7 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	// Send CryptState information to the client so it can establish an UDP connection,
 	// if it wishes.
 	client.lastResync = time.Seconds()
-	err = client.sendProtoMessage(&mumbleproto.CryptSetup{
+	err = client.sendMessage(&mumbleproto.CryptSetup{
 		Key:         client.crypt.RawKey[0:],
 		ClientNonce: client.crypt.DecryptIV[0:],
 		ServerNonce: client.crypt.EncryptIV[0:],
@@ -629,12 +625,12 @@ func (server *Server) finishAuthenticate(client *Client) {
 		perm.ClearCacheBit()
 		sync.Permissions = proto.Uint64(uint64(perm))
 	}
-	if err := client.sendProtoMessage(sync); err != nil {
+	if err := client.sendMessage(sync); err != nil {
 		client.Panicf("%v", err)
 		return
 	}
 
-	err := client.sendProtoMessage(&mumbleproto.ServerConfig{
+	err := client.sendMessage(&mumbleproto.ServerConfig{
 		AllowHtml:          proto.Bool(server.cfg.BoolValue("AllowHTML")),
 		MessageLength:      proto.Uint32(server.cfg.Uint32Value("MaxTextMessageLength")),
 		ImageMessageLength: proto.Uint32(server.cfg.Uint32Value("MaxImageMessageLength")),
@@ -780,7 +776,7 @@ func (server *Server) sendUserList(client *Client) {
 			userstate.PluginIdentity = proto.String(connectedClient.PluginIdentity)
 		}
 
-		err := client.sendProtoMessage(userstate)
+		err := client.sendMessage(userstate)
 		if err != nil {
 			// Server panic?
 			continue
@@ -800,7 +796,7 @@ func (server *Server) sendClientPermissions(client *Client, channel *Channel) {
 	perm := server.aclcache.GetPermission(client, channel)
 
 	// fixme(mkrautz): Cache which permissions we've already sent.
-	client.sendProtoMessage(&mumbleproto.PermissionQuery{
+	client.sendMessage(&mumbleproto.PermissionQuery{
 		ChannelId:   proto.Uint32(uint32(channel.Id)),
 		Permissions: proto.Uint32(uint32(perm)),
 	})
@@ -816,7 +812,7 @@ func (server *Server) broadcastProtoMessageWithPredicate(msg interface{}, client
 		if client.state < StateClientAuthenticated {
 			continue
 		}
-		err := client.sendProtoMessage(msg)
+		err := client.sendMessage(msg)
 		if err != nil {
 			return err
 		}

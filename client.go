@@ -6,6 +6,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
 	"goprotobuf.googlecode.com/hg/proto"
 	"grumble/blobstore"
@@ -29,13 +30,10 @@ type Client struct {
 	udpaddr *net.UDPAddr
 	conn    net.Conn
 	reader  *bufio.Reader
-	writer  *bufio.Writer
 	state   int
 	server  *Server
 
-	msgchan     chan *Message
 	udprecv     chan []byte
-	doneSending chan bool
 
 	disconnected bool
 
@@ -157,13 +155,6 @@ func (client *Client) disconnect(kicked bool) {
 			close(client.clientReady)
 		}
 
-		// Cleanly shut down the sender goroutine. This should be non-blocking
-		// since we're writing to a bufio.Writer.
-		// todo(mkrautz): Check whether that's the case? We do a flush, so maybe not.
-		client.msgchan <- nil
-		<-client.doneSending
-		close(client.msgchan)
-
 		client.Printf("Disconnected")
 		client.conn.Close()
 	}
@@ -186,7 +177,7 @@ func (client *Client) RejectAuth(rejectType mumbleproto.Reject_RejectType, reaso
 		reasonString = proto.String(reason)
 	}
 
-	client.sendProtoMessage(&mumbleproto.Reject{
+	client.sendMessage(&mumbleproto.Reject{
 		Type:   mumbleproto.NewReject_RejectType(rejectType),
 		Reason: reasonString,
 	})
@@ -228,21 +219,6 @@ func (client *Client) readProtoMessage() (msg *Message, err error) {
 	return
 }
 
-// Send a protobuf-encoded message
-func (c *Client) sendProtoMessage(msg interface{}) (err error) {
-	d, err := proto.Marshal(msg)
-	if err != nil {
-		return
-	}
-
-	c.msgchan <- &Message{
-		buf:  d,
-		kind: mumbleproto.MessageType(msg),
-	}
-
-	return
-}
-
 // Send permission denied by type
 func (c *Client) sendPermissionDeniedType(denyType mumbleproto.PermissionDenied_DenyType) {
 	c.sendPermissionDeniedTypeUser(denyType, nil)
@@ -256,31 +232,25 @@ func (c *Client) sendPermissionDeniedTypeUser(denyType mumbleproto.PermissionDen
 	if user != nil {
 		pd.Session = proto.Uint32(uint32(user.Session))
 	}
-	d, err := proto.Marshal(pd)
+	err := c.sendMessage(pd)
 	if err != nil {
-		c.Panicf("%v", err)
+		c.Panicf("%v", err.Error())
 		return
-	}
-	c.msgchan <- &Message{
-		buf:  d,
-		kind: mumbleproto.MessagePermissionDenied,
 	}
 }
 
 // Send permission denied by who, what, where
 func (c *Client) sendPermissionDenied(who *Client, where *Channel, what Permission) {
-	d, err := proto.Marshal(&mumbleproto.PermissionDenied{
+	pd := &mumbleproto.PermissionDenied{
 		Permission: proto.Uint32(uint32(what)),
 		ChannelId:  proto.Uint32(uint32(where.Id)),
 		Session:    proto.Uint32(who.Session),
 		Type:       mumbleproto.NewPermissionDenied_DenyType(mumbleproto.PermissionDenied_Permission),
-	})
-	if err != nil {
-		c.Panicf(err.Error())
 	}
-	c.msgchan <- &Message{
-		buf:  d,
-		kind: mumbleproto.MessagePermissionDenied,
+	err := c.sendMessage(pd)
+	if err != nil {
+		c.Panicf("%v", err.Error())
+		return
 	}
 }
 
@@ -357,9 +327,7 @@ func (client *Client) sendUdp(msg *Message) {
 		client.Printf("Sent UDP!")
 		client.server.udpsend <- msg
 	} else {
-		client.Printf("Sent TCP!")
-		msg.kind = mumbleproto.MessageUDPTunnel
-		client.msgchan <- msg
+		client.sendMessage(msg.buf)
 	}
 }
 
@@ -369,57 +337,43 @@ func (client *Client) sendUdp(msg *Message) {
 // This method should only be called from within the client's own
 // sender goroutine, since it serializes access to the underlying
 // buffered writer.
-func (client *Client) sendMessage(msg *Message) error {
-	// Write message kind
-	err := binary.Write(client.writer, binary.BigEndian, msg.kind)
+func (client *Client) sendMessage(msg interface{}) error {
+	buf := new(bytes.Buffer)
+	var (
+		kind    uint16
+		msgData []byte
+		err     error
+	)
+
+	kind = mumbleproto.MessageType(msg)
+	if kind == mumbleproto.MessageUDPTunnel {
+		msgData = msg.([]byte)
+	} else { 
+		msgData, err = proto.Marshal(msg)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = binary.Write(buf, binary.BigEndian, kind)
+	if err != nil {
+		return err
+	}
+	err = binary.Write(buf, binary.BigEndian, uint32(len(msgData)))
+	if err != nil {
+		return err
+	}
+	_, err = buf.Write(msgData)
 	if err != nil {
 		return err
 	}
 
-	// Message length
-	err = binary.Write(client.writer, binary.BigEndian, uint32(len(msg.buf)))
-	if err != nil {
-		return err
-	}
-
-	// Message buffer itself
-	_, err = client.writer.Write(msg.buf)
-	if err != nil {
-		return err
-	}
-
-	// Flush it, no need to keep it in the buffer for any longer.
-	err = client.writer.Flush()
+	_, err = client.conn.Write(buf.Bytes())
 	if err != nil {
 		return err
 	}
 
 	return nil
-}
-
-// Sender Goroutine.  The sender goroutine will initiate shutdown
-// if it receives a nil Message.
-//
-// On shutdown, it will send a true boolean value on the client's
-// doneSending channel.  This allows the client to send all the messages
-// that remain in it's buffer when the server has to force a disconnect.
-func (client *Client) sender() {
-	defer func() {
-		client.doneSending <- true
-	}()
-
-	for msg := range client.msgchan {
-		if msg == nil {
-			return
-		}
-
-		err := client.sendMessage(msg)
-		if err != nil {
-			// fixme(mkrautz): This is a deadlock waiting to happen.
-			client.Panicf("Unable to send message to client")
-			return
-		}
-	}
 }
 
 // Receiver Goroutine
@@ -480,7 +434,7 @@ func (client *Client) receiver() {
 		// information we must send it our version information so it knows
 		// what version of the protocol it should speak.
 		if client.state == StateClientConnected {
-			client.sendProtoMessage(&mumbleproto.Version{
+			client.sendMessage(&mumbleproto.Version{
 				Version: proto.Uint32(0x10203),
 				Release: proto.String("Grumble"),
 			})
@@ -570,7 +524,7 @@ func (client *Client) sendChannelTree(channel *Channel) {
 	}
 	chanstate.Links = links
 
-	err := client.sendProtoMessage(chanstate)
+	err := client.sendMessage(chanstate)
 	if err != nil {
 		client.Panicf("%v", err)
 	}
@@ -588,7 +542,7 @@ func (client *Client) cryptResync() {
 		if requestElapsed > 5 {
 			client.lastResync = time.Seconds()
 			cryptsetup := &mumbleproto.CryptSetup{}
-			err := client.sendProtoMessage(cryptsetup)
+			err := client.sendMessage(cryptsetup)
 			if err != nil {
 				client.Panicf("%v", err)
 			}

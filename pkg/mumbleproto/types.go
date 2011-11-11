@@ -45,6 +45,7 @@ func MessageType(msg interface{}) uint16 {
 	case *Version:
 		return MessageVersion
 	case *UDPTunnel:
+	case []byte:
 		return MessageUDPTunnel
 	case *Authenticate:
 		return MessageAuthenticate
