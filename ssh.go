@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"log"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -71,7 +72,7 @@ func RunSSH() {
 		"Set a config value for the server with the given id")
 	RegisterSSHCmd("getconf",
 		GetConfCmd,
-		"<id> <key> <value>",
+		"<id> <key>",
 		"Get a config value for the server with the given id")
 
 	pemBytes, err := ioutil.ReadFile(filepath.Join(Args.DataDir, "key.pem"))
@@ -212,21 +213,108 @@ func HelpCmd(reply SshCmdReply, args []string) error {
 }
 
 func StartServerCmd(reply SshCmdReply, args []string) error {
+	if len(args) != 2 {
+		return errors.New("argument count mismatch")
+	}
+
+	serverId, err := strconv.Atoi64(args[1])
+	if err != nil {
+		return errors.New("bad server id")
+	}
+
+	server, exists := servers[serverId]
+	if !exists {
+		return errors.New("no such server")
+	}
+
+	_ = server
+
 	return errors.New("not implemented")
 }
 
 func StopServerCmd(reply SshCmdReply, args []string) error {
+	if len(args) != 2 {
+		return errors.New("argument count mismatch")
+	}
+
+	serverId, err := strconv.Atoi64(args[1])
+	if err != nil {
+		return errors.New("bad server id")
+	}
+
+	server, exists := servers[serverId]
+	if !exists {
+		return errors.New("no such server")
+	}
+
+	_ = server
+
 	return errors.New("not implemented")
 }
 
 func SetSuperUserPasswordCmd(reply SshCmdReply, args []string) error {
-	return errors.New("not implemented")
+	if len(args) != 3 {
+		return errors.New("argument count mismatch")
+	}
+
+	serverId, err := strconv.Atoi64(args[1])
+	if err != nil {
+		return errors.New("bad server id")
+	}
+
+	server, exists := servers[serverId]
+	if !exists {
+		return errors.New("no such server")
+	}
+
+	server.SetSuperUserPassword(args[2])
+
+	reply.WriteString(fmt.Sprintf("[%v] SuperUser password updated.\r\n", serverId))
+	return nil
 }
 
 func SetConfCmd(reply SshCmdReply, args []string) error {
-	return errors.New("not implemented")
+	if len(args) != 4 {
+		return errors.New("argument count mismatch")
+	}
+
+	serverId, err := strconv.Atoi64(args[1])
+	if err != nil {
+		return errors.New("bad server id")
+	}
+
+	server, exists := servers[serverId]
+	if !exists {
+		return errors.New("no such server")
+	}
+
+	key := args[2]
+	value := args[3]
+	server.cfg.Set(key, value)
+	server.cfgUpdate <- &KeyValuePair{Key: key, Value: value} 
+
+	reply.WriteString(fmt.Sprintf("[%v] %v = %v\r\n", serverId, key, value))
+	return nil
 }
 
 func GetConfCmd(reply SshCmdReply, args []string) error {
-	return errors.New("not implemented")
+	if len(args) != 3 {
+		return errors.New("argument count mismatch")
+	}
+
+	serverId, err := strconv.Atoi64(args[1])
+	if err != nil {
+		return errors.New("bad server id")
+	}
+
+	server, exists := servers[serverId]
+	if !exists {
+		return errors.New("no such server")
+	}
+
+	key := args[2]
+	value := server.cfg.StringValue(key)
+
+	reply.WriteString(fmt.Sprintf("[%v] %v = %v\r\n", serverId, key, value))
+	return nil
 }
