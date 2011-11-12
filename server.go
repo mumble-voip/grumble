@@ -1193,7 +1193,7 @@ func (server *Server) initPerLaunchData() {
 }
 
 // Clean per-launch data
-func (server *Server) cleanPerLaunchData() { 
+func (server *Server) cleanPerLaunchData() {
 	server.pool = nil
 	server.clients = nil
 	server.hclients = nil
@@ -1213,7 +1213,7 @@ func (server *Server) Port() int {
 	if port == 0 {
 		return DefaultPort + int(server.Id) - 1
 	}
-	return 0
+	return port
 }
 
 // Returns the port the server is currently listning
@@ -1235,7 +1235,7 @@ func (server *Server) HostAddress() string {
 	if host == "" {
 		return "0.0.0.0"
 	}
-	return ""
+	return host
 }
 
 // Start the server.
@@ -1248,7 +1248,7 @@ func (server *Server) Start() (err error) {
 	port := server.Port()
 
 	// Setup our UDP listener
-	server.udpconn, err = net.ListenUDP("udp", &net.UDPAddr{ net.ParseIP(host), port })
+	server.udpconn, err = net.ListenUDP("udp", &net.UDPAddr{net.ParseIP(host), port})
 	if err != nil {
 		return err
 	}
@@ -1258,7 +1258,7 @@ func (server *Server) Start() (err error) {
 	}
 
 	// Set up our TCP connection
-	server.tcpl, err = net.ListenTCP("tcp", &net.TCPAddr{ net.ParseIP(host), port })
+	server.tcpl, err = net.ListenTCP("tcp", &net.TCPAddr{net.ParseIP(host), port})
 	if err != nil {
 		return err
 	}

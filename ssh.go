@@ -62,6 +62,10 @@ func RunSSH() {
 		StopServerCmd,
 		"<id>",
 		"Stops the server with the given id")
+	RegisterSSHCmd("restart",
+		RestartServerCmd,
+		"<id>",
+		"Restarts the server with the given id")
 	RegisterSSHCmd("supw",
 		SetSuperUserPasswordCmd,
 		"<id> <password>",
@@ -258,6 +262,38 @@ func StopServerCmd(reply SshCmdReply, args []string) error {
 	}
 
 	reply.WriteString(fmt.Sprintf("[%v] Stopped\r\n", serverId))
+
+	return nil
+}
+
+func RestartServerCmd(reply SshCmdReply, args []string) error {
+	if len(args) != 2 {
+		return errors.New("argument count mismatch")
+	}
+
+	serverId, err := strconv.Atoi64(args[1])
+	if err != nil {
+		return errors.New("bad server id")
+	}
+
+	server, exists := servers[serverId]
+	if !exists {
+		return errors.New("no such server")
+	}
+
+	err = server.Stop()
+	if err != nil {
+		return fmt.Errorf("unable to stop: %v", err.Error())
+	}
+
+	reply.WriteString(fmt.Sprintf("[%v] Stopped\r\n", serverId))
+
+	err = server.Start()
+	if err != nil {
+		return fmt.Errorf("unable to start: %v", err.Error())
+	}
+
+	reply.WriteString(fmt.Sprintf("[%v] Started\r\n", serverId))
 
 	return nil
 }
