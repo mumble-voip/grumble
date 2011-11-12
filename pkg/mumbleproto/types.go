@@ -21,7 +21,7 @@ const (
 	MessageACL
 	MessageQueryUsers
 	MessageCryptSetup
-	MessageContextActionAdd
+	MessageContextActionModify
 	MessageContextAction
 	MessageUserList
 	MessageVoiceTarget
@@ -75,8 +75,8 @@ func MessageType(msg interface{}) uint16 {
 		return MessageQueryUsers
 	case *CryptSetup:
 		return MessageCryptSetup
-	case *ContextActionAdd:
-		return MessageContextActionAdd
+	case *ContextActionModify:
+		return MessageContextActionModify
 	case *ContextAction:
 		return MessageContextAction
 	case *UserList:
