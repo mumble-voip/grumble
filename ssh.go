@@ -227,9 +227,14 @@ func StartServerCmd(reply SshCmdReply, args []string) error {
 		return errors.New("no such server")
 	}
 
-	_ = server
+	err = server.Start()
+	if err != nil {
+		return fmt.Errorf("unable to start: %v", err.Error())
+	}
 
-	return errors.New("not implemented")
+	reply.WriteString(fmt.Sprintf("[%v] Started\r\n", serverId))
+
+	return nil
 }
 
 func StopServerCmd(reply SshCmdReply, args []string) error {
@@ -247,9 +252,14 @@ func StopServerCmd(reply SshCmdReply, args []string) error {
 		return errors.New("no such server")
 	}
 
-	_ = server
+	err = server.Stop()
+	if err != nil {
+		return fmt.Errorf("unable to stop: %v", err.Error())
+	}
 
-	return errors.New("not implemented")
+	reply.WriteString(fmt.Sprintf("[%v] Stopped\r\n", serverId))
+
+	return nil
 }
 
 func SetSuperUserPasswordCmd(reply SshCmdReply, args []string) error {
@@ -291,7 +301,7 @@ func SetConfCmd(reply SshCmdReply, args []string) error {
 	key := args[2]
 	value := args[3]
 	server.cfg.Set(key, value)
-	server.cfgUpdate <- &KeyValuePair{Key: key, Value: value} 
+	server.cfgUpdate <- &KeyValuePair{Key: key, Value: value}
 
 	reply.WriteString(fmt.Sprintf("[%v] %v = %v\r\n", serverId, key, value))
 	return nil

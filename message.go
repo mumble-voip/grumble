@@ -18,18 +18,9 @@ import (
 )
 
 type Message struct {
-	buf []byte
-
-	// Kind denotes a message kind for TCP packets. This field
-	// is ignored for UDP packets.
-	kind uint16
-
-	// For UDP datagrams one of these fields have to be filled out.
-	// If there is no connection established, address must be used.
-	// If the datagram comes from an already-connected client, the
-	// client field should point to that client.
-	client  *Client
-	address net.Addr
+	buf    []byte
+	kind   uint16
+	client *Client
 }
 
 type VoiceBroadcast struct {

@@ -31,7 +31,7 @@ type Register struct {
 	Location string   `xml:"location"`
 }
 
-const registerUrl  = "https://mumble.hive.no/register.cgi"
+const registerUrl = "https://mumble.hive.no/register.cgi"
 
 // Determines whether a server is public by checking whether the
 // config values required for public registration are set.
@@ -102,7 +102,7 @@ func (server *Server) RegisterPublicServer() {
 	// Post registration XML data to server asynchronously in its own goroutine
 	go func() {
 		tr := &http.Transport{
-			TLSClientConfig:    config,
+			TLSClientConfig: config,
 		}
 		client := &http.Client{Transport: tr}
 		r, err := client.Post(registerUrl, "text/xml", ioutil.NopCloser(buf))

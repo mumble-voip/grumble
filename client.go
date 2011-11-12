@@ -33,7 +33,7 @@ type Client struct {
 	state   int
 	server  *Server
 
-	udprecv     chan []byte
+	udprecv chan []byte
 
 	disconnected bool
 
@@ -160,7 +160,7 @@ func (client *Client) disconnect(kicked bool) {
 	}
 }
 
-// Disconnect a client (client disconnected)
+// Disconnect a client (client requested or server shutdown)
 func (client *Client) Disconnect() {
 	client.disconnect(false)
 }
@@ -352,7 +352,7 @@ func (client *Client) sendMessage(msg interface{}) error {
 	kind = mumbleproto.MessageType(msg)
 	if kind == mumbleproto.MessageUDPTunnel {
 		msgData = msg.([]byte)
-	} else { 
+	} else {
 		msgData, err = proto.Marshal(msg)
 		if err != nil {
 			return err

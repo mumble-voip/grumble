@@ -22,7 +22,7 @@ func SignalHandler() {
 			}
 			continue
 		}
-	
+
 		if sig == os.SIGINT || sig == os.SIGTERM {
 			os.Exit(0)
 		}

@@ -59,7 +59,7 @@ func main() {
 		exists := false
 		if e, ok := err.(*os.PathError); ok {
 			if e.Err == os.EEXIST {
-				exists = true	
+				exists = true
 			}
 		}
 		if !exists {
@@ -195,7 +195,10 @@ func main() {
 				log.Fatalf("Unable to freeze server to disk: %v", err.Error())
 			}
 			servers[s.Id] = s
-			go s.ListenAndMurmur()
+			err = s.Start()
+			if err != nil {
+				log.Printf("Unable to start server %v: %v", s.Id, err.Error())
+			}
 		}
 	}
 
@@ -207,10 +210,15 @@ func main() {
 		}
 
 		servers[s.Id] = s
-
 		os.Mkdir(filepath.Join(Args.DataDir, fmt.Sprintf("%v", 1)), 0750)
-		s.FreezeToFile()
-		go s.ListenAndMurmur()
+		err = s.FreezeToFile()
+		if err != nil {
+			log.Fatalf("Unable to freeze newly created server to disk: %v", err.Error())
+		}
+		err = s.Start()
+		if err != nil {
+			log.Fatal("Unable to start newly created server: %v", err.Error())
+		}
 	}
 
 	// If any servers were loaded, launch the signal
