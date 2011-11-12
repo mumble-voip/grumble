@@ -245,52 +245,66 @@ func (c *Channel) Unfreeze(fc *freezer.Channel) {
 	}
 
 	// Update ACLs
-	c.ACL = nil
-	for _, facl := range fc.Acl {
-		acl := NewChannelACL(c)
-		if facl.ApplyHere != nil {
-			acl.ApplyHere = *facl.ApplyHere
+	if fc.Acl != nil { 
+		c.ACL = nil
+		for _, facl := range fc.Acl {
+			acl := NewChannelACL(c)
+			if facl.ApplyHere != nil {
+				acl.ApplyHere = *facl.ApplyHere
+			}
+			if facl.ApplySubs != nil {
+				acl.ApplySubs = *facl.ApplySubs
+			}
+			if facl.UserId != nil {
+				acl.UserId = int(*facl.UserId)
+			} else {
+				acl.UserId = -1
+			}
+			if facl.Group != nil {
+				acl.Group = *facl.Group
+			}
+			if facl.Deny != nil {
+				acl.Deny = Permission(*facl.Deny)
+			}
+			if facl.Allow != nil {
+				acl.Allow = Permission(*facl.Allow)
+			}
+			c.ACL = append(c.ACL, acl)
 		}
-		if facl.ApplySubs != nil {
-			acl.ApplySubs = *facl.ApplySubs
-		}
-		if facl.UserId != nil {
-			acl.UserId = int(*facl.UserId)
-		} else {
-			acl.UserId = -1
-		}
-		if facl.Group != nil {
-			acl.Group = *facl.Group
-		}
-		if facl.Deny != nil {
-			acl.Deny = Permission(*facl.Deny)
-		}
-		if facl.Allow != nil {
-			acl.Allow = Permission(*facl.Allow)
-		}
-		c.ACL = append(c.ACL, acl)
 	}
 
 	// Update groups
-	c.Groups = make(map[string]*Group)
-	for _, fgrp := range fc.Groups {
-		if fgrp.Name == nil {
-			continue
+	if fc.Groups != nil {
+		c.Groups = make(map[string]*Group)
+		for _, fgrp := range fc.Groups {
+			if fgrp.Name == nil {
+				continue
+			}
+			g := NewGroup(c, *fgrp.Name)
+			if fgrp.Inherit != nil {
+				g.Inherit = *fgrp.Inherit
+			}
+			if fgrp.Inheritable != nil {
+				g.Inheritable = *fgrp.Inheritable
+			}
+			for _, uid := range fgrp.Add {
+				g.Add[int(uid)] = true
+			}
+			for _, uid := range fgrp.Remove {
+				g.Remove[int(uid)] = true
+			}
+			c.Groups[g.Name] = g
 		}
-		g := NewGroup(c, *fgrp.Name)
-		if fgrp.Inherit != nil {
-			g.Inherit = *fgrp.Inherit
+	}
+
+	// Hook up links, but make them point to the channel itself.
+	// We can't be sure that the channels the links point to exist
+	// yet, so we delay hooking up the map 'correctly' to later.
+	if fc.Links != nil { 
+		c.Links = make(map[int]*Channel)
+		for _, link := range fc.Links {
+			c.Links[int(link)] = c
 		}
-		if fgrp.Inheritable != nil {
-			g.Inheritable = *fgrp.Inheritable
-		}
-		for _, uid := range fgrp.Add {
-			g.Add[int(uid)] = true
-		}
-		for _, uid := range fgrp.Remove {
-			g.Remove[int(uid)] = true
-		}
-		c.Groups[g.Name] = g
 	}
 }
 
@@ -588,8 +602,8 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 
 				channelId := int(*fc.Id)
 
-				channel, ok := s.Channels[channelId]
-				if !ok {
+				channel, alreadyExists := s.Channels[channelId]
+				if !alreadyExists {
 					if fc.Name == nil {
 						log.Printf("Skipped Channel creation log entry: No name given.")
 						continue
@@ -610,10 +624,12 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 				s.Channels[channelId] = channel
 
 				// Mark the channel's parent
-				if fc.ParentId != nil {
-					parents[*fc.Id] = *fc.ParentId
-				} else {
-					delete(parents, *fc.Id)
+				if !alreadyExists {
+					if fc.ParentId != nil {
+						parents[*fc.Id] = *fc.ParentId
+					} else {
+						delete(parents, *fc.Id)
+					}
 				}
 
 			case *freezer.ChannelRemove:
@@ -655,6 +671,20 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 			return nil, errors.New("Non-existant parent channel")
 		}
 		parentChan.AddChild(childChan)
+	}
+
+	// Hook up all channel links
+	for _, channel := range s.Channels {
+		if len(channel.Links) > 0 {
+			links := channel.Links
+			channel.Links = make(map[int]*Channel)
+			for chanId, _ := range links {
+				targetChannel := s.Channels[chanId]
+				if targetChannel != nil {
+					s.LinkChannels(channel, targetChannel)
+				}
+			}
+		}
 	}
 
 	return s, nil
@@ -717,7 +747,7 @@ func (server *Server) UpdateFrozenChannel(channel *Channel, state *mumbleproto.C
 	if state.Parent != nil {
 		fc.ParentId = state.Parent
 	}
-	if len(state.LinksAdd) > 0 && len(state.LinksRemove) > 0 {
+	if len(state.LinksAdd) > 0 || len(state.LinksRemove) > 0 {
 		links := []uint32{}
 		for cid, _ := range channel.Links {
 			links = append(links, uint32(cid))
