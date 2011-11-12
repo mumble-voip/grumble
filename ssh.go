@@ -57,27 +57,31 @@ func RunSSH() {
 	RegisterSSHCmd("start",
 		StartServerCmd,
 		"<id>",
-		"Starts the server with the given id")
+		"Starts the server")
 	RegisterSSHCmd("stop",
 		StopServerCmd,
 		"<id>",
-		"Stops the server with the given id")
+		"Stops the server")
 	RegisterSSHCmd("restart",
 		RestartServerCmd,
 		"<id>",
-		"Restarts the server with the given id")
+		"Restarts the server")
 	RegisterSSHCmd("supw",
 		SetSuperUserPasswordCmd,
 		"<id> <password>",
-		"Set the SuperUser password for server with the given id")
+		"Set the SuperUser password")
 	RegisterSSHCmd("setconf",
 		SetConfCmd,
 		"<id> <key> <value>",
-		"Set a config value for the server with the given id")
+		"Set a config value for the key")
 	RegisterSSHCmd("getconf",
 		GetConfCmd,
 		"<id> <key>",
-		"Get a config value for the server with the given id")
+		"Get the config value identified by key")
+	RegisterSSHCmd("clearconf",
+		ClearConfCmd,
+		"<id> <key>",
+		"Resets the config value identified by key to its default value")
 
 	pemBytes, err := ioutil.ReadFile(filepath.Join(Args.DataDir, "key.pem"))
 	if err != nil {
@@ -362,5 +366,28 @@ func GetConfCmd(reply SshCmdReply, args []string) error {
 	value := server.cfg.StringValue(key)
 
 	reply.WriteString(fmt.Sprintf("[%v] %v = %v\r\n", serverId, key, value))
+	return nil
+}
+
+func ClearConfCmd(reply SshCmdReply, args []string) error {
+	if len(args) != 3 {
+		return errors.New("argument count mismatch")
+	}
+
+	serverId, err := strconv.Atoi64(args[1])
+	if err != nil {
+		return errors.New("bad server id")
+	}
+
+	server, exists := servers[serverId]
+	if !exists {
+		return errors.New("no such server")
+	}
+
+	key := args[2]
+	server.cfg.Reset(key)
+	server.cfgUpdate <- &KeyValuePair{Key: key, Reset: true}
+
+	reply.WriteString(fmt.Sprintf("[%v] Cleared value for %v\r\n", serverId, key))
 	return nil
 }

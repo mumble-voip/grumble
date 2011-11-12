@@ -808,7 +808,8 @@ func (server *Server) UpdateConfig(key, value string) {
 	server.numLogOps += 1
 }
 
-// Delete the config value identified by the given key from the datastore.
+// Write to the freezelog that the config with key
+// has been reset to its default value.
 func (server *Server) ResetConfig(key string) {
 	fcfg := &freezer.ConfigKeyValuePair{
 		Key: proto.String(key),

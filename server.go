@@ -51,6 +51,7 @@ const (
 type KeyValuePair struct {
 	Key   string
 	Value string
+	Reset bool
 }
 
 // A Murmur server instance
@@ -363,7 +364,11 @@ func (server *Server) handlerLoop() {
 
 		// Disk freeze config update
 		case kvp := <-server.cfgUpdate:
-			server.UpdateConfig(kvp.Key, kvp.Value)
+			if !kvp.Reset {
+				server.UpdateConfig(kvp.Key, kvp.Value)
+			} else {
+				server.ResetConfig(kvp.Key)
+			}
 
 		// Server registration update
 		// Tick every hour + a minute offset based on the server id.
