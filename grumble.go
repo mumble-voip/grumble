@@ -204,7 +204,7 @@ func main() {
 
 	// If no servers were found, create the default virtual server.
 	if len(servers) == 0 {
-		s, err := NewServer(1, "0.0.0.0", 64738)
+		s, err := NewServer(1)
 		if err != nil {
 			log.Fatalf("Couldn't start server: %s", err.Error())
 		}

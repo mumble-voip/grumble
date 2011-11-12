@@ -85,7 +85,7 @@ func (server *Server) RegisterPublicServer() {
 		Password: server.cfg.StringValue("RegisterPassword"),
 		Url:      server.cfg.StringValue("RegisterWebUrl"),
 		Location: server.cfg.StringValue("RegisterLocation"),
-		Port:     server.port,
+		Port:     server.CurrentPort(),
 		Digest:   digest,
 		Users:    len(server.clients),
 		Channels: len(server.Channels),

@@ -59,8 +59,6 @@ type Server struct {
 
 	tcpl    *net.TCPListener
 	tlsl    *tls.Listener
-	address string
-	port    int
 	udpconn *net.UDPConn
 	tlscfg  *tls.Config
 	bye     chan bool
@@ -133,39 +131,22 @@ func (lf clientLogForwarder) Write(incoming []byte) (int, error) {
 }
 
 // Allocate a new Murmur instance
-func NewServer(id int64, addr string, port int) (s *Server, err error) {
+func NewServer(id int64) (s *Server, err error) {
 	s = new(Server)
 
 	s.Id = id
-	s.address = addr
-	s.port = port
-	s.running = false
 
 	s.cfg = serverconf.New(nil)
 
-	s.pool = sessionpool.New()
-	s.clients = make(map[uint32]*Client)
 	s.Users = make(map[uint32]*User)
 	s.UserCertMap = make(map[string]*User)
 	s.UserNameMap = make(map[string]*User)
-
-	s.hclients = make(map[string][]*Client)
-	s.hpclients = make(map[string]*Client)
-
-	s.bye = make(chan bool)
-	s.incoming = make(chan *Message)
-	s.voicebroadcast = make(chan *VoiceBroadcast)
-	s.cfgUpdate = make(chan *KeyValuePair)
-	s.clientAuthenticated = make(chan *Client)
-
 	s.Users[0], err = NewUser(0, "SuperUser")
 	s.UserNameMap["SuperUser"] = s.Users[0]
 	s.nextUserId = 1
 
 	s.Channels = make(map[int]*Channel)
 	s.aclcache = NewACLCache()
-
-	// Create root channel
 	s.Channels[0] = NewChannel(0, "Root")
 	s.nextChanId = 1
 
@@ -1197,27 +1178,77 @@ func isTimeout(err error) bool {
 	return false
 }
 
+// Initialize the per-launch data
+func (server *Server) initPerLaunchData() {
+	server.pool = sessionpool.New()
+	server.clients = make(map[uint32]*Client)
+	server.hclients = make(map[string][]*Client)
+	server.hpclients = make(map[string]*Client)
+
+	server.bye = make(chan bool)
+	server.incoming = make(chan *Message)
+	server.voicebroadcast = make(chan *VoiceBroadcast)
+	server.cfgUpdate = make(chan *KeyValuePair)
+	server.clientAuthenticated = make(chan *Client)
+}
+
+// Clean per-launch data
+func (server *Server) cleanPerLaunchData() { 
+	server.pool = nil
+	server.clients = nil
+	server.hclients = nil
+	server.hpclients = nil
+
+	server.bye = nil
+	server.incoming = nil
+	server.voicebroadcast = nil
+	server.cfgUpdate = nil
+	server.clientAuthenticated = nil
+}
+
+// Returns the port the server will listen on when it is
+// started. Returns 0 on failure.
+func (server *Server) Port() int {
+	port := server.cfg.IntValue("Port")
+	if port == 0 {
+		return DefaultPort + int(server.Id) - 1
+	}
+	return 0
+}
+
+// Returns the port the server is currently listning
+// on.  If called when the server is not running,
+// this function returns -1.
+func (server *Server) CurrentPort() int {
+	if !server.running {
+		return -1
+	}
+	tcpaddr := server.tcpl.Addr().(*net.TCPAddr)
+	return tcpaddr.Port
+}
+
+// Returns the host address the server will listen on when
+// it is started. This must be an IP address, either IPv4
+// or IPv6. 
+func (server *Server) HostAddress() string {
+	host := server.cfg.StringValue("Address")
+	if host == "" {
+		return "0.0.0.0"
+	}
+	return ""
+}
+
 // Start the server.
 func (server *Server) Start() (err error) {
 	if server.running {
 		return errors.New("already running")
 	}
 
-	host := server.cfg.StringValue("Address")
-	if host != "" {
-		server.address = host
-	}
-	port := server.cfg.IntValue("Port")
-	if port != 0 {
-		server.port = port
-	}
+	host := server.HostAddress()
+	port := server.Port()
 
 	// Setup our UDP listener
-	addr := &net.UDPAddr{
-		net.ParseIP(server.address),
-		server.port,
-	}
-	server.udpconn, err = net.ListenUDP("udp", addr)
+	server.udpconn, err = net.ListenUDP("udp", &net.UDPAddr{ net.ParseIP(host), port })
 	if err != nil {
 		return err
 	}
@@ -1227,10 +1258,7 @@ func (server *Server) Start() (err error) {
 	}
 
 	// Set up our TCP connection
-	server.tcpl, err = net.ListenTCP("tcp", &net.TCPAddr{
-		net.ParseIP(server.address),
-		server.port,
-	})
+	server.tcpl, err = net.ListenTCP("tcp", &net.TCPAddr{ net.ParseIP(host), port })
 	if err != nil {
 		return err
 	}
@@ -1260,6 +1288,10 @@ func (server *Server) Start() (err error) {
 	if err != nil {
 		server.Fatal(err)
 	}
+
+	// Reset the server's per-launch data to
+	// a clean state.
+	server.initPerLaunchData()
 
 	// Launch the event handler goroutine
 	go server.handlerLoop()
@@ -1325,6 +1357,7 @@ func (server *Server) Stop() (err error) {
 	// goroutines end.
 	server.netwg.Wait()
 
+	server.cleanPerLaunchData()
 	server.running = false
 	server.Printf("Stopped")
 

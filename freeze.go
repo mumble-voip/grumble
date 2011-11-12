@@ -420,7 +420,7 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 		}
 	}
 
-	s, err = NewServer(id, "0.0.0.0", int(DefaultPort+id-1))
+	s, err = NewServer(id)
 	if err != nil {
 		return nil, err
 	}
