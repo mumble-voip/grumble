@@ -16,6 +16,7 @@ import (
 	"log"
 	"net"
 	"packetdatastream"
+	"runtime"
 	"time"
 )
 
@@ -446,12 +447,15 @@ func (client *Client) receiver() {
 		// information we must send it our version information so it knows
 		// what version of the protocol it should speak.
 		if client.state == StateClientConnected {
-			client.sendMessage(&mumbleproto.Version{
+			version := &mumbleproto.Version{
 				Version: proto.Uint32(0x10203),
 				Release: proto.String("Grumble"),
-			})
-			// fixme(mkrautz): Re-add OS information... Does it break anything? It seems like
-			// the client discards the version message if there is no OS information in it.
+			}
+			if client.server.cfg.BoolValue("SendOSInfo") {
+				version.Os = proto.String(runtime.GOOS)
+				version.OsVersion = proto.String("(Unknown version)")
+			}
+			client.sendMessage(version)
 			client.state = StateServerSentVersion
 			continue
 		} else if client.state == StateServerSentVersion {
