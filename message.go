@@ -591,7 +591,12 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 			return
 		}
 
-		// fixme(mkrautz): Check whether the channel is full.
+		maxChannelUsers := server.cfg.IntValue("MaxChannelUsers")
+		if len(dstChan.clients) >= maxChannelUsers {
+			client.sendPermissionDeniedFallback(mumbleproto.PermissionDenied_ChannelFull,
+				0x010201, "Channel is full")
+			return
+		}
 	}
 
 	if userstate.Mute != nil || userstate.Deaf != nil || userstate.Suppress != nil || userstate.PrioritySpeaker != nil {
