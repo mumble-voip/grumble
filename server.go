@@ -561,10 +561,18 @@ func (server *Server) finishAuthenticate(client *Client) {
 	server.hclients[host] = append(server.hclients[host], client)
 	server.hmutex.Unlock()
 
+	channel := server.RootChannel()
+	if client.IsRegistered() {
+		lastChannel := server.Channels[client.user.LastChannelId]
+		if lastChannel != nil {
+			channel = lastChannel
+		}
+	}
+
 	userstate := &mumbleproto.UserState{
 		Session:   proto.Uint32(client.Session),
 		Name:      proto.String(client.ShownName()),
-		ChannelId: proto.Uint32(0),
+		ChannelId: proto.Uint32(uint32(channel.Id)),
 	}
 
 	if len(client.CertHash) > 0 {
@@ -601,7 +609,7 @@ func (server *Server) finishAuthenticate(client *Client) {
 		}
 	}
 
-	server.userEnterChannel(client, server.RootChannel(), userstate)
+	server.userEnterChannel(client, channel, userstate)
 	if err := server.broadcastProtoMessage(userstate); err != nil {
 		// Server panic?
 	}

@@ -691,9 +691,10 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 }
 
 // Update the datastore with the user's current state.
-func (server *Server) UpdateFrozenUser(user *User, state *mumbleproto.UserState) {
+func (server *Server) UpdateFrozenUser(client *Client, state *mumbleproto.UserState) {
 	// Full sync If there's no userstate messgae provided, or if there is one, and
 	// it includes a registration operation.
+	user := client.user
 	nanos := time.Nanoseconds()
 	if state == nil || state.UserId != nil {
 		fu, err := user.Freeze()
@@ -709,7 +710,7 @@ func (server *Server) UpdateFrozenUser(user *User, state *mumbleproto.UserState)
 		fu := &freezer.User{}
 		fu.Id = proto.Uint32(user.Id)
 		if state.ChannelId != nil {
-			fu.LastChannelId = state.ChannelId
+			fu.LastChannelId = proto.Uint32(uint32(client.Channel.Id))
 		}
 		if state.TextureHash != nil {
 			fu.TextureBlob = proto.String(user.TextureBlob)

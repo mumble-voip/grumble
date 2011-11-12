@@ -874,7 +874,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	}
 
 	if target.IsRegistered() {
-		server.UpdateFrozenUser(target.user, userstate)
+		server.UpdateFrozenUser(target, userstate)
 	}
 }
 
