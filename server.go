@@ -1133,6 +1133,27 @@ func (server *Server) RemoveChannel(channel *Channel) {
 	}
 }
 
+// Remove expired bans
+func (server *Server) RemoveExpiredBans() {
+	server.banlock.Lock()
+	defer server.banlock.Unlock()
+
+	newBans := []ban.Ban{}
+	update := false
+	for _, ban := range server.Bans {
+		if !ban.IsExpired() {
+			newBans = append(newBans, ban)
+		} else {
+			update = true
+		}
+	}
+
+	if update {
+		server.Bans = newBans
+		server.UpdateFrozenBans(server.Bans)
+	}
+}
+
 // Is the incoming connection conn banned?
 func (server *Server) IsBanned(conn net.Conn) bool {
 	server.banlock.RLock()
@@ -1173,8 +1194,10 @@ func (server *Server) acceptLoop() {
 			}
 		}
 
+		// Remove expired bans
+		server.RemoveExpiredBans()
+
 		// Is the client banned?
-		// fixme(mkrautz): Clean up expired bans
 		if server.IsBanned(conn) {
 			server.Printf("Rejected client %v: Banned", conn.RemoteAddr())
 			err := conn.Close()
