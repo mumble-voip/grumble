@@ -727,6 +727,26 @@ func (server *Server) UpdateFrozenUser(client *Client, state *mumbleproto.UserSt
 	server.numLogOps += 1
 }
 
+// Update a user's last active channel
+func (server *Server) UpdateFrozenUserLastChannel(client *Client) {
+	if client.IsRegistered() {
+		user := client.user
+
+		fu := &freezer.User{}
+		fu.Id = proto.Uint32(user.Id)
+		fu.LastChannelId = proto.Uint32(uint32(client.Channel.Id))
+		fu.LastActive = proto.Uint64(uint64(time.Nanoseconds()))
+
+		err := server.freezelog.Put(fu)
+		if err != nil {
+			server.Fatal(err)
+		}
+
+		server.numLogOps += 1
+	}
+}
+
+
 // Mark a user as deleted in the datstore.
 func (server *Server) DeleteFrozenUser(user *User) {
 	err := server.freezelog.Put(&freezer.UserRemove{Id: proto.Uint32(user.Id)})

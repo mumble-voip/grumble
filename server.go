@@ -994,7 +994,9 @@ func (server *Server) userEnterChannel(client *Client, channel *Channel, usersta
 	channel.AddClient(client)
 
 	server.ClearCaches()
-	// fixme(mkrautz): Set LastChannel for user in datastore
+
+	server.UpdateFrozenUserLastChannel(client)
+
 	// fixme(mkrautz): Remove channel if temporary
 
 	canspeak := server.HasPermission(client, channel, SpeakPermission)
