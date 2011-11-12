@@ -84,3 +84,41 @@ func (channel *Channel) DescriptionBlobHashBytes() (buf []byte) {
 	}
 	return buf
 }
+
+// Returns a slice of all channels in this channel's
+// link chain.
+func (channel *Channel) AllLinks() (seen map[int]*Channel) {
+	seen = make(map[int]*Channel)
+	walk := []*Channel{channel}
+	for len(walk) > 0 {
+		current := walk[len(walk)-1]
+		walk = walk[0 : len(walk)-1]
+		for _, linked := range current.Links {
+			if _, alreadySeen := seen[linked.Id]; !alreadySeen {
+				seen[linked.Id] = linked
+				walk = append(walk, linked)
+			}
+		}
+	}
+	return
+}
+
+// Returns a slice of all of this channel's subchannels.
+func (channel *Channel) AllSubChannels() (seen map[int]*Channel) {
+	seen = make(map[int]*Channel)
+	walk := []*Channel{}
+	if len(channel.children) > 0 {
+		walk = append(walk, channel)
+		for len(walk) > 0 {
+			current := walk[len(walk)-1]
+			walk = walk[0 : len(walk)-1]
+			for _, child := range current.children {
+				if _, alreadySeen := seen[child.Id]; !alreadySeen {
+					seen[child.Id] = child
+					walk = append(walk, child)
+				}
+			}
+		}
+	}
+	return
+}

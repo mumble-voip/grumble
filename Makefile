@@ -54,6 +54,7 @@ GOFILES = \
 	acl.go \
 	group.go \
 	user.go \
+	voicetarget.go \
 	freeze.go \
 	gencert.go \
 	register.go \

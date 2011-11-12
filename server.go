@@ -249,6 +249,7 @@ func (server *Server) NewClient(conn net.Conn) (err error) {
 	client.state = StateClientConnected
 
 	client.udprecv = make(chan []byte)
+	client.voiceTargets = make(map[uint32]*VoiceTarget)
 
 	client.user = nil
 
@@ -345,8 +346,7 @@ func (server *Server) handlerLoop() {
 			server.handleIncomingMessage(client, msg)
 		// Voice broadcast
 		case vb := <-server.voicebroadcast:
-			server.Printf("VoiceBroadcast!")
-			if vb.target == 0 {
+			if vb.target == 0 { // Current channel
 				channel := vb.client.Channel
 				for _, client := range channel.clients {
 					if client != vb.client {
@@ -356,6 +356,13 @@ func (server *Server) handlerLoop() {
 						}
 					}
 				}
+			} else {
+				target, ok := vb.client.voiceTargets[uint32(vb.target)]
+				if !ok {
+					continue
+				}
+
+				target.SendVoiceBroadcast(vb)
 			}
 		// Finish client authentication. Send post-authentication
 		// server info.
@@ -413,7 +420,7 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	// by sending an Authenticate message with he contents of their new
 	// access token list.
 	client.Tokens = auth.Tokens
-	server.ClearACLCache()
+	server.ClearCaches()
 
 	if client.state >= StateClientAuthenticated {
 		return
@@ -847,7 +854,7 @@ func (server *Server) handleIncomingMessage(client *Client, msg *Message) {
 	case mumbleproto.MessageUserList:
 		server.handleUserList(msg.client, msg)
 	case mumbleproto.MessageVoiceTarget:
-		server.Printf("MessageVoiceTarget from client")
+		server.handleVoiceTarget(msg.client, msg)
 	case mumbleproto.MessagePermissionQuery:
 		server.handlePermissionQuery(msg.client, msg)
 	case mumbleproto.MessageUserStats:
@@ -958,9 +965,12 @@ func (server *Server) handleUdpPacket(udpaddr *net.UDPAddr, buf []byte, nread in
 	match.udprecv <- plain
 }
 
-// Clear the ACL cache
-func (s *Server) ClearACLCache() {
-	s.aclcache = NewACLCache()
+// Clear the Server's caches
+func (server *Server) ClearCaches() {
+	server.aclcache = NewACLCache()
+	for _, client := range server.clients {
+		client.ClearCaches()
+	}
 }
 
 // Helper method for users entering new channels
@@ -975,7 +985,7 @@ func (server *Server) userEnterChannel(client *Client, channel *Channel, usersta
 	}
 	channel.AddClient(client)
 
-	server.ClearACLCache()
+	server.ClearCaches()
 	// fixme(mkrautz): Set LastChannel for user in datastore
 	// fixme(mkrautz): Remove channel if temporary
 

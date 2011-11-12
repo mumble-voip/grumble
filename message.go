@@ -287,7 +287,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 
 			channel.ACL = append(channel.ACL, acl)
 
-			server.ClearACLCache()
+			server.ClearCaches()
 		}
 
 		chanstate.ChannelId = proto.Uint32(uint32(channel.Id))
@@ -862,7 +862,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 		}
 
 		if userRegistrationChanged {
-			server.ClearACLCache()
+			server.ClearCaches()
 		}
 
 		err := server.broadcastProtoMessageWithPredicate(userstate, func(client *Client) bool {
@@ -1207,8 +1207,8 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 			channel.ACL = append(channel.ACL, chanacl)
 		}
 
-		// Clear the server's ACL cache
-		server.ClearACLCache()
+		// Clear the Server's caches
+		server.ClearCaches()
 
 		// Regular user?
 		if !server.HasPermission(client, channel, WritePermission) && client.IsRegistered() || client.HasCertificate() {
@@ -1226,7 +1226,7 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 
 			channel.ACL = append(channel.ACL, chanacl)
 
-			server.ClearACLCache()
+			server.ClearCaches()
 		}
 
 		// Update freezer
@@ -1371,6 +1371,57 @@ func (server *Server) handleUserStatsMessage(client *Client, msg *Message) {
 	if err := client.sendMessage(stats); err != nil {
 		client.Panic(err)
 		return
+	}
+}
+
+// Voice target message
+func (server *Server) handleVoiceTarget(client *Client, msg *Message) {
+	vt := &mumbleproto.VoiceTarget{}
+	err := proto.Unmarshal(msg.buf, vt)
+	if err != nil {
+		client.Panic(err.Error())
+		return
+	}
+
+	if vt.Id == nil {
+		return
+	}
+
+	id := *vt.Id
+	if id < 1 || id >= 0x1f {
+		return
+	}
+
+	if len(vt.Targets) == 0 {
+		delete(client.voiceTargets, id)
+	}
+
+	for _, target := range vt.Targets {
+		newTarget := &VoiceTarget{}
+		for _, session := range target.Session {
+			newTarget.AddSession(session)
+		}
+		if target.ChannelId != nil {
+			chanid := *target.ChannelId
+			group := ""
+			links := false
+			subchannels := false
+			if target.Group != nil {
+				group = *target.Group
+			}
+			if target.Links != nil {
+				links = *target.Links
+			}
+			if target.Children != nil {
+				subchannels = *target.Children
+			}
+			newTarget.AddChannel(chanid, subchannels, links, group)
+		}
+		if newTarget.IsEmpty() {
+			delete(client.voiceTargets, id)
+		} else {
+			client.voiceTargets[id] = newTarget
+		}
 	}
 }
 

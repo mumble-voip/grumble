@@ -37,10 +37,11 @@ type Client struct {
 
 	disconnected bool
 
-	lastResync int64
-	crypt      *cryptstate.CryptState
-	codecs     []int32
-	udp        bool
+	lastResync   int64
+	crypt        *cryptstate.CryptState
+	codecs       []int32
+	udp          bool
+	voiceTargets map[uint32]*VoiceTarget
 
 	// Ping stats
 	UdpPingAvg float32
@@ -168,6 +169,13 @@ func (client *Client) Disconnect() {
 // Disconnect a client (kick/ban)
 func (client *Client) ForceDisconnect() {
 	client.disconnect(true)
+}
+
+// Clear the client's caches
+func (client *Client) ClearCaches() {
+	for _, vt := range client.voiceTargets {
+		vt.ClearCache()
+	}
 }
 
 // Reject an authentication attempt
