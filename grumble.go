@@ -26,26 +26,25 @@ func main() {
 		return
 	}
 
-	err = logtarget.Target.OpenFile(Args.LogPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to open log file: %v", err)
-		return
-	}
-
-	log.SetPrefix("[G] ")
-	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
-	log.SetOutput(&logtarget.Target)
-	log.Printf("Grumble")
-	log.Printf("Using data directory: %s", Args.DataDir)
-
-	// Open the data dir.  We need it later for looking up
-	// the virtual server folders in the data dir.
-	// We need it now to make sure the data dir actually exists.
+	// Open the data dir to check whether it exists.
 	dataDir, err := os.Open(Args.DataDir)
 	if err != nil {
 		log.Fatalf("Unable to open data directory: %v", err)
 		return
 	}
+	dataDir.Close()
+
+	// Set up logging
+	err = logtarget.Target.OpenFile(Args.LogPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to open log file: %v", err)
+		return
+	}
+	log.SetPrefix("[G] ")
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+	log.SetOutput(&logtarget.Target)
+	log.Printf("Grumble")
+	log.Printf("Using data directory: %s", Args.DataDir)
 
 	// Open the blobstore.  If the directory doesn't
 	// already exist, create the directory and open
@@ -164,17 +163,34 @@ func main() {
 		return
 	}
 
-	// Run the SSH admin console.
-	RunSSH()
+	// Create the servers directory if it doesn't already
+	// exist.
+	serversDirPath := filepath.Join(Args.DataDir, "servers")
+	err = os.Mkdir(serversDirPath, 0700)
+	if err != nil {
+		exists := false
+		if e, ok := err.(*os.PathError); ok {
+			if e.Err == os.EEXIST {
+				exists = true
+			}
+		}
+		if !exists {
+			log.Fatal("Unable to create servers directory: %v", err.Error())
+		}
+	}
 
-	// Read all entries of the data directory.
+	// Read all entries of the servers directory.
 	// We need these to load our virtual servers.
-	names, err := dataDir.Readdirnames(-1)
+	serversDir, err := os.Open(serversDirPath)
+	if err != nil {
+		log.Fatalf("Unable to open the servers directory: %v", err.Error())
+	}
+	names, err := serversDir.Readdirnames(-1)
 	if err != nil {
 		log.Fatal("Unable to read file from data directory: %v", err.Error())
 	}
 	// The data dir file descriptor.
-	err = dataDir.Close()
+	err = serversDir.Close()
 	if err != nil {
 		log.Fatalf("Unable to close data directory: %v", err.Error())
 		return
@@ -195,10 +211,6 @@ func main() {
 				log.Fatalf("Unable to freeze server to disk: %v", err.Error())
 			}
 			servers[s.Id] = s
-			err = s.Start()
-			if err != nil {
-				log.Printf("Unable to start server %v: %v", s.Id, err.Error())
-			}
 		}
 	}
 
@@ -210,14 +222,21 @@ func main() {
 		}
 
 		servers[s.Id] = s
-		os.Mkdir(filepath.Join(Args.DataDir, fmt.Sprintf("%v", 1)), 0750)
+		os.Mkdir(filepath.Join(serversDirPath, fmt.Sprintf("%v", 1)), 0750)
 		err = s.FreezeToFile()
 		if err != nil {
 			log.Fatalf("Unable to freeze newly created server to disk: %v", err.Error())
 		}
-		err = s.Start()
+	}
+
+	// Run the SSH admin console.
+	RunSSH()
+
+	// Launch the servers we found during launch...
+	for _, server := range servers {
+		err = server.Start()
 		if err != nil {
-			log.Fatal("Unable to start newly created server: %v", err.Error())
+			log.Printf("Unable to start server %v: %v", server.Id, err.Error())
 		}
 	}
 

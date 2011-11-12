@@ -36,7 +36,7 @@ func (server *Server) FreezeToFile() (err error) {
 	if err != nil {
 		return err
 	}
-	f, err := ioutil.TempFile(filepath.Join(Args.DataDir, strconv.Itoa64(server.Id)), ".main.fz_")
+	f, err := ioutil.TempFile(filepath.Join(Args.DataDir, "servers", strconv.Itoa64(server.Id)), ".main.fz_")
 	if err != nil {
 		return err
 	}
@@ -56,7 +56,7 @@ func (server *Server) FreezeToFile() (err error) {
 	if err != nil {
 		return err
 	}
-	err = os.Rename(f.Name(), filepath.Join(Args.DataDir, strconv.Itoa64(server.Id), "main.fz"))
+	err = os.Rename(f.Name(), filepath.Join(Args.DataDir, "servers", strconv.Itoa64(server.Id), "main.fz"))
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func (server *Server) FreezeToFile() (err error) {
 
 // Open a new freeze log
 func (server *Server) openFreezeLog() (err error) {
-	logfn := filepath.Join(Args.DataDir, strconv.Itoa64(server.Id), "log.fz")
+	logfn := filepath.Join(Args.DataDir, "servers", strconv.Itoa64(server.Id), "log.fz")
 	err = os.Remove(logfn)
 	if pe, ok := err.(*os.PathError); ok && pe.Err == os.ENOENT {
 		// OK. File does not exist...
@@ -390,7 +390,7 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 		return nil, err
 	}
 
-	path := filepath.Join(Args.DataDir, name)
+	path := filepath.Join(Args.DataDir, "servers", name)
 	mainFile := filepath.Join(path, "main.fz")
 	logFile := filepath.Join(path, "log.fz")
 
