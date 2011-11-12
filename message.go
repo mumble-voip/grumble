@@ -1327,7 +1327,7 @@ func (server *Server) handleUserStatsMessage(client *Client, msg *Message) {
 			for i := len(state.PeerCertificates) - 1; i >= 0; i-- {
 				stats.Certificates = append(stats.Certificates, state.PeerCertificates[i].Raw)
 			}
-			// fixme(mkrautz): strong certificate checking
+			stats.StrongCertificate = proto.Bool(target.IsVerified())
 		}
 	}
 

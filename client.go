@@ -7,6 +7,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"crypto/tls"
 	"encoding/binary"
 	"goprotobuf.googlecode.com/hg/proto"
 	"grumble/blobstore"
@@ -123,6 +124,15 @@ func (client *Client) ShownName() string {
 		return client.user.Name
 	}
 	return client.Username
+}
+
+// Check whether the client's certificate is
+// verified.
+func (client *Client) IsVerified() bool {
+	tlsconn := client.conn.(*tls.Conn)
+	state := tlsconn.ConnectionState()
+	client.Printf("%v", state.VerifiedChains)
+	return len(state.VerifiedChains) > 0
 }
 
 // Log a panic and disconnect the client.

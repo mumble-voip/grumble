@@ -227,7 +227,7 @@ func (server *Server) CheckSuperUserPassword(password string) bool {
 }
 
 // Called by the server to initiate a new client connection.
-func (server *Server) NewClient(conn net.Conn) (err error) {
+func (server *Server) handleIncomingClient(conn net.Conn) (err error) {
 	client := new(Client)
 	addr := conn.RemoteAddr()
 	if addr == nil {
@@ -252,6 +252,30 @@ func (server *Server) NewClient(conn net.Conn) (err error) {
 	client.voiceTargets = make(map[uint32]*VoiceTarget)
 
 	client.user = nil
+
+	// Extract user's cert hash
+	tlsconn := client.conn.(*tls.Conn)
+	err = tlsconn.Handshake()
+	if err != nil {
+		client.Printf("TLS handshake failed: %v", err)
+		client.Disconnect()
+		return
+	}
+
+	state := tlsconn.ConnectionState()
+	if len(state.PeerCertificates) > 0 {
+		hash := sha1.New()
+		hash.Write(state.PeerCertificates[0].Raw)
+		sum := hash.Sum()
+		client.CertHash = hex.EncodeToString(sum)
+	}
+
+	// Check whether the client's cert hash is banned
+	if server.IsCertHashBanned(client.CertHash) {
+		client.Printf("Certificate hash is banned")
+		client.Disconnect()
+		return
+	}
 
 	go client.receiver()
 	go client.udpreceiver()
@@ -434,26 +458,13 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 
 	client.Username = *auth.Username
 
-	// Extract certhash
-	tlsconn, ok := client.conn.(*tls.Conn)
-	if !ok {
-		client.Panic("Invalid connection")
-		return
-	}
-	state := tlsconn.ConnectionState()
-	if len(state.PeerCertificates) > 0 {
-		hash := sha1.New()
-		hash.Write(state.PeerCertificates[0].Raw)
-		sum := hash.Sum()
-		client.CertHash = hex.EncodeToString(sum)
-	}
-
 	if client.Username == "SuperUser" {
 		if auth.Password == nil {
 			client.RejectAuth(mumbleproto.Reject_WrongUserPW, "")
 			return
 		} else {
 			if server.CheckSuperUserPassword(*auth.Password) {
+				ok := false
 				client.user, ok = server.UserNameMap[client.Username]
 				if !ok {
 					client.RejectAuth(mumbleproto.Reject_InvalidUsername, "")
@@ -1155,13 +1166,27 @@ func (server *Server) RemoveExpiredBans() {
 }
 
 // Is the incoming connection conn banned?
-func (server *Server) IsBanned(conn net.Conn) bool {
+func (server *Server) IsConnectionBanned(conn net.Conn) bool {
 	server.banlock.RLock()
 	defer server.banlock.RUnlock()
 
 	for _, ban := range server.Bans {
 		addr := conn.RemoteAddr().(*net.TCPAddr)
 		if ban.Match(addr.IP) && !ban.IsExpired() {
+			return true
+		}
+	}
+
+	return false
+}
+
+// Is the certificate hash banned?
+func (server *Server) IsCertHashBanned(hash string) bool {
+	server.banlock.RLock()
+	defer server.banlock.RUnlock()
+
+	for _, ban := range server.Bans {
+		if ban.CertHash == hash && !ban.IsExpired() {
 			return true
 		}
 	}
@@ -1197,8 +1222,8 @@ func (server *Server) acceptLoop() {
 		// Remove expired bans
 		server.RemoveExpiredBans()
 
-		// Is the client banned?
-		if server.IsBanned(conn) {
+		// Is the client IP-banned?
+		if server.IsConnectionBanned(conn) {
 			server.Printf("Rejected client %v: Banned", conn.RemoteAddr())
 			err := conn.Close()
 			if err != nil {
@@ -1209,7 +1234,7 @@ func (server *Server) acceptLoop() {
 
 		// Create a new client connection from our *tls.Conn
 		// which wraps net.TCPConn.
-		err = server.NewClient(conn)
+		err = server.handleIncomingClient(conn)
 		if err != nil {
 			server.Printf("Unable to handle new client: %v", err)
 			continue
