@@ -136,7 +136,7 @@ func (server *Server) handleChannelRemoveMessage(client *Client, msg *Message) {
 	}
 
 	// Update datastore
-	if !channel.Temporary {
+	if !channel.IsTemporary() {
 		server.DeleteFrozenChannel(channel)
 	}
 
@@ -244,7 +244,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 		}
 
 		// We can't add channels to a temporary channel
-		if parent.Temporary {
+		if parent.IsTemporary() {
 			client.sendPermissionDeniedType(mumbleproto.PermissionDenied_TemporaryChannel)
 			return
 		}
@@ -260,7 +260,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 		// Add the new channel
 		channel = server.AddChannel(name)
 		channel.DescriptionBlob = key
-		channel.Temporary = *chanstate.Temporary
+		channel.temporary = *chanstate.Temporary
 		channel.Position = int(*chanstate.Position)
 		parent.AddChild(channel)
 
@@ -307,7 +307,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 		})
 
 		// If it's a temporary channel, move the creator in there.
-		if channel.Temporary {
+		if channel.IsTemporary() {
 			userstate := &mumbleproto.UserState{}
 			userstate.Session = proto.Uint32(client.Session)
 			userstate.ChannelId = proto.Uint32(uint32(channel.Id))
@@ -362,7 +362,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 			}
 
 			// A temporary channel must not have any subchannels, so deny it.
-			if parent.Temporary {
+			if parent.IsTemporary() {
 				client.sendPermissionDeniedType(mumbleproto.PermissionDenied_TemporaryChannel)
 				return
 			}
@@ -473,7 +473,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 	}
 
 	// Update channel in datastore
-	if !channel.Temporary {
+	if !channel.IsTemporary() {
 		server.UpdateFrozenChannel(channel, chanstate)
 	}
 }
@@ -592,7 +592,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 		}
 
 		maxChannelUsers := server.cfg.IntValue("MaxChannelUsers")
-		if len(dstChan.clients) >= maxChannelUsers {
+		if maxChannelUsers != 0 && len(dstChan.clients) >= maxChannelUsers {
 			client.sendPermissionDeniedFallback(mumbleproto.PermissionDenied_ChannelFull,
 				0x010201, "Channel is full")
 			return

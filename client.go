@@ -547,7 +547,7 @@ func (client *Client) sendChannelTree(channel *Channel) {
 		}
 	}
 
-	if channel.Temporary {
+	if channel.IsTemporary() {
 		chanstate.Temporary = proto.Bool(true)
 	}
 

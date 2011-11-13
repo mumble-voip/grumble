@@ -69,6 +69,7 @@ type Server struct {
 	incoming       chan *Message
 	voicebroadcast chan *VoiceBroadcast
 	cfgUpdate      chan *KeyValuePair
+	tempRemove     chan *Channel
 
 	// Signals to the server that a client has been successfully
 	// authenticated.
@@ -387,6 +388,11 @@ func (server *Server) handlerLoop() {
 				}
 
 				target.SendVoiceBroadcast(vb)
+			}
+		// Remove a temporary channel
+		case tempChannel := <- server.tempRemove:
+			if tempChannel.IsEmpty() {
+				server.RemoveChannel(tempChannel)
 			}
 		// Finish client authentication. Send post-authentication
 		// server info.
@@ -1001,14 +1007,15 @@ func (server *Server) userEnterChannel(client *Client, channel *Channel, usersta
 	oldchan := client.Channel
 	if oldchan != nil {
 		oldchan.RemoveClient(client)
+		if oldchan.IsTemporary() && oldchan.IsEmpty() {
+			server.tempRemove <- oldchan
+		}
 	}
 	channel.AddClient(client)
 
 	server.ClearCaches()
 
 	server.UpdateFrozenUserLastChannel(client)
-
-	// fixme(mkrautz): Remove channel if temporary
 
 	canspeak := server.HasPermission(client, channel, SpeakPermission)
 	if canspeak == client.Suppress {
@@ -1262,6 +1269,7 @@ func (server *Server) initPerLaunchData() {
 	server.incoming = make(chan *Message)
 	server.voicebroadcast = make(chan *VoiceBroadcast)
 	server.cfgUpdate = make(chan *KeyValuePair)
+	server.tempRemove = make(chan *Channel, 1)
 	server.clientAuthenticated = make(chan *Client)
 }
 
@@ -1276,6 +1284,7 @@ func (server *Server) cleanPerLaunchData() {
 	server.incoming = nil
 	server.voicebroadcast = nil
 	server.cfgUpdate = nil
+	server.tempRemove = nil
 	server.clientAuthenticated = nil
 }
 

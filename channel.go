@@ -12,11 +12,11 @@ import (
 type Channel struct {
 	Id        int
 	Name      string
-	Temporary bool
 	Position  int
 
-	clients map[uint32]*Client
 
+	temporary bool
+	clients map[uint32]*Client
 	parent   *Channel
 	children map[int]*Channel
 
@@ -121,4 +121,14 @@ func (channel *Channel) AllSubChannels() (seen map[int]*Channel) {
 		}
 	}
 	return
+}
+
+// Checks whether the channel is temporary
+func (channel *Channel) IsTemporary() bool {
+	return channel.temporary
+}
+
+// Checks whether the channel is temporary
+func (channel *Channel) IsEmpty() bool {
+	return len(channel.clients) == 0
 }
