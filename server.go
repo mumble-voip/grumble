@@ -278,8 +278,9 @@ func (server *Server) handleIncomingClient(conn net.Conn) (err error) {
 		return
 	}
 
-	go client.receiver()
-	go client.udpreceiver()
+	// Launch network readers
+	go client.tlsRecvLoop()
+	go client.udpRecvLoop()
 
 	return
 }

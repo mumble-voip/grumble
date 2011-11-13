@@ -288,8 +288,8 @@ func (client *Client) sendPermissionDeniedFallback(denyType mumbleproto.Permissi
 	}
 }
 
-// UDP receiver.
-func (client *Client) udpreceiver() {
+// UDP receive loop
+func (client *Client) udpRecvLoop() {
 	for buf := range client.udprecv {
 		// Received a zero-valued buffer. This means that the udprecv
 		// channel was closed, so exit cleanly.
@@ -408,8 +408,8 @@ func (client *Client) sendMessage(msg interface{}) error {
 	return nil
 }
 
-// Receiver Goroutine
-func (client *Client) receiver() {
+// TLS receive loop
+func (client *Client) tlsRecvLoop() {
 	for {
 		// The version handshake is done, the client has been authenticated and it has received
 		// all necessary information regarding the server.  Now we're ready to roll!
@@ -512,10 +512,6 @@ func (client *Client) receiver() {
 			if version.OsVersion != nil {
 				client.OSVersion = *version.OsVersion
 			}
-
-			client.Printf("version = 0x%x", client.Version)
-			client.Printf("os = %s %s", client.OSName, client.OSVersion)
-			client.Printf("client = %s", client.ClientName)
 
 			client.state = StateClientSentVersion
 		}
