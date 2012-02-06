@@ -2,9 +2,10 @@ package main
 
 import (
 	"bytes"
+	"code.google.com/p/go.crypto/ssh"
 	"crypto/rand"
 	"errors"
-	"exp/ssh"
+	"exp/terminal"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -133,7 +134,7 @@ func RunSSH() {
 func handleChannel(channel ssh.Channel) {
 	if channel.ChannelType() == "session" {
 		channel.Accept()
-		shell := ssh.NewServerShell(channel, "G> ")
+		shell := terminal.NewTerminal(channel, "> ")
 		go func() {
 			defer channel.Close()
 			for {
@@ -225,7 +226,7 @@ func StartServerCmd(reply SshCmdReply, args []string) error {
 		return errors.New("argument count mismatch")
 	}
 
-	serverId, err := strconv.Atoi64(args[1])
+	serverId, err := strconv.ParseInt(args[1], 10, 64)
 	if err != nil {
 		return errors.New("bad server id")
 	}
@@ -250,7 +251,7 @@ func StopServerCmd(reply SshCmdReply, args []string) error {
 		return errors.New("argument count mismatch")
 	}
 
-	serverId, err := strconv.Atoi64(args[1])
+	serverId, err := strconv.ParseInt(args[1], 10, 64)
 	if err != nil {
 		return errors.New("bad server id")
 	}
@@ -275,7 +276,7 @@ func RestartServerCmd(reply SshCmdReply, args []string) error {
 		return errors.New("argument count mismatch")
 	}
 
-	serverId, err := strconv.Atoi64(args[1])
+	serverId, err := strconv.ParseInt(args[1], 10, 64)
 	if err != nil {
 		return errors.New("bad server id")
 	}
@@ -307,7 +308,7 @@ func SetSuperUserPasswordCmd(reply SshCmdReply, args []string) error {
 		return errors.New("argument count mismatch")
 	}
 
-	serverId, err := strconv.Atoi64(args[1])
+	serverId, err := strconv.ParseInt(args[1], 10, 64)
 	if err != nil {
 		return errors.New("bad server id")
 	}
@@ -328,7 +329,7 @@ func SetConfCmd(reply SshCmdReply, args []string) error {
 		return errors.New("argument count mismatch")
 	}
 
-	serverId, err := strconv.Atoi64(args[1])
+	serverId, err := strconv.ParseInt(args[1], 10, 64)
 	if err != nil {
 		return errors.New("bad server id")
 	}
@@ -352,7 +353,7 @@ func GetConfCmd(reply SshCmdReply, args []string) error {
 		return errors.New("argument count mismatch")
 	}
 
-	serverId, err := strconv.Atoi64(args[1])
+	serverId, err := strconv.ParseInt(args[1], 10, 64)
 	if err != nil {
 		return errors.New("bad server id")
 	}
@@ -374,7 +375,7 @@ func ClearConfCmd(reply SshCmdReply, args []string) error {
 		return errors.New("argument count mismatch")
 	}
 
-	serverId, err := strconv.Atoi64(args[1])
+	serverId, err := strconv.ParseInt(args[1], 10, 64)
 	if err != nil {
 		return errors.New("bad server id")
 	}

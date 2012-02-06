@@ -7,16 +7,16 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"code.google.com/p/goprotobuf/proto"
 	"crypto/tls"
 	"encoding/binary"
-	"goprotobuf.googlecode.com/hg/proto"
-	"grumble/blobstore"
-	"grumble/cryptstate"
-	"grumble/mumbleproto"
+	"github.com/mkrautz/grumble/pkg/blobstore"
+	"github.com/mkrautz/grumble/pkg/cryptstate"
+	"github.com/mkrautz/grumble/pkg/mumbleproto"
 	"io"
 	"log"
 	"net"
-	"packetdatastream"
+	"github.com/mkrautz/grumble/pkg/packetdatastream"
 	"runtime"
 	"time"
 )
@@ -567,11 +567,11 @@ func (client *Client) sendChannelTree(channel *Channel) {
 
 // Try to do a crypto resync
 func (client *Client) cryptResync() {
-	goodElapsed := time.Seconds() - client.crypt.LastGoodTime
+	goodElapsed := time.Now().Unix() - client.crypt.LastGoodTime
 	if goodElapsed > 5 {
-		requestElapsed := time.Seconds() - client.lastResync
+		requestElapsed := time.Now().Unix() - client.lastResync
 		if requestElapsed > 5 {
-			client.lastResync = time.Seconds()
+			client.lastResync = time.Now().Unix()
 			cryptsetup := &mumbleproto.CryptSetup{}
 			err := client.sendMessage(cryptsetup)
 			if err != nil {

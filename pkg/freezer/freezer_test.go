@@ -6,8 +6,8 @@ package freezer
 
 import (
 	"bytes"
+	"code.google.com/p/goprotobuf/proto"
 	"encoding/binary"
-	"goprotobuf.googlecode.com/hg/proto"
 	"hash/crc32"
 	"io"
 	"math"

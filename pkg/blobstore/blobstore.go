@@ -14,11 +14,12 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"syscall"
 )
 
 type BlobStore struct {
-	dir     string
-	lockfn  string
+	dir    string
+	lockfn string
 }
 
 const (
@@ -117,8 +118,9 @@ func NewBlobStore(path string) (bs *BlobStore, err error) {
 				dirStructureExists = false
 			}
 		}
+	} else {
+		bsf.Close()
 	}
-	bsf.Close()
 
 	if !dirStructureExists {
 		for i := 0; i < 256; i++ {
@@ -132,7 +134,7 @@ func NewBlobStore(path string) (bs *BlobStore, err error) {
 					if err != nil {
 						return nil, err
 					}
-					if !fi.IsDirectory() {
+					if !fi.IsDir() {
 						return nil, ErrBadFile
 					}
 				} else if e.Err == os.ENOTDIR {
@@ -152,7 +154,7 @@ func NewBlobStore(path string) (bs *BlobStore, err error) {
 						if err != nil {
 							return nil, err
 						}
-						if !fi.IsDirectory() {
+						if !fi.IsDir() {
 							return nil, ErrBadFile
 						}
 					} else if e.Err == os.ENOTDIR {
@@ -174,8 +176,8 @@ func NewBlobStore(path string) (bs *BlobStore, err error) {
 	}
 
 	bs = &BlobStore{
-		dir:     path,
-		lockfn:  lockfn,
+		dir:    path,
+		lockfn: lockfn,
 	}
 	return bs, nil
 }
@@ -256,7 +258,7 @@ func (bs *BlobStore) Put(buf []byte) (key string, err error) {
 	// disk.
 	h := sha1.New()
 	h.Write(buf)
-	key = hex.EncodeToString(h.Sum())
+	key = hex.EncodeToString(h.Sum(nil))
 
 	// Get the components that make up the on-disk
 	// path for the blob.
@@ -319,7 +321,7 @@ func (bs *BlobStore) Put(buf []byte) (key string, err error) {
 // On Unix, it checks for EEXIST. On Windows, it checks for EEXIST
 // and Errno code 183 (ERROR_ALREADY_EXISTS)
 func isExistError(err *os.PathError) (exists bool) {
-	if e, ok := err.Err.(os.Errno); ok && e == win32AlreadyExists {
+	if e, ok := err.Err.(syscall.Errno); ok && e == win32AlreadyExists {
 		exists = true
 	}
 	if err.Err == os.EEXIST {

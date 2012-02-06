@@ -54,14 +54,14 @@ func (ban *Ban) SetISOStartDate(isodate string) {
 	if err != nil {
 		ban.Start = 0
 	} else {
-		ban.Start = startTime.Seconds()
+		ban.Start = startTime.Unix()
 	}
 }
 
 // Return the currently set start date as an ISO 8601-formatted
 // date (in UTC).
 func (ban Ban) ISOStartDate() string {
-	startTime := time.SecondsToUTC(ban.Start)
+	startTime := time.Unix(ban.Start, 0).UTC()
 	return startTime.Format(ISODate)
 }
 
@@ -74,7 +74,7 @@ func (ban Ban) IsExpired() bool {
 
 	// Expiry check
 	expiryTime := ban.Start + int64(ban.Duration)
-	if time.Seconds() > expiryTime {
+	if time.Now().Unix() > expiryTime {
 		return true
 	}
 	return false

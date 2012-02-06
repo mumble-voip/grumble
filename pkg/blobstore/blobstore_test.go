@@ -37,7 +37,7 @@ func TestMakeAllCreateAll(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !fi.IsDirectory() {
+			if !fi.IsDir() {
 				t.Errorf("Not a directory")
 			}
 		}
@@ -145,7 +145,7 @@ func TestReadNonExistantKey(t *testing.T) {
 
 	h := sha1.New()
 	h.Write([]byte{0x42})
-	key := hex.EncodeToString(h.Sum())
+	key := hex.EncodeToString(h.Sum(nil))
 	buf, err := bs.Get(key)
 	if err != ErrNoSuchKey {
 		t.Error("Expected no such key %v, found it anyway. (buf=%v, err=%v)", key, buf, err)

@@ -22,6 +22,5 @@ _testmain.go
 build.out
 test.out
 goinstall.log
-*.pb.go
 *.sqlite
 build/

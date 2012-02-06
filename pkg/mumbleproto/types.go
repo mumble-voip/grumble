@@ -93,6 +93,6 @@ func MessageType(msg interface{}) uint16 {
 		return MessageRequestBlob
 	case *ServerConfig:
 		return MessageServerConfig
-	} 
+	}
 	panic("unknown type")
 }

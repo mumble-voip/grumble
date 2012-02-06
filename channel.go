@@ -10,15 +10,14 @@ import (
 
 // A Mumble channel
 type Channel struct {
-	Id        int
-	Name      string
-	Position  int
-
+	Id       int
+	Name     string
+	Position int
 
 	temporary bool
-	clients map[uint32]*Client
-	parent   *Channel
-	children map[int]*Channel
+	clients   map[uint32]*Client
+	parent    *Channel
+	children  map[int]*Channel
 
 	// ACL
 	ACL        []*ChannelACL

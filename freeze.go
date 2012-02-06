@@ -5,12 +5,12 @@
 package main
 
 import (
+	"code.google.com/p/goprotobuf/proto"
 	"errors"
-	"goprotobuf.googlecode.com/hg/proto"
-	"grumble/ban"
-	"grumble/freezer"
-	"grumble/mumbleproto"
-	"grumble/serverconf"
+	"github.com/mkrautz/grumble/pkg/ban"
+	"github.com/mkrautz/grumble/pkg/freezer"
+	"github.com/mkrautz/grumble/pkg/mumbleproto"
+	"github.com/mkrautz/grumble/pkg/serverconf"
 	"io"
 	"io/ioutil"
 	"log"
@@ -36,7 +36,7 @@ func (server *Server) FreezeToFile() (err error) {
 	if err != nil {
 		return err
 	}
-	f, err := ioutil.TempFile(filepath.Join(Args.DataDir, "servers", strconv.Itoa64(server.Id)), ".main.fz_")
+	f, err := ioutil.TempFile(filepath.Join(Args.DataDir, "servers", strconv.FormatInt(server.Id, 10)), ".main.fz_")
 	if err != nil {
 		return err
 	}
@@ -56,7 +56,7 @@ func (server *Server) FreezeToFile() (err error) {
 	if err != nil {
 		return err
 	}
-	err = os.Rename(f.Name(), filepath.Join(Args.DataDir, "servers", strconv.Itoa64(server.Id), "main.fz"))
+	err = os.Rename(f.Name(), filepath.Join(Args.DataDir, "servers", strconv.FormatInt(server.Id, 10), "main.fz"))
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func (server *Server) FreezeToFile() (err error) {
 
 // Open a new freeze log
 func (server *Server) openFreezeLog() (err error) {
-	logfn := filepath.Join(Args.DataDir, "servers", strconv.Itoa64(server.Id), "log.fz")
+	logfn := filepath.Join(Args.DataDir, "servers", strconv.FormatInt(server.Id, 10), "log.fz")
 	err = os.Remove(logfn)
 	if pe, ok := err.(*os.PathError); ok && pe.Err == os.ENOENT {
 		// OK. File does not exist...
@@ -245,7 +245,7 @@ func (c *Channel) Unfreeze(fc *freezer.Channel) {
 	}
 
 	// Update ACLs
-	if fc.Acl != nil { 
+	if fc.Acl != nil {
 		c.ACL = nil
 		for _, facl := range fc.Acl {
 			acl := NewChannelACL(c)
@@ -300,7 +300,7 @@ func (c *Channel) Unfreeze(fc *freezer.Channel) {
 	// Hook up links, but make them point to the channel itself.
 	// We can't be sure that the channels the links point to exist
 	// yet, so we delay hooking up the map 'correctly' to later.
-	if fc.Links != nil { 
+	if fc.Links != nil {
 		c.Links = make(map[int]*Channel)
 		for _, link := range fc.Links {
 			c.Links[int(link)] = c
@@ -399,7 +399,7 @@ func (group *Group) Freeze() (fgrp *freezer.Group, err error) {
 // in memory, a new full seralized server will be written and synced to
 // disk, and the existing log file will be removed.
 func NewServerFromFrozen(name string) (s *Server, err error) {
-	id, err := strconv.Atoi64(name)
+	id, err := strconv.ParseInt(name, 10, 64)
 	if err != nil {
 		return nil, err
 	}
@@ -695,7 +695,7 @@ func (server *Server) UpdateFrozenUser(client *Client, state *mumbleproto.UserSt
 	// Full sync If there's no userstate messgae provided, or if there is one, and
 	// it includes a registration operation.
 	user := client.user
-	nanos := time.Nanoseconds()
+	nanos := time.Now().Unix()
 	if state == nil || state.UserId != nil {
 		fu, err := user.Freeze()
 		if err != nil {
@@ -735,7 +735,7 @@ func (server *Server) UpdateFrozenUserLastChannel(client *Client) {
 		fu := &freezer.User{}
 		fu.Id = proto.Uint32(user.Id)
 		fu.LastChannelId = proto.Uint32(uint32(client.Channel.Id))
-		fu.LastActive = proto.Uint64(uint64(time.Nanoseconds()))
+		fu.LastActive = proto.Uint64(uint64(time.Now().Unix()))
 
 		err := server.freezelog.Put(fu)
 		if err != nil {
@@ -745,7 +745,6 @@ func (server *Server) UpdateFrozenUserLastChannel(client *Client) {
 		server.numLogOps += 1
 	}
 }
-
 
 // Mark a user as deleted in the datstore.
 func (server *Server) DeleteFrozenUser(user *User) {

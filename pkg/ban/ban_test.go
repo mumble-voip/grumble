@@ -28,7 +28,7 @@ func TestMaksPowerOf2(t *testing.T) {
 func TestMatchV4(t *testing.T) {
 	b := Ban{}
 	b.IP = net.ParseIP("192.168.1.1")
-	b.Mask = 24+96 // ipv4 /24
+	b.Mask = 24 + 96 // ipv4 /24
 	if len(b.IP) == 0 {
 		t.Errorf("Invalid IP")
 	}
@@ -46,7 +46,7 @@ func TestMatchV4(t *testing.T) {
 func TestMismatchV4(t *testing.T) {
 	b := Ban{}
 	b.IP = net.ParseIP("192.168.1.1")
-	b.Mask = 24+96 // ipv4 /24
+	b.Mask = 24 + 96 // ipv4 /24
 	if len(b.IP) == 0 {
 		t.Errorf("Invalid IP")
 	}
@@ -62,7 +62,7 @@ func TestMismatchV4(t *testing.T) {
 }
 
 func TestMatchV6(t *testing.T) {
-	b := Ban {}
+	b := Ban{}
 	b.IP = net.ParseIP("2a00:1450:400b:c00::63")
 	b.Mask = 64
 	if len(b.IP) == 0 {
@@ -109,7 +109,7 @@ func TestISODate(t *testing.T) {
 
 func TestInfiniteExpiry(t *testing.T) {
 	b := Ban{}
-	b.Start = time.Seconds()-10
+	b.Start = time.Now().Add(-10 * time.Second).Unix()
 	b.Duration = 0
 
 	if b.IsExpired() {
@@ -119,7 +119,7 @@ func TestInfiniteExpiry(t *testing.T) {
 
 func TestExpired(t *testing.T) {
 	b := Ban{}
-	b.Start = time.Seconds()-10
+	b.Start = time.Now().Add(-10 * time.Second).Unix()
 	b.Duration = 9
 
 	if !b.IsExpired() {
@@ -129,8 +129,8 @@ func TestExpired(t *testing.T) {
 
 func TestNotExpired(t *testing.T) {
 	b := Ban{}
-	b.Start = time.Seconds()
-	b.Duration = 60*60*24
+	b.Start = time.Now().Unix()
+	b.Duration = 60 * 60 * 24
 
 	if b.IsExpired() {
 		t.Errorf("Should expire in 24 hours")

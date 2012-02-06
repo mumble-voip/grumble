@@ -16,10 +16,10 @@ import (
 // LogTarget multiplexes its incoming writes to multiple optional
 // output writers, and one main output writer (the log file). 
 type LogTarget struct {
-	mu       sync.Mutex
-	logfn    string
-	file     *os.File
-	memLog   *bytes.Buffer
+	mu     sync.Mutex
+	logfn  string
+	file   *os.File
+	memLog *bytes.Buffer
 }
 
 var Target LogTarget
@@ -35,7 +35,7 @@ func (target *LogTarget) Write(in []byte) (int, error) {
 
 	n, err := os.Stderr.Write(in)
 	if err != nil {
-		return n, err 	
+		return n, err
 	}
 
 	n, err = target.file.Write(in)

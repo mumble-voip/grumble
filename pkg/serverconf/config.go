@@ -90,13 +90,13 @@ func (cfg *Config) IntValue(key string) (intval int) {
 // Get the value of a specific config key as a uint32
 func (cfg *Config) Uint32Value(key string) (uint32val uint32) {
 	str := cfg.StringValue(key)
-	uintval, _ := strconv.Atoui(str)
+	uintval, _ := strconv.ParseUint(str, 10, 0)
 	return uint32(uintval)
 }
 
 // Get the value fo a sepcific config key as a bool
 func (cfg *Config) BoolValue(key string) (boolval bool) {
 	str := cfg.StringValue(key)
-	boolval, _ = strconv.Atob(str)
+	boolval, _ = strconv.ParseBool(str)
 	return
 }

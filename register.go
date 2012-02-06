@@ -76,7 +76,7 @@ func (server *Server) RegisterPublicServer() {
 
 	hasher := sha1.New()
 	hasher.Write(config.Certificates[0].Certificate[0])
-	digest := hex.EncodeToString(hasher.Sum())
+	digest := hex.EncodeToString(hasher.Sum(nil))
 
 	// Render registration XML template
 	reg := Register{
@@ -93,7 +93,7 @@ func (server *Server) RegisterPublicServer() {
 		Release:  "Grumble Git",
 	}
 	buf := bytes.NewBuffer(nil)
-	err := xml.Marshal(buf, reg)
+	err := xml.NewEncoder(buf).Encode(reg)
 	if err != nil {
 		server.Printf("register: unable to marshal xml: %v", err)
 		return

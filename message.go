@@ -5,14 +5,14 @@
 package main
 
 import (
+	"code.google.com/p/goprotobuf/proto"
 	"crypto/aes"
 	"crypto/tls"
 	"fmt"
-	"goprotobuf.googlecode.com/hg/proto"
-	"grumble/ban"
-	"grumble/blobstore"
-	"grumble/freezer"
-	"grumble/mumbleproto"
+	"github.com/mkrautz/grumble/pkg/ban"
+	"github.com/mkrautz/grumble/pkg/blobstore"
+	"github.com/mkrautz/grumble/pkg/freezer"
+	"github.com/mkrautz/grumble/pkg/mumbleproto"
 	"net"
 	"time"
 )
@@ -519,7 +519,7 @@ func (server *Server) handleUserRemoveMessage(client *Client, msg *Message) {
 		}
 		ban.Username = removeClient.ShownName()
 		ban.CertHash = removeClient.CertHash
-		ban.Start = time.Seconds()
+		ban.Start = time.Now().Unix()
 		ban.Duration = 0
 
 		server.banlock.Lock()

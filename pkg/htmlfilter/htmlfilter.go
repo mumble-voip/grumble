@@ -59,7 +59,7 @@ func Filter(text string, options *Options) (filtered string, err error) {
 			// Strip away all HTML
 			out := bytes.NewBuffer(nil)
 			buf := bytes.NewBufferString(text)
-			parser := xml.NewParser(buf)
+			parser := xml.NewDecoder(buf)
 			parser.Strict = false
 			parser.AutoClose = xml.HTMLAutoClose
 			parser.Entity = xml.HTMLEntity
@@ -112,7 +112,7 @@ func Filter(text string, options *Options) (filtered string, err error) {
 		// Simplify the received HTML data by stripping away data URIs
 		out := bytes.NewBuffer(nil)
 		buf := bytes.NewBufferString(text)
-		parser := xml.NewParser(buf)
+		parser := xml.NewDecoder(buf)
 		parser.Strict = false
 		parser.AutoClose = xml.HTMLAutoClose
 		parser.Entity = xml.HTMLEntity

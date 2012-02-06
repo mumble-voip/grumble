@@ -208,7 +208,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err error) {
 		cs.Lost = uint32(-lost)
 	}
 
-	cs.LastGoodTime = time.Seconds()
+	cs.LastGoodTime = time.Now().Unix()
 
 	return
 }

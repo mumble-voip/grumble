@@ -11,9 +11,9 @@ package main
 
 import (
 	"errors"
-	"grumble/ban"
-	"grumble/blobstore"
-	"grumble/sqlite"
+	"github.com/mkrautz/grumble/pkg/ban"
+	"github.com/mkrautz/grumble/pkg/blobstore"
+	"database/sql"
 	"log"
 	"net"
 	"os"
@@ -39,20 +39,23 @@ const SQLiteSupport = true
 
 // Import the structure of an existing Murmur SQLite database.
 func MurmurImport(filename string) (err error) {
-	db, err := sqlite.Open(filename)
+	db, err := sql.Open("sqlite", filename)
 	if err != nil {
 		panic(err.Error())
 	}
 
-	stmt, err := db.Prepare("SELECT server_id FROM servers")
+	rows, err := db.Query("SELECT server_id FROM servers")
 	if err != nil {
 		panic(err.Error())
 	}
 
 	var serverids []int64
 	var sid int64
-	for stmt.Next() {
-		stmt.Scan(&sid)
+	for rows.Next() {
+		err = rows.Scan(&sid)
+		if err != nil {
+			return err
+		}
 		serverids = append(serverids, sid)
 	}
 
@@ -64,7 +67,7 @@ func MurmurImport(filename string) (err error) {
 			return err
 		}
 
-		err = os.Mkdir(filepath.Join(Args.DataDir, strconv.Itoa64(sid)), 0750)
+		err = os.Mkdir(filepath.Join(Args.DataDir, strconv.FormatInt(sid, 10)), 0750)
 		if err != nil {
 			return err
 		}
@@ -81,8 +84,8 @@ func MurmurImport(filename string) (err error) {
 }
 
 // Create a new Server from a Murmur SQLite database
-func NewServerFromSQLite(id int64, db *sqlite.Conn) (s *Server, err error) {
-	s, err = NewServer(id, "", int(DefaultPort+id-1))
+func NewServerFromSQLite(id int64, db *sql.DB) (s *Server, err error) {
+	s, err = NewServer(id)
 	if err != nil {
 		return nil, err
 	}
@@ -126,19 +129,20 @@ func NewServerFromSQLite(id int64, db *sqlite.Conn) (s *Server, err error) {
 }
 
 // Add channel metadata (channel_info table from SQLite) by reading the SQLite database.
-func populateChannelInfoFromDatabase(server *Server, c *Channel, db *sqlite.Conn) error {
+func populateChannelInfoFromDatabase(server *Server, c *Channel, db *sql.DB) error {
 	stmt, err := db.Prepare("SELECT value FROM channel_info WHERE server_id=? AND channel_id=? AND key=?")
 	if err != nil {
 		return err
 	}
 
 	// Fetch description
-	if err := stmt.Exec(server.Id, c.Id, ChannelInfoDescription); err != nil {
+	rows, err := stmt.Query(server.Id, c.Id, ChannelInfoDescription)
+	if err != nil {
 		return err
 	}
-	for stmt.Next() {
+	for rows.Next() {
 		var description string
-		err = stmt.Scan(&description)
+		err = rows.Scan(&description)
 		if err != nil {
 			return err
 		}
@@ -152,17 +156,14 @@ func populateChannelInfoFromDatabase(server *Server, c *Channel, db *sqlite.Conn
 		}
 	}
 
-	if err := stmt.Reset(); err != nil {
-		return err
-	}
-
 	// Fetch position
-	if err := stmt.Exec(server.Id, c.Id, ChannelInfoPosition); err != nil {
+	rows, err = stmt.Query(server.Id, c.Id, ChannelInfoPosition)
+	if err != nil {
 		return err
 	}
-	for stmt.Next() {
+	for rows.Next() {
 		var pos int
-		if err := stmt.Scan(&pos); err != nil {
+		if err := rows.Scan(&pos); err != nil {
 			return err
 		}
 
@@ -173,17 +174,18 @@ func populateChannelInfoFromDatabase(server *Server, c *Channel, db *sqlite.Conn
 }
 
 // Populate channel with its ACLs by reading the SQLite databse.
-func populateChannelACLFromDatabase(server *Server, c *Channel, db *sqlite.Conn) error {
+func populateChannelACLFromDatabase(server *Server, c *Channel, db *sql.DB) error {
 	stmt, err := db.Prepare("SELECT user_id, group_name, apply_here, apply_sub, grantpriv, revokepriv FROM acl WHERE server_id=? AND channel_id=? ORDER BY priority")
 	if err != nil {
 		return err
 	}
 
-	if err := stmt.Exec(server.Id, c.Id); err != nil {
+	rows, err := stmt.Query(server.Id, c.Id)
+	if err != nil {
 		return err
 	}
 
-	for stmt.Next() {
+	for rows.Next() {
 		var (
 			UserId    string
 			Group     string
@@ -192,7 +194,7 @@ func populateChannelACLFromDatabase(server *Server, c *Channel, db *sqlite.Conn)
 			Allow     int64
 			Deny      int64
 		)
-		if err := stmt.Scan(&UserId, &Group, &ApplyHere, &ApplySub, &Allow, &Deny); err != nil {
+		if err := rows.Scan(&UserId, &Group, &ApplyHere, &ApplySub, &Allow, &Deny); err != nil {
 			return err
 		}
 
@@ -219,19 +221,20 @@ func populateChannelACLFromDatabase(server *Server, c *Channel, db *sqlite.Conn)
 }
 
 // Populate channel with groups by reading the SQLite database.
-func populateChannelGroupsFromDatabase(server *Server, c *Channel, db *sqlite.Conn) error {
+func populateChannelGroupsFromDatabase(server *Server, c *Channel, db *sql.DB) error {
 	stmt, err := db.Prepare("SELECT group_id, name, inherit, inheritable FROM groups WHERE server_id=? AND channel_id=?")
 	if err != nil {
 		return err
 	}
 
-	if err := stmt.Exec(server.Id, c.Id); err != nil {
+	rows, err := stmt.Query(server.Id, c.Id)
+	if err != nil {
 		return err
 	}
 
 	groups := make(map[int64]*Group)
 
-	for stmt.Next() {
+	for rows.Next() {
 		var (
 			GroupId     int64
 			Name        string
@@ -239,7 +242,7 @@ func populateChannelGroupsFromDatabase(server *Server, c *Channel, db *sqlite.Co
 			Inheritable bool
 		)
 
-		if err := stmt.Scan(&GroupId, &Name, &Inherit, &Inheritable); err != nil {
+		if err := rows.Scan(&GroupId, &Name, &Inherit, &Inheritable); err != nil {
 			return err
 		}
 
@@ -256,17 +259,18 @@ func populateChannelGroupsFromDatabase(server *Server, c *Channel, db *sqlite.Co
 	}
 
 	for gid, grp := range groups {
-		if err = stmt.Exec(server.Id, gid); err != nil {
+		rows, err = stmt.Query(server.Id, gid)
+		if err != nil {
 			return err
 		}
 
-		for stmt.Next() {
+		for rows.Next() {
 			var (
 				UserId int64
 				Add    bool
 			)
 
-			if err := stmt.Scan(&UserId, &Add); err != nil {
+			if err := rows.Scan(&UserId, &Add); err != nil {
 				return err
 			}
 
@@ -282,7 +286,7 @@ func populateChannelGroupsFromDatabase(server *Server, c *Channel, db *sqlite.Co
 }
 
 // Populate the Server with Channels from the database.
-func populateChannelsFromDatabase(server *Server, db *sqlite.Conn, parentId int) error {
+func populateChannelsFromDatabase(server *Server, db *sql.DB, parentId int) error {
 	parent, exists := server.Channels[parentId]
 	if !exists {
 		return errors.New("Non-existant parent")
@@ -293,18 +297,18 @@ func populateChannelsFromDatabase(server *Server, db *sqlite.Conn, parentId int)
 		return err
 	}
 
-	err = stmt.Exec(server.Id, parentId)
+	rows, err := stmt.Query(server.Id, parentId)
 	if err != nil {
 		return err
 	}
 
-	for stmt.Next() {
+	for rows.Next() {
 		var (
 			name    string
 			chanid  int
 			inherit bool
 		)
-		err = stmt.Scan(&chanid, &name, &inherit)
+		err = rows.Scan(&chanid, &name, &inherit)
 		if err != nil {
 			return err
 		}
@@ -351,22 +355,23 @@ func populateChannelsFromDatabase(server *Server, db *sqlite.Conn, parentId int)
 }
 
 // Link a Server's channels together
-func populateChannelLinkInfo(server *Server, db *sqlite.Conn) (err error) {
+func populateChannelLinkInfo(server *Server, db *sql.DB) (err error) {
 	stmt, err := db.Prepare("SELECT channel_id, link_id FROM channel_links WHERE server_id=?")
 	if err != nil {
 		return err
 	}
 
-	if err := stmt.Exec(server.Id); err != nil {
+	rows, err := stmt.Query(server.Id)
+	if err != nil {
 		return err
 	}
 
-	for stmt.Next() {
+	for rows.Next() {
 		var (
 			ChannelId int
 			LinkId    int
 		)
-		if err := stmt.Scan(&ChannelId, &LinkId); err != nil {
+		if err := rows.Scan(&ChannelId, &LinkId); err != nil {
 			return err
 		}
 
@@ -386,19 +391,19 @@ func populateChannelLinkInfo(server *Server, db *sqlite.Conn) (err error) {
 	return nil
 }
 
-func populateUsers(server *Server, db *sqlite.Conn) (err error) {
+func populateUsers(server *Server, db *sql.DB) (err error) {
 	// Populate the server with regular user data
 	stmt, err := db.Prepare("SELECT user_id, name, pw, lastchannel, texture, strftime('%s', last_active) FROM users WHERE server_id=?")
 	if err != nil {
 		return
 	}
 
-	err = stmt.Exec(server.Id)
+	rows, err := stmt.Query(server.Id)
 	if err != nil {
 		return
 	}
 
-	for stmt.Next() {
+	for rows.Next() {
 		var (
 			UserId       int64
 			UserName     string
@@ -408,7 +413,7 @@ func populateUsers(server *Server, db *sqlite.Conn) (err error) {
 			LastActive   int64
 		)
 
-		err = stmt.Scan(&UserId, &UserName, &SHA1Password, &LastChannel, &Texture, &LastActive)
+		err = rows.Scan(&UserId, &UserName, &SHA1Password, &LastChannel, &Texture, &LastActive)
 		if err != nil {
 			continue
 		}
@@ -443,23 +448,18 @@ func populateUsers(server *Server, db *sqlite.Conn) (err error) {
 
 	// Populate users with any new-style UserInfo records
 	for uid, user := range server.Users {
-		err = stmt.Reset()
+		rows, err = stmt.Query(server.Id, uid)
 		if err != nil {
 			return err
 		}
 
-		err = stmt.Exec(server.Id, uid)
-		if err != nil {
-			return err
-		}
-
-		for stmt.Next() {
+		for rows.Next() {
 			var (
 				Key   int
 				Value string
 			)
 
-			err = stmt.Scan(&Key, &Value)
+			err = rows.Scan(&Key, &Value)
 			if err != nil {
 				return err
 			}
@@ -489,18 +489,18 @@ func populateUsers(server *Server, db *sqlite.Conn) (err error) {
 }
 
 // Populate bans
-func populateBans(server *Server, db *sqlite.Conn) (err error) {
+func populateBans(server *Server, db *sql.DB) (err error) {
 	stmt, err := db.Prepare("SELECT base, mask, name, hash, reason, start, duration FROM bans WHERE server_id=?")
 	if err != nil {
 		return
 	}
 
-	err = stmt.Exec(server.Id)
+	rows, err := stmt.Query(server.Id)
 	if err != nil {
 		return err
 	}
 
-	for stmt.Next() {
+	for rows.Next() {
 		var (
 			Ban       ban.Ban
 			IP        []byte
@@ -508,7 +508,7 @@ func populateBans(server *Server, db *sqlite.Conn) (err error) {
 			Duration  int64
 		)
 
-		err = stmt.Scan(&IP, &Ban.Mask, &Ban.Username, &Ban.CertHash, &Ban.Reason, &StartDate, &Duration)
+		err = rows.Scan(&IP, &Ban.Mask, &Ban.Username, &Ban.CertHash, &Ban.Reason, &StartDate, &Duration)
 		if err != nil {
 			return err
 		}

@@ -7,6 +7,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"code.google.com/p/goprotobuf/proto"
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/tls"
@@ -14,16 +15,15 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"goprotobuf.googlecode.com/hg/proto"
-	"grumble/ban"
-	"grumble/blobstore"
-	"grumble/cryptstate"
-	"grumble/freezer"
-	"grumble/htmlfilter"
-	"grumble/logtarget"
-	"grumble/mumbleproto"
-	"grumble/serverconf"
-	"grumble/sessionpool"
+	"github.com/mkrautz/grumble/pkg/ban"
+	"github.com/mkrautz/grumble/pkg/blobstore"
+	"github.com/mkrautz/grumble/pkg/cryptstate"
+	"github.com/mkrautz/grumble/pkg/freezer"
+	"github.com/mkrautz/grumble/pkg/htmlfilter"
+	"github.com/mkrautz/grumble/pkg/logtarget"
+	"github.com/mkrautz/grumble/pkg/mumbleproto"
+	"github.com/mkrautz/grumble/pkg/serverconf"
+	"github.com/mkrautz/grumble/pkg/sessionpool"
 	"hash"
 	"log"
 	"net"
@@ -59,7 +59,7 @@ type Server struct {
 	Id int64
 
 	tcpl    *net.TCPListener
-	tlsl    *tls.Listener
+	tlsl    net.Listener
 	udpconn *net.UDPConn
 	tlscfg  *tls.Config
 	bye     chan bool
@@ -178,7 +178,7 @@ func (server *Server) SetSuperUserPassword(password string) {
 	hasher := sha1.New()
 	hasher.Write(saltBytes)
 	hasher.Write([]byte(password))
-	digest := hex.EncodeToString(hasher.Sum())
+	digest := hex.EncodeToString(hasher.Sum(nil))
 
 	// Could be racy, but shouldn't really matter...
 	key := "SuperUserPassword"
@@ -219,7 +219,7 @@ func (server *Server) CheckSuperUserPassword(password string) bool {
 	// password
 	h.Write([]byte(password))
 
-	sum := hex.EncodeToString(h.Sum())
+	sum := hex.EncodeToString(h.Sum(nil))
 	if parts[2] == sum {
 		return true
 	}
@@ -267,7 +267,7 @@ func (server *Server) handleIncomingClient(conn net.Conn) (err error) {
 	if len(state.PeerCertificates) > 0 {
 		hash := sha1.New()
 		hash.Write(state.PeerCertificates[0].Raw)
-		sum := hash.Sum()
+		sum := hash.Sum(nil)
 		client.CertHash = hex.EncodeToString(sum)
 	}
 
@@ -360,7 +360,7 @@ func (server *Server) UnlinkChannels(channel *Channel, other *Channel) {
 // Important control channel messages are routed through this Goroutine
 // to keep server state synchronized.
 func (server *Server) handlerLoop() {
-	regtick := time.Tick((3600 + ((server.Id * 60) % 600)) * 1e9)
+	regtick := time.Tick(time.Hour)
 	for {
 		select {
 		// We're done. Stop the server's event handler
@@ -391,7 +391,7 @@ func (server *Server) handlerLoop() {
 				target.SendVoiceBroadcast(vb)
 			}
 		// Remove a temporary channel
-		case tempChannel := <- server.tempRemove:
+		case tempChannel := <-server.tempRemove:
 			if tempChannel.IsEmpty() {
 				server.RemoveChannel(tempChannel)
 			}
@@ -517,7 +517,7 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 
 	// Send CryptState information to the client so it can establish an UDP connection,
 	// if it wishes.
-	client.lastResync = time.Seconds()
+	client.lastResync = time.Now().Unix()
 	err = client.sendMessage(&mumbleproto.CryptSetup{
 		Key:         client.crypt.RawKey[0:],
 		ClientNonce: client.crypt.DecryptIV[0:],
@@ -1335,20 +1335,24 @@ func (server *Server) Start() (err error) {
 	if err != nil {
 		return err
 	}
-	err = server.udpconn.SetReadTimeout(1e9)
-	if err != nil {
-		return err
-	}
+	/*
+		err = server.udpconn.SetReadTimeout(1e9)
+		if err != nil {
+			return err
+		}
+	*/
 
 	// Set up our TCP connection
 	server.tcpl, err = net.ListenTCP("tcp", &net.TCPAddr{net.ParseIP(host), port})
 	if err != nil {
 		return err
 	}
-	err = server.tcpl.SetTimeout(1e9)
-	if err != nil {
-		return err
-	}
+	/*
+		err = server.tcpl.SetTimeout(1e9)
+		if err != nil {
+			return err
+		}
+	*/
 
 	// Wrap a TLS listener around the TCP connection
 	certFn := filepath.Join(Args.DataDir, "cert.pem")
@@ -1358,8 +1362,8 @@ func (server *Server) Start() (err error) {
 		return err
 	}
 	server.tlscfg = &tls.Config{
-		Certificates:       []tls.Certificate{cert},
-		AuthenticateClient: true,
+		Certificates: []tls.Certificate{cert},
+		ClientAuth:   tls.RequestClientCert,
 	}
 	server.tlsl = tls.NewListener(server.tcpl, server.tlscfg)
 
@@ -1392,7 +1396,7 @@ func (server *Server) Start() (err error) {
 
 	// Schedule a server registration update (if needed)
 	go func() {
-		time.Sleep((60 + server.Id*10) * 1e9)
+		time.Sleep(1 * time.Minute)
 		server.RegisterPublicServer()
 	}()
 

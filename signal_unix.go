@@ -5,17 +5,18 @@
 package main
 
 import (
+	"exp/signal"
 	"fmt"
-	"grumble/logtarget"
+	"github.com/mkrautz/grumble/pkg/logtarget"
 	"os"
-	"os/signal"
+	"syscall"
 )
 
 func SignalHandler() {
 	for {
 		sig := <-signal.Incoming
 
-		if sig == os.SIGUSR2 {
+		if sig == os.UnixSignal(syscall.SIGUSR2) {
 			err := logtarget.Target.Rotate()
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Unable to rotate log file: %v", err)
@@ -23,7 +24,7 @@ func SignalHandler() {
 			continue
 		}
 
-		if sig == os.SIGINT || sig == os.SIGTERM {
+		if sig == os.UnixSignal(syscall.SIGINT) || sig == os.UnixSignal(syscall.SIGTERM) {
 			os.Exit(0)
 		}
 	}

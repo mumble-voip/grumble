@@ -42,7 +42,7 @@ func (r *blobReader) Read(b []byte) (n int, err error) {
 	if err != io.EOF {
 		return
 	}
-	if !bytes.Equal(r.sum, r.hash.Sum()) {
+	if !bytes.Equal(r.sum, r.hash.Sum(nil)) {
 		err = ErrHashMismatch
 	}
 	return

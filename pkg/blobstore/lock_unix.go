@@ -26,7 +26,8 @@ func AcquireLockFile(path string) error {
 
 		pid, err := strconv.Atoi(string(content))
 		if err == nil {
-			if syscall.Kill(pid, 0) == 0 {
+			err = syscall.Kill(pid, 0)
+			if err != nil {
 				return ErrLocked
 			}
 		}
