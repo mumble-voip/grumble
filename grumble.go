@@ -54,16 +54,8 @@ func main() {
 	// and will return an error if something's amiss.
 	blobDir := filepath.Join(Args.DataDir, "blob")
 	err = os.Mkdir(blobDir, 0700)
-	if err != nil {
-		exists := false
-		if e, ok := err.(*os.PathError); ok {
-			if e.Err == os.EEXIST {
-				exists = true
-			}
-		}
-		if !exists {
-			log.Fatal("Unable to create blob directory: %v", err.Error())
-		}
+	if err != nil && !os.IsExist(err) {
+		log.Fatal("Unable to create blob directory: %v", err.Error())
 	}
 	err = blobstore.Open(blobDir)
 	if err != nil {
@@ -88,20 +80,12 @@ func main() {
 		hasKey := true
 		hasCert := true
 		_, err = os.Stat(certFn)
-		if err != nil {
-			if e, ok := err.(*os.PathError); ok {
-				if e.Err == os.ENOENT {
-					hasCert = false
-				}
-			}
+		if err != nil && os.IsNotExist(err) {
+			hasCert = false
 		}
 		_, err = os.Stat(keyFn)
-		if err != nil {
-			if e, ok := err.(*os.PathError); ok {
-				if e.Err == os.ENOENT {
-					hasKey = false
-				}
-			}
+		if err != nil && os.IsNotExist(err) {
+			hasKey = false
 		}
 		if !hasCert && !hasKey {
 			shouldRegen = true
@@ -167,16 +151,8 @@ func main() {
 	// exist.
 	serversDirPath := filepath.Join(Args.DataDir, "servers")
 	err = os.Mkdir(serversDirPath, 0700)
-	if err != nil {
-		exists := false
-		if e, ok := err.(*os.PathError); ok {
-			if e.Err == os.EEXIST {
-				exists = true
-			}
-		}
-		if !exists {
-			log.Fatal("Unable to create servers directory: %v", err.Error())
-		}
+	if err != nil && !os.IsExist(err) {
+		log.Fatal("Unable to create servers directory: %v", err.Error())
 	}
 
 	// Read all entries of the servers directory.

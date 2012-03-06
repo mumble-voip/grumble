@@ -7,6 +7,7 @@ package cryptstate
 
 import (
 	"crypto/aes"
+	"crypto/cipher"
 	"crypto/rand"
 	"errors"
 	"time"
@@ -31,7 +32,7 @@ type CryptState struct {
 	RemoteLost   uint32
 	RemoteResync uint32
 
-	cipher *aes.Cipher
+	cipher       cipher.Block
 }
 
 func New() (cs *CryptState, err error) {

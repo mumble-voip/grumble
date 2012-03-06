@@ -74,7 +74,7 @@ func (server *Server) FreezeToFile() (err error) {
 func (server *Server) openFreezeLog() (err error) {
 	logfn := filepath.Join(Args.DataDir, "servers", strconv.FormatInt(server.Id, 10), "log.fz")
 	err = os.Remove(logfn)
-	if pe, ok := err.(*os.PathError); ok && pe.Err == os.ENOENT {
+	if os.IsNotExist(err) {
 		// OK. File does not exist...
 	} else if err != nil {
 		return err
