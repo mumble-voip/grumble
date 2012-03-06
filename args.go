@@ -2,11 +2,50 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
+	"text/template"
 )
+
+type UsageArgs struct {
+	Version   string
+	BuildDate string
+	OS        string
+	Arch      string
+}
+
+var usageTmpl = `usage: grumble [options]
+
+ grumble {{.Version}} ({{.BuildDate}})
+ target: {{.OS}}, {{.Arch}}
+
+ --help
+     Shows this help listing.
+
+ --datadir <data-dir> (default: $HOME/.grumble)
+     Directory to use for server storage.
+
+ --log <log-path> (default: $DATADIR/grumble.log)
+     Log file path.
+
+ --ssh <[addr]:port> (default: 46545)
+     Address to use for SSH administration.
+
+ --regen-keys
+     Force grumble to regenerate its global RSA
+     keypair (and certificate).
+
+     The global keypair lives in the root of the
+     grumble data directory.
+
+ --import-murmurdb <murmur-sqlite-path>
+     Import a Murmur SQLite database into grumble.
+
+     Use the --cleanup argument to force grumble to
+     clean up its data directory when doing the
+     import. This is *DESTRUCTIVE*! Use with care.
+`
 
 type args struct {
 	ShowHelp  bool
@@ -31,22 +70,33 @@ func defaultLogPath() string {
 }
 
 func Usage() {
-	fmt.Fprintf(os.Stderr, "usage: grumble [options]\n")
-	flag.PrintDefaults()
+	t, err := template.New("usage").Parse(usageTmpl)
+	if err != nil {
+		panic("unable to parse usage template")	
+	}
+
+	err = t.Execute(os.Stdout, UsageArgs{
+		Version:   version,
+		BuildDate: buildDate,
+		OS:        runtime.GOOS,
+		Arch:      runtime.GOARCH,
+	})
+	if err != nil {
+		panic("unable to execute usage template")
+	}
 }
 
 var Args args
 
 func init() {
-	flag.BoolVar(&Args.ShowHelp, "help", false, "Show this help listing")
-	flag.StringVar(&Args.DataDir, "datadir", defaultDataDir(), "Directory to use for server storage")
-	flag.StringVar(&Args.LogPath, "log", defaultLogPath(), "Log file path")
-	flag.StringVar(&Args.SshAddr, "ssh", "localhost:46545", "Address to use for SSH admin prompt")
-	flag.BoolVar(&Args.RegenKeys, "regenkeys", false, "Force Grumble to regenerate its global RSA keypair and certificate")
+	flag.Usage = Usage
 
-	// SQLite related
-	if SQLiteSupport {
-		flag.StringVar(&Args.SQLiteDB, "murmurdb", "", "Path to a Murmur SQLite database to import from")
-		flag.BoolVar(&Args.CleanUp, "cleanup", false, "Clean up Grumble's data directory on launch")
-	}
+	flag.BoolVar(&Args.ShowHelp, "help", false, "")
+	flag.StringVar(&Args.DataDir, "datadir", defaultDataDir(), "")
+	flag.StringVar(&Args.LogPath, "log", defaultLogPath(), "")
+	flag.StringVar(&Args.SshAddr, "ssh", "localhost:46545", "")
+	flag.BoolVar(&Args.RegenKeys, "regen-keys", false, "")
+
+	flag.StringVar(&Args.SQLiteDB, "import-murmurdb", "", "")
+	flag.BoolVar(&Args.CleanUp, "cleanup", false, "")
 }
