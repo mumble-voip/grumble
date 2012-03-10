@@ -15,7 +15,7 @@ import (
 	"strings"
 )
 
-func passwordAuth(username, password string) bool {
+func passwordAuth(conn *ssh.ServerConn, username, password string) bool {
 	if username == "admin" && password == "admin" {
 		return true
 	}
