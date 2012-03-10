@@ -11,8 +11,8 @@ package main
 
 import (
 	"errors"
-	"github.com/mkrautz/grumble/pkg/ban"
-	"github.com/mkrautz/grumble/pkg/blobstore"
+	"mumbleapp.com/grumble/pkg/ban"
+	"mumbleapp.com/grumble/pkg/blobstore"
 	"database/sql"
 	"log"
 	"net"

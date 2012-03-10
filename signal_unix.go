@@ -6,7 +6,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/mkrautz/grumble/pkg/logtarget"
+	"mumbleapp.com/grumble/pkg/logtarget"
 	"os"
 	"os/signal"
 	"syscall"

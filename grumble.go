@@ -7,8 +7,8 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/mkrautz/grumble/pkg/blobstore"
-	"github.com/mkrautz/grumble/pkg/logtarget"
+	"mumbleapp.com/grumble/pkg/blobstore"
+	"mumbleapp.com/grumble/pkg/logtarget"
 	"log"
 	"os"
 	"path/filepath"
