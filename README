@@ -1,5 +1,0 @@
-What is Grumble?
-================
-
-Grumble is an implementation of Murmur (the server component of Mumble, an
-open-source VoIP application) in the Go language.
