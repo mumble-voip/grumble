@@ -174,7 +174,7 @@ func (walker *Walker) Next() (entries []interface{}, err error) {
 		switch typeKind(kind) {
 		case ServerType:
 			server := &Server{}
-			err = proto.Unmarshal(buf, &server)
+			err = proto.Unmarshal(buf, server)
 			if isEOF(err) {
 				break
 			} else if err != nil {

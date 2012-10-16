@@ -3,9 +3,9 @@ package main
 import (
 	"bytes"
 	"code.google.com/p/go.crypto/ssh"
+	"code.google.com/p/go.crypto/ssh/terminal"
 	"crypto/rand"
 	"errors"
-	"exp/terminal"
 	"fmt"
 	"io"
 	"io/ioutil"

@@ -10,13 +10,14 @@ import (
 	"code.google.com/p/goprotobuf/proto"
 	"crypto/tls"
 	"encoding/binary"
+	"errors"
+	"io"
+	"log"
 	"mumbleapp.com/grumble/pkg/blobstore"
 	"mumbleapp.com/grumble/pkg/cryptstate"
 	"mumbleapp.com/grumble/pkg/mumbleproto"
-	"io"
-	"log"
-	"net"
 	"mumbleapp.com/grumble/pkg/packetdatastream"
+	"net"
 	"runtime"
 	"time"
 )
@@ -197,7 +198,7 @@ func (client *Client) RejectAuth(rejectType mumbleproto.Reject_RejectType, reaso
 	}
 
 	client.sendMessage(&mumbleproto.Reject{
-		Type:   mumbleproto.NewReject_RejectType(rejectType),
+		Type:   rejectType.Enum(),
 		Reason: reasonString,
 	})
 
@@ -246,7 +247,7 @@ func (c *Client) sendPermissionDeniedType(denyType mumbleproto.PermissionDenied_
 // Send permission denied by type (and user)
 func (c *Client) sendPermissionDeniedTypeUser(denyType mumbleproto.PermissionDenied_DenyType, user *Client) {
 	pd := &mumbleproto.PermissionDenied{
-		Type: mumbleproto.NewPermissionDenied_DenyType(denyType),
+		Type: denyType.Enum(),
 	}
 	if user != nil {
 		pd.Session = proto.Uint32(uint32(user.Session))
@@ -264,7 +265,7 @@ func (c *Client) sendPermissionDenied(who *Client, where *Channel, what Permissi
 		Permission: proto.Uint32(uint32(what)),
 		ChannelId:  proto.Uint32(uint32(where.Id)),
 		Session:    proto.Uint32(who.Session),
-		Type:       mumbleproto.NewPermissionDenied_DenyType(mumbleproto.PermissionDenied_Permission),
+		Type:       mumbleproto.PermissionDenied_Permission.Enum(),
 	}
 	err := c.sendMessage(pd)
 	if err != nil {
@@ -276,7 +277,7 @@ func (c *Client) sendPermissionDenied(who *Client, where *Channel, what Permissi
 // Send permission denied fallback
 func (client *Client) sendPermissionDeniedFallback(denyType mumbleproto.PermissionDenied_DenyType, version uint32, text string) {
 	pd := &mumbleproto.PermissionDenied{
-		Type: mumbleproto.NewPermissionDenied_DenyType(denyType),
+		Type: denyType.Enum(),
 	}
 	if client.Version < version {
 		pd.Reason = proto.String(text)
@@ -381,7 +382,11 @@ func (client *Client) sendMessage(msg interface{}) error {
 	if kind == mumbleproto.MessageUDPTunnel {
 		msgData = msg.([]byte)
 	} else {
-		msgData, err = proto.Marshal(msg)
+		protoMsg, ok := (msg).(proto.Message)
+		if !ok {
+			return errors.New("client: exepcted a proto.Message")
+		}
+		msgData, err = proto.Marshal(protoMsg)
 		if err != nil {
 			return err
 		}
