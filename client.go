@@ -133,7 +133,6 @@ func (client *Client) ShownName() string {
 func (client *Client) IsVerified() bool {
 	tlsconn := client.conn.(*tls.Conn)
 	state := tlsconn.ConnectionState()
-	client.Printf("%v", state.VerifiedChains)
 	return len(state.VerifiedChains) > 0
 }
 
