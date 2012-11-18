@@ -1,9 +1,9 @@
 package packetdatastream
 
 import (
-	"testing"
-	"math"
 	"crypto/rand"
+	"math"
+	"testing"
 )
 
 func TestSelfUint8(t *testing.T) {

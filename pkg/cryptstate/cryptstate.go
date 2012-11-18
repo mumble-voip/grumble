@@ -32,7 +32,7 @@ type CryptState struct {
 	RemoteLost   uint32
 	RemoteResync uint32
 
-	cipher       cipher.Block
+	cipher cipher.Block
 }
 
 func New() (cs *CryptState, err error) {

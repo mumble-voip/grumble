@@ -55,6 +55,7 @@ func (perm Permission) ClearCacheBit() {
 
 // A channel-to-permission mapping used in the ACLCache
 type ChannelCache map[int]Permission
+
 // The ACLCache maps a user id to a ChannelCache map.
 // The ChannelCache map maps a channel to its permissions.
 type ACLCache map[uint32]ChannelCache

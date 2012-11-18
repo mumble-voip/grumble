@@ -10,11 +10,11 @@ package main
 // SQLite datbase into a format that Grumble can understand.
 
 import (
+	"database/sql"
 	"errors"
+	"log"
 	"mumbleapp.com/grumble/pkg/ban"
 	"mumbleapp.com/grumble/pkg/blobstore"
-	"database/sql"
-	"log"
 	"net"
 	"os"
 	"path/filepath"

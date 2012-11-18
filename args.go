@@ -72,7 +72,7 @@ func defaultLogPath() string {
 func Usage() {
 	t, err := template.New("usage").Parse(usageTmpl)
 	if err != nil {
-		panic("unable to parse usage template")	
+		panic("unable to parse usage template")
 	}
 
 	err = t.Execute(os.Stdout, UsageArgs{

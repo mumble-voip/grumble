@@ -17,13 +17,13 @@ import (
 )
 
 type BlobStore struct {
-	dir    string
+	dir string
 }
 
 var (
-	ErrBadFile         = errors.New("a bad file exists in the blobstore directory. unable to create container directores.")
-	ErrNoSuchKey       = errors.New("no such key")
-	ErrInvalidKey      = errors.New("invalid key")
+	ErrBadFile    = errors.New("a bad file exists in the blobstore directory. unable to create container directores.")
+	ErrNoSuchKey  = errors.New("no such key")
+	ErrInvalidKey = errors.New("invalid key")
 )
 
 var (
@@ -143,7 +143,7 @@ func NewBlobStore(path string) (bs *BlobStore, err error) {
 	}
 
 	bs = &BlobStore{
-		dir:    path,
+		dir: path,
 	}
 	return bs, nil
 }

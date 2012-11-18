@@ -11,10 +11,10 @@ import (
 )
 
 var (
-	errOnlyWindows = errors.New("replacefile: only implemented on Windows")
-	ErrUnableToMoveReplacement error = errOnlyWindows
+	errOnlyWindows                    = errors.New("replacefile: only implemented on Windows")
+	ErrUnableToMoveReplacement  error = errOnlyWindows
 	ErrUnableToMoveReplacement2 error = errOnlyOnWindows
-	ErrUnableToRemoveReplaced error = errOnlyWindows
+	ErrUnableToRemoveReplaced   error = errOnlyWindows
 )
 
 func ReplaceFile(replaced string, replacement string, backup string, flags Flag) error {
