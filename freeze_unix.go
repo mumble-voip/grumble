@@ -6,6 +6,14 @@
 
 package main
 
+import (
+	"code.google.com/p/goprotobuf/proto"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"strconv"
+)
+
 func (server *Server) freezeToFile() (err error) {
 	// Close the log file, if it's open
 	if server.freezelog != nil {
