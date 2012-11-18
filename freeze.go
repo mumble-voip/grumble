@@ -20,69 +20,48 @@ import (
 	"time"
 )
 
-// Freeze a server to disk, and re-open the log, if needed.
+// Freeze a server to disk and closes the log file.
 // This must be called from within the Server's synchronous handler.
-func (server *Server) FreezeToFile() (err error) {
-	// Close the log file, if it's open
-	if server.freezelog != nil {
-		err = server.freezelog.Close()
+func (server *Server) FreezeToFile() error {
+	// See freeeze_{windows,unix}.go for real implementations.
+	err := server.freezeToFile()
+	if err != nil {
+		return err
+	}
+
+	if server.running {
+		// Re-open the freeze log.
+		err = server.openFreezeLog()
 		if err != nil {
 			return err
 		}
 	}
 
-	// Make sure the whole server is synced to disk
-	fs, err := server.Freeze()
-	if err != nil {
-		return err
-	}
-	f, err := ioutil.TempFile(filepath.Join(Args.DataDir, "servers", strconv.FormatInt(server.Id, 10)), ".main.fz_")
-	if err != nil {
-		return err
-	}
-	buf, err := proto.Marshal(fs)
-	if err != nil {
-		return err
-	}
-	_, err = f.Write(buf)
-	if err != nil {
-		return err
-	}
-	err = f.Sync()
-	if err != nil {
-		return err
-	}
-	err = f.Close()
-	if err != nil {
-		return err
-	}
-	err = os.Rename(f.Name(), filepath.Join(Args.DataDir, "servers", strconv.FormatInt(server.Id, 10), "main.fz"))
-	if err != nil {
-		return err
-	}
-
-	// Re-open a new log file
-	err = server.openFreezeLog()
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
-// Open a new freeze log
-func (server *Server) openFreezeLog() (err error) {
+// Open a new freeze log.
+func (server *Server) openFreezeLog() error {
+	if server.freezelog != nil {
+		err := server.freezelog.Close()
+		if err != nil {
+			return err
+		}
+	}
+
 	logfn := filepath.Join(Args.DataDir, "servers", strconv.FormatInt(server.Id, 10), "log.fz")
-	err = os.Remove(logfn)
+	err := os.Remove(logfn)
 	if os.IsNotExist(err) {
-		// OK. File does not exist...
+		// fallthrough
 	} else if err != nil {
 		return err
 	}
+
 	server.freezelog, err = freezer.NewLogFile(logfn)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -406,10 +385,20 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 
 	path := filepath.Join(Args.DataDir, "servers", name)
 	mainFile := filepath.Join(path, "main.fz")
-	logFile := filepath.Join(path, "log.fz")
+	backupFile := filepath.Join(path, "backup.fz")
+	logFn := filepath.Join(path, "log.fz")
 
 	r, err := os.Open(mainFile)
-	if err != nil {
+	if os.IsNotExist(err) {
+		err = os.Rename(backupFile, mainFile)
+		if err != nil {
+			return nil, err
+		}
+		r, err = os.Open(mainFile)
+		if err != nil {
+			return nil, err
+		}
+	} else if err != nil {
 		return nil, err
 	}
 	defer r.Close()
@@ -504,7 +493,8 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 	}
 
 	// Attempt to walk the stored log file
-	walker, err := freezer.NewFileWalker(logFile)
+	logFile, err := os.Open(logFn)
+	walker, err := freezer.NewReaderWalker(logFile)
 	if err != nil {
 		return nil, err
 	}
@@ -512,6 +502,10 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 	for {
 		values, err := walker.Next()
 		if err == io.EOF {
+			err = logFile.Close()
+			if err != nil {
+				return nil, err
+			}
 			break
 		} else if err != nil {
 			return nil, err

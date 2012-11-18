@@ -11,7 +11,6 @@ import (
 	"hash/crc32"
 	"io"
 	"math"
-	"os"
 )
 
 // Checks whether the error err is an EOF
@@ -77,19 +76,6 @@ func (txr *txReader) Sum32() uint32 {
 // the walkReader.
 func (txr *txReader) Consumed() int {
 	return txr.consumed
-}
-
-// Create a new Walker that iterates over the entries of the given log file.
-func NewFileWalker(fn string) (walker *Walker, err error) {
-	f, err := os.Open(fn)
-	if err != nil {
-		return nil, err
-	}
-
-	walker = new(Walker)
-	walker.r = f
-
-	return walker, nil
 }
 
 // Create a new Walker that iterates over the log entries of a given Reader.

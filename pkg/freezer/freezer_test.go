@@ -15,7 +15,7 @@ import (
 	"testing"
 )
 
-var testValues []interface{} = []interface{}{
+var testValues []proto.Message = []proto.Message{
 	&ConfigKeyValuePair{Key: proto.String("Foo")},
 	&BanList{Bans: []*Ban{&Ban{Mask: proto.Uint32(32)}}},
 	&User{Id: proto.Uint32(0), Name: proto.String("SuperUser")},
@@ -97,18 +97,26 @@ func TestLogging(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	defer l.Close()
 	defer os.Remove("logging.log")
 
 	for _, val := range testValues {
 		err = l.Put(val)
 		if err != nil {
-			t.Error(err)
-			return
+			t.Fatal(err)
 		}
 	}
 
-	walker, err := NewFileWalker("logging.log")
+	err = l.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f, err := os.Open("logging.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	walker, err := NewReaderWalker(f)
 	if err != nil {
 		t.Error(err)
 		return
@@ -118,6 +126,10 @@ func TestLogging(t *testing.T) {
 	for {
 		entries, err := walker.Next()
 		if err == io.EOF {
+			err = f.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
 			break
 		} else if err != nil {
 			t.Error(err)
@@ -127,7 +139,10 @@ func TestLogging(t *testing.T) {
 			t.Error("> 1 entry in log tx")
 			return
 		}
-		val := entries[0]
+		val, ok := entries[0].(proto.Message)
+		if !ok {
+			t.Fatal("val does not implement proto.Message")
+		}
 		if !proto.Equal(val, testValues[i]) {
 			t.Error("proto message mismatch")
 		}
