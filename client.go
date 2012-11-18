@@ -43,6 +43,7 @@ type Client struct {
 	lastResync   int64
 	crypt        *cryptstate.CryptState
 	codecs       []int32
+	opus         bool
 	udp          bool
 	voiceTargets map[uint32]*VoiceTarget
 
@@ -170,6 +171,8 @@ func (client *Client) disconnect(kicked bool) {
 
 		client.Printf("Disconnected")
 		client.conn.Close()
+
+		client.server.updateCodecVersions(nil)
 	}
 }
 
@@ -306,7 +309,11 @@ func (client *Client) udpRecvLoop() {
 		case mumbleproto.UDPMessageVoiceCELTAlpha:
 			fallthrough
 		case mumbleproto.UDPMessageVoiceCELTBeta:
-			kind := buf[0] & 0xe0
+			if (client.server.Opus) {
+				return
+			}
+			fallthrough
+		case mumbleproto.UDPMessageVoiceOpus:
 			target := buf[0] & 0x1f
 			var counter uint8
 			outbuf := make([]byte, 1024)
@@ -315,17 +322,22 @@ func (client *Client) udpRecvLoop() {
 			outgoing := packetdatastream.New(outbuf[1 : 1+(len(outbuf)-1)])
 			_ = incoming.GetUint32()
 
-			for {
-				counter = incoming.Next8()
-				incoming.Skip(int(counter & 0x7f))
-				if !((counter&0x80) != 0 && incoming.IsValid()) {
-					break
+			if kind != mumbleproto.UDPMessageVoiceOpus {
+				for {
+					counter = incoming.Next8()
+					incoming.Skip(int(counter & 0x7f))
+					if !((counter&0x80) != 0 && incoming.IsValid()) {
+						break
+					}
 				}
+			} else {
+				size := int(incoming.GetUint16())
+				incoming.Skip(size & 0x1fff)
 			}
 
 			outgoing.PutUint32(client.Session)
 			outgoing.PutBytes(buf[1 : 1+(len(buf)-1)])
-			outbuf[0] = kind
+			outbuf[0] = buf[0] & 0xe0 // strip target
 
 			if target != 0x1f { // VoiceTarget
 				client.server.voicebroadcast <- &VoiceBroadcast{

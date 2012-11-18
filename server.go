@@ -90,6 +90,7 @@ type Server struct {
 	AlphaCodec       int32
 	BetaCodec        int32
 	PreferAlphaCodec bool
+	Opus             bool
 
 	// Channels
 	Channels   map[int]*Channel
@@ -529,9 +530,7 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 
 	// Add codecs
 	client.codecs = auth.CeltVersions
-	if len(client.codecs) == 0 {
-		server.Printf("Client %i connected without CELT codecs.", client.Session)
-	}
+	client.opus = auth.GetOpus()
 
 	client.state = StateClientAuthenticated
 	server.clientAuthenticated <- client
@@ -567,9 +566,21 @@ func (server *Server) finishAuthenticate(client *Client) {
 	// Add the client to the connected list
 	server.clients[client.Session] = client
 
+	// Warn clients without CELT support that they might not be able to talk to everyone else.
+	if len(client.codecs) == 0 {
+		client.codecs = []int32{CeltCompatBitstream}
+		server.Printf("Client %i connected without CELT codecs. Faking compat bitstream.", client.Session)
+		if server.Opus && !client.opus {
+			client.sendMessage(&mumbleproto.TextMessage{
+				Session: []uint32{client.Session},
+				Message: proto.String("<strong>WARNING:</strong> Your client doesn't support the CELT codec, you won't be able to talk to or hear most clients. Please make sure your client was built with CELT support."),
+			})
+		}
+	}
+
 	// First, check whether we need to tell the other connected
 	// clients to switch to a codec so the new guy can actually speak.
-	server.updateCodecVersions()
+	server.updateCodecVersions(client)
 
 	client.sendChannelList()
 
@@ -669,12 +680,24 @@ func (server *Server) finishAuthenticate(client *Client) {
 	client.clientReady <- true
 }
 
-func (server *Server) updateCodecVersions() {
+func (server *Server) updateCodecVersions(connecting *Client) {
 	codecusers := map[int32]int{}
-	var winner int32
-	var count int
+	var (
+		winner int32
+		count int
+		users int
+		opus int
+		enableOpus bool
+		txtMsg *mumbleproto.TextMessage = &mumbleproto.TextMessage{
+			Message: proto.String("<strong>WARNING:</strong> Your client doesn't support the Opus codec the server is switching to, you won't be able to talk or hear anyone. Please upgrade to a client with Opus support."),
+		}
+	)
 
 	for _, client := range server.clients {
+		users++
+		if client.opus {
+			opus++
+		}
 		for _, codec := range client.codecs {
 			codecusers[codec] += 1
 		}
@@ -697,33 +720,58 @@ func (server *Server) updateCodecVersions() {
 		current = server.BetaCodec
 	}
 
-	if winner == current {
+	enableOpus = users == opus
+
+	if winner != current {
+		if winner == CeltCompatBitstream {
+			server.PreferAlphaCodec = true
+		} else {
+			server.PreferAlphaCodec = !server.PreferAlphaCodec
+		}
+
+		if server.PreferAlphaCodec {
+			server.AlphaCodec = winner
+		} else {
+			server.BetaCodec = winner
+		}
+	} else if server.Opus == enableOpus {
+		if connecting != nil && !connecting.opus {
+			txtMsg.Session = []uint32{connecting.Session}
+			connecting.sendMessage(txtMsg)
+		}
 		return
 	}
 
-	if winner == CeltCompatBitstream {
-		server.PreferAlphaCodec = true
-	} else {
-		server.PreferAlphaCodec = !server.PreferAlphaCodec
-	}
-
-	if server.PreferAlphaCodec {
-		server.AlphaCodec = winner
-	} else {
-		server.BetaCodec = winner
-	}
+	server.Opus = enableOpus
 
 	err := server.broadcastProtoMessage(&mumbleproto.CodecVersion{
 		Alpha:       proto.Int32(server.AlphaCodec),
 		Beta:        proto.Int32(server.BetaCodec),
 		PreferAlpha: proto.Bool(server.PreferAlphaCodec),
+		Opus:        proto.Bool(server.Opus),
 	})
 	if err != nil {
 		server.Printf("Unable to broadcast.")
 		return
 	}
 
-	server.Printf("CELT codec switch %#x %#x (PreferAlpha %v)", uint32(server.AlphaCodec), uint32(server.BetaCodec), server.PreferAlphaCodec)
+	if server.Opus {
+		for _, client := range server.clients {
+			if !client.opus && client.state == StateClientReady {
+				txtMsg.Session = []uint32{connecting.Session}
+				err := client.sendMessage(txtMsg)
+				if err != nil {
+					client.Panicf("%v", err)
+				}
+			}
+		}
+		if connecting != nil && !connecting.opus {
+			txtMsg.Session = []uint32{connecting.Session}
+			connecting.sendMessage(txtMsg)
+		}
+	}
+
+	server.Printf("CELT codec switch %#x %#x (PreferAlpha %v) (Opus %v)", uint32(server.AlphaCodec), uint32(server.BetaCodec), server.PreferAlphaCodec, server.Opus)
 	return
 }
 

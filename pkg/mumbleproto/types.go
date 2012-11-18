@@ -37,6 +37,7 @@ const (
 	UDPMessagePing
 	UDPMessageVoiceSpeex
 	UDPMessageVoiceCELTBeta
+	UDPMessageVoiceOpus
 )
 
 // Returns the numeric value identifying the message type of msg on the wire.

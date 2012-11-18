@@ -1368,6 +1368,7 @@ func (server *Server) handleUserStatsMessage(client *Client, msg *Message) {
 		}
 		stats.Version = version
 		stats.CeltVersions = target.codecs
+		stats.Opus = proto.Bool(target.opus)
 		stats.Address = target.tcpaddr.IP
 	}
 
