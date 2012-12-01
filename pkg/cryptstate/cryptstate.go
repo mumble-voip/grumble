@@ -270,7 +270,7 @@ func (cs *CryptState) OCBEncrypt(dst []byte, src []byte, nonce []byte, tag []byt
 	var pad [aes.BlockSize]byte
 	off := 0
 
-	cs.cipher.Encrypt(delta[0:], cs.EncryptIV[0:])
+	cs.cipher.Encrypt(delta[0:], nonce[0:])
 	zeros(checksum[0:])
 
 	remain := len(src)
