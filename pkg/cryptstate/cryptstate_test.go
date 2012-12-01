@@ -1,75 +1,10 @@
 package cryptstate
 
 import (
+	"bytes"
 	"crypto/aes"
 	"testing"
 )
-
-func BlockCompare(a []byte, b []byte) (match bool) {
-	if len(a) != len(b) {
-		return
-	}
-
-	for i := 0; i < len(a); i++ {
-		if a[i] != b[i] {
-			return
-		}
-	}
-
-	match = true
-	return
-}
-
-func TestTimes2(t *testing.T) {
-	msg := [aes.BlockSize]byte{
-		0x80, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe,
-	}
-	expected := [aes.BlockSize]byte{
-		0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7b,
-	}
-
-	times2(msg[0:])
-	if BlockCompare(msg[0:], expected[0:]) == false {
-		t.Errorf("times2 produces invalid output: %v, expected: %v", msg, expected)
-	}
-}
-
-func TestTimes3(t *testing.T) {
-	msg := [aes.BlockSize]byte{
-		0x80, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe,
-	}
-	expected := [aes.BlockSize]byte{
-		0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x85,
-	}
-
-	times3(msg[0:])
-	if BlockCompare(msg[0:], expected[0:]) == false {
-		t.Errorf("times3 produces invalid output: %v, expected: %v", msg, expected)
-	}
-}
-
-func TestZeros(t *testing.T) {
-	var msg [aes.BlockSize]byte
-	zeros(msg[0:])
-	for i := 0; i < len(msg); i++ {
-		if msg[i] != 0 {
-			t.Errorf("zeros does not zero slice.")
-		}
-	}
-}
-
-func TestXor(t *testing.T) {
-	msg := [aes.BlockSize]byte{
-		0x80, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe,
-	}
-	var out [aes.BlockSize]byte
-	xor(out[0:], msg[0:], msg[0:])
-	for i := 0; i < len(out); i++ {
-		if out[i] != 0 {
-			t.Errorf("XOR broken")
-		}
-	}
-}
 
 func TestEncrypt(t *testing.T) {
 	msg := [15]byte{
@@ -100,11 +35,11 @@ func TestEncrypt(t *testing.T) {
 	cs.SetKey(key[0:], eiv[0:], div[0:])
 	cs.Encrypt(out[0:], msg[0:])
 
-	if BlockCompare(out[0:], expected[0:]) == false {
+	if !bytes.Equal(out[0:], expected[0:]) {
 		t.Errorf("Mismatch in output")
 	}
 
-	if BlockCompare(cs.EncryptIV[0:], expected_eiv[0:]) == false {
+	if !bytes.Equal(cs.EncryptIV[0:], expected_eiv[0:]) {
 		t.Errorf("EIV mismatch")
 	}
 }
@@ -138,11 +73,11 @@ func TestDecrypt(t *testing.T) {
 	cs.SetKey(key[0:], div[0:], eiv[0:])
 	cs.Decrypt(out[0:], crypted[0:])
 
-	if BlockCompare(out[0:], expected[0:]) == false {
+	if !bytes.Equal(out[0:], expected[0:]) {
 		t.Errorf("Mismatch in output")
 	}
 
-	if BlockCompare(cs.DecryptIV[0:], post_div[0:]) == false {
+	if !bytes.Equal(cs.DecryptIV[0:], post_div[0:]) {
 		t.Errorf("Mismatch in DIV")
 	}
 }
