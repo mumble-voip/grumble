@@ -735,7 +735,7 @@ func (server *Server) updateCodecVersions(connecting *Client) {
 			server.BetaCodec = winner
 		}
 	} else if server.Opus == enableOpus {
-		if connecting != nil && !connecting.opus {
+		if server.Opus && connecting != nil && !connecting.opus {
 			txtMsg.Session = []uint32{connecting.Session}
 			connecting.sendMessage(txtMsg)
 		}
