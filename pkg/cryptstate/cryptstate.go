@@ -18,8 +18,8 @@ const DecryptHistorySize = 0x100
 
 type CryptState struct {
 	RawKey         [aes.BlockSize]byte
-	EncryptIV      [aes.BlockSize]byte
-	DecryptIV      [aes.BlockSize]byte
+	EncryptIV      [ocb2.NonceSize]byte
+	DecryptIV      [ocb2.NonceSize]byte
 	decryptHistory [DecryptHistorySize]byte
 
 	LastGoodTime int64
@@ -61,12 +61,12 @@ func (cs *CryptState) SetKey(key []byte, eiv []byte, div []byte) (err error) {
 		return
 	}
 
-	if copy(cs.EncryptIV[0:], eiv[0:]) != aes.BlockSize {
+	if copy(cs.EncryptIV[0:], eiv[0:]) != ocb2.NonceSize {
 		err = errors.New("Unable to copy EIV")
 		return
 	}
 
-	if copy(cs.DecryptIV[0:], div[0:]) != aes.BlockSize {
+	if copy(cs.DecryptIV[0:], div[0:]) != ocb2.NonceSize {
 		err = errors.New("Unable to copy DIV")
 		return
 	}
@@ -91,8 +91,8 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err error) {
 		return
 	}
 
-	var saveiv [aes.BlockSize]byte
-	var tag [aes.BlockSize]byte
+	var saveiv [ocb2.NonceSize]byte
+	var tag [ocb2.TagSize]byte
 	var ivbyte byte
 	var restore bool
 	lost := 0
@@ -101,7 +101,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err error) {
 	ivbyte = src[0]
 	restore = false
 
-	if copy(saveiv[0:], cs.DecryptIV[0:]) != aes.BlockSize {
+	if copy(saveiv[0:], cs.DecryptIV[0:]) != ocb2.NonceSize {
 		err = errors.New("Copy failed")
 		return
 	}
@@ -112,7 +112,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err error) {
 			cs.DecryptIV[0] = ivbyte
 		} else if ivbyte < cs.DecryptIV[0] {
 			cs.DecryptIV[0] = ivbyte
-			for i := 1; i < aes.BlockSize; i++ {
+			for i := 1; i < ocb2.NonceSize; i++ {
 				cs.DecryptIV[i] += 1
 				if cs.DecryptIV[i] > 0 {
 					break
@@ -142,7 +142,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err error) {
 			late = 1
 			lost = -1
 			cs.DecryptIV[0] = ivbyte
-			for i := 1; i < aes.BlockSize; i++ {
+			for i := 1; i < ocb2.NonceSize; i++ {
 				cs.DecryptIV[i] -= 1
 				if cs.DecryptIV[i] > 0 {
 					break
@@ -157,7 +157,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err error) {
 			// Lost a few packets, and wrapped around
 			lost = int(256 - int(cs.DecryptIV[0]) + int(ivbyte) - 1)
 			cs.DecryptIV[0] = ivbyte
-			for i := 1; i < aes.BlockSize; i++ {
+			for i := 1; i < ocb2.NonceSize; i++ {
 				cs.DecryptIV[i] += 1
 				if cs.DecryptIV[i] > 0 {
 					break
@@ -169,8 +169,8 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err error) {
 		}
 
 		if cs.decryptHistory[cs.DecryptIV[0]] == cs.DecryptIV[0] {
-			if copy(cs.DecryptIV[0:], saveiv[0:]) != aes.BlockSize {
-				err = errors.New("Failed to copy aes.BlockSize bytes")
+			if copy(cs.DecryptIV[0:], saveiv[0:]) != ocb2.NonceSize {
+				err = errors.New("Failed to copy ocb2.NonceSize bytes")
 				return
 			}
 		}
@@ -180,7 +180,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err error) {
 
 	for i := 0; i < 3; i++ {
 		if tag[i] != src[i+1] {
-			if copy(cs.DecryptIV[0:], saveiv[0:]) != aes.BlockSize {
+			if copy(cs.DecryptIV[0:], saveiv[0:]) != ocb2.NonceSize {
 				err = errors.New("Error while trying to recover from error")
 				return
 			}
@@ -192,7 +192,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err error) {
 	cs.decryptHistory[cs.DecryptIV[0]] = cs.DecryptIV[0]
 
 	if restore {
-		if copy(cs.DecryptIV[0:], saveiv[0:]) != aes.BlockSize {
+		if copy(cs.DecryptIV[0:], saveiv[0:]) != ocb2.NonceSize {
 			err = errors.New("Error while trying to recover IV")
 			return
 		}
@@ -216,7 +216,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err error) {
 }
 
 func (cs *CryptState) Encrypt(dst, src []byte) {
-	var tag [aes.BlockSize]byte
+	var tag [ocb2.TagSize]byte
 
 	// First, increase our IV
 	for i := range cs.EncryptIV {
