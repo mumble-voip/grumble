@@ -5,6 +5,9 @@ import (
 	"crypto/cipher"
 )
 
+// TagSize specifies the length in bytes of an OCB2 tag.
+const TagSize = aes.BlockSize
+
 func zeros(block []byte) {
 	for i := range block {
 		block[i] = 0
@@ -33,7 +36,7 @@ func times3(block []byte) {
 	block[aes.BlockSize-1] ^= ((block[aes.BlockSize-1] << 1) ^ (carry * 135))
 }
 
-func Encrypt(cipher cipher.Block, dst []byte, src []byte, nonce []byte, tag []byte) (err error) {
+func Encrypt(cipher cipher.Block, dst []byte, src []byte, nonce []byte, tag []byte) {
 	var delta [aes.BlockSize]byte
 	var checksum [aes.BlockSize]byte
 	var tmp [aes.BlockSize]byte
@@ -77,11 +80,9 @@ func Encrypt(cipher cipher.Block, dst []byte, src []byte, nonce []byte, tag []by
 	times3(delta[0:])
 	xor(tmp[0:], delta[0:], checksum[0:])
 	cipher.Encrypt(tag[0:], tmp[0:])
-
-	return
 }
 
-func Decrypt(cipher cipher.Block, plain []byte, encrypted []byte, nonce []byte, tag []byte) (err error) {
+func Decrypt(cipher cipher.Block, plain []byte, encrypted []byte, nonce []byte, tag []byte) {
 	var checksum [aes.BlockSize]byte
 	var delta [aes.BlockSize]byte
 	var tmp [aes.BlockSize]byte
@@ -124,6 +125,4 @@ func Decrypt(cipher cipher.Block, plain []byte, encrypted []byte, nonce []byte, 
 	times3(delta[0:])
 	xor(tmp[0:], delta[0:], checksum[0:])
 	cipher.Encrypt(tag[0:], tmp[0:])
-
-	return
 }
