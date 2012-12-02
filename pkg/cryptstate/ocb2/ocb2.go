@@ -116,11 +116,13 @@ func Encrypt(cipher cipher.Block, dst []byte, src []byte, nonce []byte, tag []by
 		panic("ocb2: tag length is not equal to ocb2.TagSize")
 	}
 
-	var delta [BlockSize]byte
-	var checksum [BlockSize]byte
-	var tmp [BlockSize]byte
-	var pad [BlockSize]byte
-	off := 0
+	var (
+		checksum [BlockSize]byte
+		delta [BlockSize]byte
+		tmp [BlockSize]byte
+		pad [BlockSize]byte
+		off int
+	)
 
 	cipher.Encrypt(delta[0:], nonce[0:])
 	zeros(checksum[0:])
@@ -184,11 +186,13 @@ func Decrypt(cipher cipher.Block, plain []byte, encrypted []byte, nonce []byte, 
 		panic("ocb2: tag length is not equal to ocb2.TagSize")
 	}
 
-	var checksum [BlockSize]byte
-	var delta [BlockSize]byte
-	var tmp [BlockSize]byte
-	var pad [BlockSize]byte
-	off := 0
+	var (
+		checksum [BlockSize]byte
+		delta [BlockSize]byte
+		tmp [BlockSize]byte
+		pad [BlockSize]byte
+		off int
+	)
 
 	cipher.Encrypt(delta[0:], nonce[0:])
 	zeros(checksum[0:])
