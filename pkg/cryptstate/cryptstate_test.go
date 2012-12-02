@@ -1,3 +1,7 @@
+// Copyright (c) 2010-2012 The Grumble Authors
+// The use of this source code is goverened by a BSD-style
+// license that can be found in the LICENSE-file.
+
 package cryptstate
 
 import (
@@ -26,11 +30,7 @@ func TestEncrypt(t *testing.T) {
 		0x1f, 0x2a, 0x9b, 0xd0, 0x2d, 0xa6, 0x8e, 0x46, 0x26, 0x85, 0x83, 0xe9, 0x14, 0x2a, 0xff, 0x2a,
 	}
 
-	cs, err := New()
-	if err != nil {
-		t.Errorf("%v", err)
-	}
-
+	cs := CryptState{}
 	out := make([]byte, 19)
 	cs.SetKey(key[0:], eiv[0:], div[0:])
 	cs.Encrypt(out[0:], msg[0:])
@@ -64,11 +64,7 @@ func TestDecrypt(t *testing.T) {
 		0x1f, 0x2a, 0x9b, 0xd0, 0x2d, 0xa6, 0x8e, 0x46, 0x26, 0x85, 0x83, 0xe9, 0x14, 0x2a, 0xff, 0x2a,
 	}
 
-	cs, err := New()
-	if err != nil {
-		t.Errorf("%v", err)
-	}
-
+	cs := CryptState{}
 	out := make([]byte, 15)
 	cs.SetKey(key[0:], div[0:], eiv[0:])
 	cs.Decrypt(out[0:], crypted[0:])

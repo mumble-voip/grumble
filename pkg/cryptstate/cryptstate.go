@@ -1,5 +1,4 @@
-// Grumble - an implementation of Murmur in Go
-// Copyright (c) 2010 The Grumble Authors
+// Copyright (c) 2010-2012 The Grumble Authors
 // The use of this source code is goverened by a BSD-style
 // license that can be found in the LICENSE-file.
 
@@ -10,6 +9,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"errors"
+	"io"
 	"mumbleapp.com/grumble/pkg/cryptstate/ocb2"
 	"time"
 )
@@ -36,23 +36,28 @@ type CryptState struct {
 	cipher cipher.Block
 }
 
-func New() (cs *CryptState, err error) {
-	cs = new(CryptState)
+func (cs *CryptState) GenerateKey() error {
+	_, err := io.ReadFull(rand.Reader, cs.RawKey[0:])
+	if err != nil {
+		return err
+	}
 
-	return
-}
+	_, err = io.ReadFull(rand.Reader, cs.EncryptIV[0:])
+	if err != nil {
+		return err
+	}
 
-func (cs *CryptState) GenerateKey() (err error) {
-	rand.Read(cs.RawKey[0:])
-	rand.Read(cs.EncryptIV[0:])
-	rand.Read(cs.DecryptIV[0:])
+	_, err = io.ReadFull(rand.Reader, cs.DecryptIV[0:])
+	if err != nil {
+		return err
+	}
 
 	cs.cipher, err = aes.NewCipher(cs.RawKey[0:])
 	if err != nil {
-		return
+		return err
 	}
 
-	return
+	return nil
 }
 
 func (cs *CryptState) SetKey(key []byte, eiv []byte, div []byte) (err error) {

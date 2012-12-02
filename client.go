@@ -41,7 +41,7 @@ type Client struct {
 	disconnected bool
 
 	lastResync   int64
-	crypt        *cryptstate.CryptState
+	crypt        cryptstate.CryptState
 	codecs       []int32
 	opus         bool
 	udp          bool

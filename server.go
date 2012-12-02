@@ -19,7 +19,6 @@ import (
 	"log"
 	"mumbleapp.com/grumble/pkg/ban"
 	"mumbleapp.com/grumble/pkg/blobstore"
-	"mumbleapp.com/grumble/pkg/cryptstate"
 	"mumbleapp.com/grumble/pkg/freezer"
 	"mumbleapp.com/grumble/pkg/htmlfilter"
 	"mumbleapp.com/grumble/pkg/logtarget"
@@ -505,11 +504,6 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	}
 
 	// Setup the cryptstate for the client.
-	client.crypt, err = cryptstate.New()
-	if err != nil {
-		client.Panicf("%v", err)
-		return
-	}
 	err = client.crypt.GenerateKey()
 	if err != nil {
 		client.Panicf("%v", err)
