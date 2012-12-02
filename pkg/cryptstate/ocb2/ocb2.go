@@ -57,6 +57,19 @@ func xor(dst []byte, a []byte, b []byte) {
 //     irreducible polynomials [G. Seroussi,
 //     "Table of low-weight binary irreducible polynomials",
 //     HP Labs Technical Report HPL-98-135, 1998.].
+//
+// and num2str(x, n) is defined as
+//
+// num2str(x, n)
+//     The n-bit binary representation of the integer x.
+//     More formally, the n-bit string S where x = S[1] *
+//     2^{n-1} + S[2] * 2^{n-2} + ... + S[n] * 2^{0}.  Only
+//     used when 0 <= x < 2^n.
+//
+// For our 128-bit block size implementation, this means that
+// the xor with const(bitlength(S)) if S[1] = 1 is implemented
+// by simply xor'ing the last byte with the number 135 when
+// S[1] = 1.
 func times2(block []byte) {
 	carry := (block[0] >> 7) & 0x1
 	for i := 0; i < aes.BlockSize-1; i++ {
