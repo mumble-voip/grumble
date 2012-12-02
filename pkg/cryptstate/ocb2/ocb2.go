@@ -1,3 +1,7 @@
+// Copyright (c) 2012 The Grumble Authors
+// The use of this source code is goverened by a BSD-style
+// license that can be found in the LICENSE-file.
+
 // Package ocb2 implements the version 2 of the OCB authenticated-encryption algorithm.
 // OCB2 is specified in http://www.cs.ucdavis.edu/~rogaway/papers/draft-krovetz-ocb-00.txt.
 //
