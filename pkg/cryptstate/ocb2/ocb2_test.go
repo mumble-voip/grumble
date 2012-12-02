@@ -1,6 +1,6 @@
 // Copyright (c) 2010-2012 The Grumble Authors
 // The use of this source code is goverened by a BSD-style
-// license that can be found in the LICENSE-file.git l
+// license that can be found in the LICENSE-file.
 
 package ocb2
 
