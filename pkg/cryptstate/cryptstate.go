@@ -82,32 +82,24 @@ func (cs *CryptState) SetKey(key []byte, eiv []byte, div []byte) error {
 	return nil
 }
 
-func (cs *CryptState) Decrypt(dst, src []byte) (err error) {
+func (cs *CryptState) Decrypt(dst, src []byte) error {
 	if len(src) < 4 {
-		err = errors.New("Crypted length too short to decrypt")
-		return
+		return errors.New("cryptstate: crypted length too short to decrypt")
 	}
 
 	plain_len := len(src) - 4
 	if len(dst) != plain_len {
-		err = errors.New("plain_len and src len mismatch")
-		return
+		return errors.New("cryptstate: plain_len and src len mismatch")
 	}
 
-	var saveiv [ocb2.NonceSize]byte
 	var tag [ocb2.TagSize]byte
-	var ivbyte byte
-	var restore bool
+	ivbyte := src[0]
+	restore := false
 	lost := 0
 	late := 0
 
-	ivbyte = src[0]
-	restore = false
-
-	if copy(saveiv[:], cs.DecryptIV) != ocb2.NonceSize {
-		err = errors.New("Copy failed")
-		return
-	}
+	saveiv := make([]byte, len(cs.DecryptIV))
+	copy(saveiv, cs.DecryptIV)
 
 	if byte(cs.DecryptIV[0]+1) == ivbyte {
 		// In order as expected
@@ -115,14 +107,14 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err error) {
 			cs.DecryptIV[0] = ivbyte
 		} else if ivbyte < cs.DecryptIV[0] {
 			cs.DecryptIV[0] = ivbyte
-			for i := 1; i < ocb2.NonceSize; i++ {
+			for i := 1; i < len(cs.DecryptIV); i++ {
 				cs.DecryptIV[i] += 1
 				if cs.DecryptIV[i] > 0 {
 					break
 				}
 			}
 		} else {
-			err = errors.New("invalid ivbyte")
+			return errors.New("cryptstate: invalid ivbyte")
 		}
 	} else {
 		// Out of order or repeat
@@ -145,7 +137,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err error) {
 			late = 1
 			lost = -1
 			cs.DecryptIV[0] = ivbyte
-			for i := 1; i < ocb2.NonceSize; i++ {
+			for i := 1; i < len(cs.DecryptIV); i++ {
 				cs.DecryptIV[i] -= 1
 				if cs.DecryptIV[i] > 0 {
 					break
@@ -160,22 +152,18 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err error) {
 			// Lost a few packets, and wrapped around
 			lost = int(256 - int(cs.DecryptIV[0]) + int(ivbyte) - 1)
 			cs.DecryptIV[0] = ivbyte
-			for i := 1; i < ocb2.NonceSize; i++ {
+			for i := 1; i < len(cs.DecryptIV); i++ {
 				cs.DecryptIV[i] += 1
 				if cs.DecryptIV[i] > 0 {
 					break
 				}
 			}
 		} else {
-			err = errors.New("No matching ivbyte")
-			return
+			return errors.New("cryptstate: no matching ivbyte")
 		}
 
 		if cs.decryptHistory[cs.DecryptIV[0]] == cs.DecryptIV[0] {
-			if copy(cs.DecryptIV, saveiv[:]) != ocb2.NonceSize {
-				err = errors.New("Failed to copy ocb2.NonceSize bytes")
-				return
-			}
+			cs.DecryptIV = saveiv
 		}
 	}
 
@@ -183,22 +171,15 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err error) {
 
 	for i := 0; i < 3; i++ {
 		if tag[i] != src[i+1] {
-			if copy(cs.DecryptIV, saveiv[:]) != ocb2.NonceSize {
-				err = errors.New("Error while trying to recover from error")
-				return
-			}
-			err = errors.New("tag mismatch")
-			return
+			cs.DecryptIV = saveiv
+			return errors.New("tag mismatch")
 		}
 	}
 
 	cs.decryptHistory[cs.DecryptIV[0]] = cs.DecryptIV[0]
 
 	if restore {
-		if copy(cs.DecryptIV, saveiv[:]) != ocb2.NonceSize {
-			err = errors.New("Error while trying to recover IV")
-			return
-		}
+		cs.DecryptIV = saveiv
 	}
 
 	cs.Good += 1
@@ -215,7 +196,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) (err error) {
 
 	cs.LastGoodTime = time.Now().Unix()
 
-	return
+	return nil
 }
 
 func (cs *CryptState) Encrypt(dst, src []byte) {
