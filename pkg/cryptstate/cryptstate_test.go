@@ -32,14 +32,14 @@ func TestEncrypt(t *testing.T) {
 
 	cs := CryptState{}
 	out := make([]byte, 19)
-	cs.SetKey(key[0:], eiv[0:], div[0:])
-	cs.Encrypt(out[0:], msg[0:])
+	cs.SetKey(key[:], eiv[:], div[:])
+	cs.Encrypt(out, msg[:])
 
-	if !bytes.Equal(out[0:], expected[0:]) {
+	if !bytes.Equal(out[:], expected[:]) {
 		t.Errorf("Mismatch in output")
 	}
 
-	if !bytes.Equal(cs.EncryptIV[0:], expected_eiv[0:]) {
+	if !bytes.Equal(cs.EncryptIV[:], expected_eiv[:]) {
 		t.Errorf("EIV mismatch")
 	}
 }
@@ -66,14 +66,14 @@ func TestDecrypt(t *testing.T) {
 
 	cs := CryptState{}
 	out := make([]byte, 15)
-	cs.SetKey(key[0:], div[0:], eiv[0:])
-	cs.Decrypt(out[0:], crypted[0:])
+	cs.SetKey(key[:], div[:], eiv[:])
+	cs.Decrypt(out, crypted[:])
 
-	if !bytes.Equal(out[0:], expected[0:]) {
+	if !bytes.Equal(out, expected[:]) {
 		t.Errorf("Mismatch in output")
 	}
 
-	if !bytes.Equal(cs.DecryptIV[0:], post_div[0:]) {
+	if !bytes.Equal(cs.DecryptIV, post_div[:]) {
 		t.Errorf("Mismatch in DIV")
 	}
 }
