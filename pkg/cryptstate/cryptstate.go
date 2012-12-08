@@ -97,12 +97,18 @@ func (cs *CryptState) SetKey(key []byte, eiv []byte, div []byte) error {
 	return nil
 }
 
+// Overhead returns the length, in bytes, that a ciphertext
+// is longer than a plaintext.
+func (cs *CryptState) Overhead() int {
+	return 1 + cs.mode.Overhead()
+}
+
 func (cs *CryptState) Decrypt(dst, src []byte) error {
-	if len(src) < 4 {
+	if len(src) < cs.Overhead() {
 		return errors.New("cryptstate: crypted length too short to decrypt")
 	}
 
-	plain_len := len(src) - 4
+	plain_len := len(src) - cs.Overhead()
 	if len(dst) != plain_len {
 		return errors.New("cryptstate: plain_len and src len mismatch")
 	}
