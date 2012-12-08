@@ -16,7 +16,10 @@
 // free basis.
 package ocb2
 
-import "crypto/cipher"
+import (
+	"crypto/cipher"
+	"crypto/subtle"
+)
 
 const (
 	// BlockSize defines the block size that this particular implementation
@@ -122,10 +125,10 @@ func Encrypt(cipher cipher.Block, dst []byte, src []byte, nonce []byte, tag []by
 
 	var (
 		checksum [BlockSize]byte
-		delta [BlockSize]byte
-		tmp [BlockSize]byte
-		pad [BlockSize]byte
-		off int
+		delta    [BlockSize]byte
+		tmp      [BlockSize]byte
+		pad      [BlockSize]byte
+		off      int
 	)
 
 	cipher.Encrypt(delta[0:], nonce[0:])
@@ -167,8 +170,9 @@ func Encrypt(cipher cipher.Block, dst []byte, src []byte, nonce []byte, tag []by
 	cipher.Encrypt(tag[0:], tmp[0:])
 }
 
-// Decrypt takes a ciphertext and a nonce as its input and outputs a decrypted plaintext
-// and corresponding authentication tag.
+// Decrypt takes a ciphertext, a nonce, and a tag as its input and outputs a decrypted
+// plaintext (if successful) and a boolean flag that determines whether the function
+// successfully decrypted the given ciphertext.
 //
 // Before using the decrpyted plaintext, the application
 // should verify that the computed authentication tag matches the tag that was produced when
@@ -179,23 +183,21 @@ func Encrypt(cipher cipher.Block, dst []byte, src []byte, nonce []byte, tag []by
 // The tag slice used in this function must have a length equal to ocb2.TagSize.
 // The nonce slice used in this function must have a length equal to ocb2.NonceSize.
 // If any of the above are violated, Encrypt will panic.
-func Decrypt(cipher cipher.Block, plain []byte, encrypted []byte, nonce []byte, tag []byte) {
+func Decrypt(cipher cipher.Block, plain []byte, encrypted []byte, nonce []byte, tag []byte) bool {
 	if cipher.BlockSize() != BlockSize {
 		panic("ocb2: cipher blocksize is not equal to ocb2.BlockSize")
 	}
 	if len(nonce) != NonceSize {
 		panic("ocb2: nonce length is not equal to ocb2.NonceSize")
 	}
-	if len(tag) != TagSize {
-		panic("ocb2: tag length is not equal to ocb2.TagSize")
-	}
 
 	var (
 		checksum [BlockSize]byte
-		delta [BlockSize]byte
-		tmp [BlockSize]byte
-		pad [BlockSize]byte
-		off int
+		delta    [BlockSize]byte
+		tmp      [BlockSize]byte
+		pad      [BlockSize]byte
+		calcTag  [NonceSize]byte
+		off      int
 	)
 
 	cipher.Encrypt(delta[0:], nonce[0:])
@@ -233,5 +235,13 @@ func Decrypt(cipher cipher.Block, plain []byte, encrypted []byte, nonce []byte, 
 
 	times3(delta[0:])
 	xor(tmp[0:], delta[0:], checksum[0:])
-	cipher.Encrypt(tag[0:], tmp[0:])
+	cipher.Encrypt(calcTag[0:], tmp[0:])
+
+	// Compare the calculated tag with the expected tag. Truncate
+	// the computed tag if necessary.
+	if subtle.ConstantTimeCompare(calcTag[:len(tag)], tag) != 1 {
+		return false
+	}
+
+	return true
 }

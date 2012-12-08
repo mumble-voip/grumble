@@ -92,8 +92,8 @@ func (cs *CryptState) Decrypt(dst, src []byte) error {
 		return errors.New("cryptstate: plain_len and src len mismatch")
 	}
 
-	var tag [ocb2.TagSize]byte
 	ivbyte := src[0]
+	tag := src[1:4]
 	restore := false
 	lost := 0
 	late := 0
@@ -167,13 +167,10 @@ func (cs *CryptState) Decrypt(dst, src []byte) error {
 		}
 	}
 
-	ocb2.Decrypt(cs.cipher, dst, src[4:], cs.DecryptIV, tag[:])
-
-	for i := 0; i < 3; i++ {
-		if tag[i] != src[i+1] {
-			cs.DecryptIV = saveiv
-			return errors.New("tag mismatch")
-		}
+	ok := ocb2.Decrypt(cs.cipher, dst, src[4:], cs.DecryptIV, tag[:])
+	if !ok {
+		cs.DecryptIV = saveiv
+		return errors.New("cryptstate: tag mismatch")
 	}
 
 	cs.decryptHistory[cs.DecryptIV[0]] = cs.DecryptIV[0]
