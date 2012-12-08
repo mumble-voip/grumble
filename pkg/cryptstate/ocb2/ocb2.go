@@ -119,15 +119,13 @@ func Encrypt(cipher cipher.Block, dst []byte, src []byte, nonce []byte, tag []by
 	if len(nonce) != NonceSize {
 		panic("ocb2: nonce length is not equal to ocb2.NonceSize")
 	}
-	if len(tag) != TagSize {
-		panic("ocb2: tag length is not equal to ocb2.TagSize")
-	}
 
 	var (
 		checksum [BlockSize]byte
 		delta    [BlockSize]byte
 		tmp      [BlockSize]byte
 		pad      [BlockSize]byte
+		calcTag  [NonceSize]byte
 		off      int
 	)
 
@@ -167,7 +165,8 @@ func Encrypt(cipher cipher.Block, dst []byte, src []byte, nonce []byte, tag []by
 
 	times3(delta[0:])
 	xor(tmp[0:], delta[0:], checksum[0:])
-	cipher.Encrypt(tag[0:], tmp[0:])
+	cipher.Encrypt(calcTag[0:], tmp[0:])
+	copy(tag, calcTag[:])
 }
 
 // Decrypt takes a ciphertext, a nonce, and a tag as its input and outputs a decrypted

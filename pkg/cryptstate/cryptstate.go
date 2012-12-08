@@ -6,7 +6,6 @@ package cryptstate
 
 import (
 	"crypto/aes"
-	"crypto/cipher"
 	"crypto/rand"
 	"errors"
 	"io"
@@ -15,6 +14,16 @@ import (
 )
 
 const DecryptHistorySize = 0x100
+
+type CryptoMode interface {
+	NonceSize() int
+	KeySize() int
+	Overhead() int
+
+	SetKey([]byte)
+	Encrypt(dst []byte, src []byte, nonce []byte)
+	Decrypt(dst []byte, src []byte, nonce []byte) bool
+}
 
 type CryptState struct {
 	Key       []byte
@@ -33,7 +42,7 @@ type CryptState struct {
 	RemoteResync uint32
 
 	decryptHistory [DecryptHistorySize]byte
-	cipher         cipher.Block
+	mode           CryptoMode
 }
 
 // SupportedModes returns the list of supported CryptoModes.
@@ -41,12 +50,23 @@ func SupportedModes() []string {
 	return []string{"OCB2-AES128"}
 }
 
+// createMode creates the CryptoMode with the given mode name.
+func createMode(mode string) CryptoMode {
+	switch mode {
+	case "OCB2-AES128":
+		return &ocb2Mode{}
+	}
+	panic("cryptstate: no such CryptoMode")
+}
+
 func (cs *CryptState) GenerateKey() error {
-	cs.Key = make([]byte, aes.BlockSize)
+	cs.mode = createMode("OCB2-AES128")
+	cs.Key = make([]byte, cs.mode.KeySize())
 	_, err := io.ReadFull(rand.Reader, cs.Key)
 	if err != nil {
 		return err
 	}
+	cs.mode.SetKey(cs.Key)
 
 	cs.EncryptIV = make([]byte, ocb2.NonceSize)
 	_, err = io.ReadFull(rand.Reader, cs.EncryptIV)
@@ -56,11 +76,6 @@ func (cs *CryptState) GenerateKey() error {
 
 	cs.DecryptIV = make([]byte, ocb2.NonceSize)
 	_, err = io.ReadFull(rand.Reader, cs.DecryptIV)
-	if err != nil {
-		return err
-	}
-
-	cs.cipher, err = aes.NewCipher(cs.Key)
 	if err != nil {
 		return err
 	}
@@ -77,8 +92,8 @@ func (cs *CryptState) SetKey(key []byte, eiv []byte, div []byte) error {
 	if err != nil {
 		return err
 	}
-	cs.cipher = cipher
 
+	cs.mode = &ocb2Mode{cipher: cipher}
 	return nil
 }
 
@@ -93,7 +108,6 @@ func (cs *CryptState) Decrypt(dst, src []byte) error {
 	}
 
 	ivbyte := src[0]
-	tag := src[1:4]
 	restore := false
 	lost := 0
 	late := 0
@@ -167,7 +181,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) error {
 		}
 	}
 
-	ok := ocb2.Decrypt(cs.cipher, dst, src[4:], cs.DecryptIV, tag[:])
+	ok := cs.mode.Decrypt(dst, src[1:], cs.DecryptIV)
 	if !ok {
 		cs.DecryptIV = saveiv
 		return errors.New("cryptstate: tag mismatch")
@@ -197,8 +211,6 @@ func (cs *CryptState) Decrypt(dst, src []byte) error {
 }
 
 func (cs *CryptState) Encrypt(dst, src []byte) {
-	var tag [ocb2.TagSize]byte
-
 	// First, increase our IV
 	for i := range cs.EncryptIV {
 		cs.EncryptIV[i] += 1
@@ -207,12 +219,6 @@ func (cs *CryptState) Encrypt(dst, src []byte) {
 		}
 	}
 
-	ocb2.Encrypt(cs.cipher, dst[4:], src, cs.EncryptIV, tag[:])
-
 	dst[0] = cs.EncryptIV[0]
-	dst[1] = tag[0]
-	dst[2] = tag[1]
-	dst[3] = tag[2]
-
-	return
+	cs.mode.Encrypt(dst[1:], src, cs.EncryptIV)
 }
