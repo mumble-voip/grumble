@@ -378,7 +378,7 @@ func (server *Server) handlerLoop() {
 					if client != vb.client {
 						err := client.SendUDP(vb.buf)
 						if err != nil {
-							client.Panic("Unable to send UDP: %v", err.Error())
+							client.Panicf("Unable to send UDP: %v", err)
 						}
 					}
 				}
@@ -563,7 +563,7 @@ func (server *Server) finishAuthenticate(client *Client) {
 	// Warn clients without CELT support that they might not be able to talk to everyone else.
 	if len(client.codecs) == 0 {
 		client.codecs = []int32{CeltCompatBitstream}
-		server.Printf("Client %i connected without CELT codecs. Faking compat bitstream.", client.Session)
+		server.Printf("Client %v connected without CELT codecs. Faking compat bitstream.", client.Session)
 		if server.Opus && !client.opus {
 			client.sendMessage(&mumbleproto.TextMessage{
 				Session: []uint32{client.Session},
@@ -1373,7 +1373,7 @@ func (server *Server) Start() (err error) {
 	port := server.Port()
 
 	// Setup our UDP listener
-	server.udpconn, err = net.ListenUDP("udp", &net.UDPAddr{net.ParseIP(host), port})
+	server.udpconn, err = net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP(host), Port: port})
 	if err != nil {
 		return err
 	}
@@ -1385,7 +1385,7 @@ func (server *Server) Start() (err error) {
 	*/
 
 	// Set up our TCP connection
-	server.tcpl, err = net.ListenTCP("tcp", &net.TCPAddr{net.ParseIP(host), port})
+	server.tcpl, err = net.ListenTCP("tcp", &net.TCPAddr{IP: net.ParseIP(host), Port: port})
 	if err != nil {
 		return err
 	}

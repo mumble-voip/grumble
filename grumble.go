@@ -55,11 +55,11 @@ func main() {
 	blobDir := filepath.Join(Args.DataDir, "blob")
 	err = os.Mkdir(blobDir, 0700)
 	if err != nil && !os.IsExist(err) {
-		log.Fatal("Unable to create blob directory: %v", err.Error())
+		log.Fatalf("Unable to create blob directory: %v", err)
 	}
 	err = blobstore.Open(blobDir)
 	if err != nil {
-		log.Fatalf("Unable to initialize blobstore: %v", err.Error())
+		log.Fatalf("Unable to initialize blobstore: %v", err)
 	}
 
 	// Check whether we should regenerate the default global keypair
@@ -152,7 +152,7 @@ func main() {
 	serversDirPath := filepath.Join(Args.DataDir, "servers")
 	err = os.Mkdir(serversDirPath, 0700)
 	if err != nil && !os.IsExist(err) {
-		log.Fatal("Unable to create servers directory: %v", err.Error())
+		log.Fatalf("Unable to create servers directory: %v", err)
 	}
 
 	// Read all entries of the servers directory.
@@ -163,7 +163,7 @@ func main() {
 	}
 	names, err := serversDir.Readdirnames(-1)
 	if err != nil {
-		log.Fatal("Unable to read file from data directory: %v", err.Error())
+		log.Fatalf("Unable to read file from data directory: %v", err.Error())
 	}
 	// The data dir file descriptor.
 	err = serversDir.Close()
