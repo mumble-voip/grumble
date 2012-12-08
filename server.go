@@ -514,9 +514,9 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	// if it wishes.
 	client.lastResync = time.Now().Unix()
 	err = client.sendMessage(&mumbleproto.CryptSetup{
-		Key:         client.crypt.RawKey[0:],
-		ClientNonce: client.crypt.DecryptIV[0:],
-		ServerNonce: client.crypt.EncryptIV[0:],
+		Key:         client.crypt.Key,
+		ClientNonce: client.crypt.DecryptIV,
+		ServerNonce: client.crypt.EncryptIV,
 	})
 	if err != nil {
 		client.Panicf("%v", err)
@@ -989,7 +989,7 @@ func (server *Server) udpListenLoop() {
 
 func (server *Server) handleUdpPacket(udpaddr *net.UDPAddr, buf []byte, nread int) {
 	var match *Client
-	plain := make([]byte, nread-4)
+	plain := make([]byte, nread)
 
 	// Determine which client sent the the packet.  First, we
 	// check the map 'hpclients' in the server struct. It maps
@@ -1001,7 +1001,7 @@ func (server *Server) handleUdpPacket(udpaddr *net.UDPAddr, buf []byte, nread in
 	defer server.hmutex.Unlock()
 	client, ok := server.hpclients[udpaddr.String()]
 	if ok {
-		err := client.crypt.Decrypt(plain[0:], buf[0:nread])
+		err := client.crypt.Decrypt(plain, buf)
 		if err != nil {
 			client.cryptResync()
 			return
@@ -1028,6 +1028,10 @@ func (server *Server) handleUdpPacket(udpaddr *net.UDPAddr, buf []byte, nread in
 	if match == nil {
 		return
 	}
+
+	// Resize the plaintext slice now that we know
+	// the true encryption overhead.
+	plain = plain[:len(plain)-match.crypt.Overhead()]
 
 	match.udp = true
 	match.udprecv <- plain

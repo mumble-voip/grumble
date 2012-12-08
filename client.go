@@ -367,7 +367,7 @@ func (client *Client) udpRecvLoop() {
 // through the client's control channel (TCP).
 func (client *Client) SendUDP(buf []byte) error {
 	if client.udp {
-		crypted := make([]byte, len(buf)+4)
+		crypted := make([]byte, len(buf)+client.crypt.Overhead())
 		client.crypt.Encrypt(crypted, buf)
 		return client.server.SendUDP(crypted, client.udpaddr)
 	} else {

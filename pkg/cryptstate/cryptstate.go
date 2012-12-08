@@ -109,8 +109,8 @@ func (cs *CryptState) Decrypt(dst, src []byte) error {
 	}
 
 	plain_len := len(src) - cs.Overhead()
-	if len(dst) != plain_len {
-		return errors.New("cryptstate: plain_len and src len mismatch")
+	if len(dst) < plain_len {
+		return errors.New("cryptstate: not enough space in dst for plain text")
 	}
 
 	ivbyte := src[0]
