@@ -36,6 +36,11 @@ type CryptState struct {
 	cipher cipher.Block
 }
 
+// SupportedModes returns the list of supported CryptoModes.
+func SupportedModes() []string {
+	return []string{"OCB2-AES128"}
+}
+
 func (cs *CryptState) GenerateKey() error {
 	_, err := io.ReadFull(rand.Reader, cs.RawKey[0:])
 	if err != nil {

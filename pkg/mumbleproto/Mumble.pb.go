@@ -206,11 +206,12 @@ func (x *ContextActionModify_Operation) UnmarshalJSON(data []byte) error {
 }
 
 type Version struct {
-	Version          *uint32 `protobuf:"varint,1,opt,name=version" json:"version,omitempty"`
-	Release          *string `protobuf:"bytes,2,opt,name=release" json:"release,omitempty"`
-	Os               *string `protobuf:"bytes,3,opt,name=os" json:"os,omitempty"`
-	OsVersion        *string `protobuf:"bytes,4,opt,name=os_version" json:"os_version,omitempty"`
-	XXX_unrecognized []byte  `json:"-"`
+	Version          *uint32  `protobuf:"varint,1,opt,name=version" json:"version,omitempty"`
+	Release          *string  `protobuf:"bytes,2,opt,name=release" json:"release,omitempty"`
+	Os               *string  `protobuf:"bytes,3,opt,name=os" json:"os,omitempty"`
+	OsVersion        *string  `protobuf:"bytes,4,opt,name=os_version" json:"os_version,omitempty"`
+	CryptoModes      []string `protobuf:"bytes,5,rep,name=crypto_modes" json:"crypto_modes,omitempty"`
+	XXX_unrecognized []byte   `json:"-"`
 }
 
 func (this *Version) Reset()         { *this = Version{} }

@@ -71,6 +71,7 @@ type Client struct {
 	ClientName string
 	OSName     string
 	OSVersion  string
+	CryptoMode string
 
 	// Personal
 	Username        string
@@ -483,8 +484,9 @@ func (client *Client) tlsRecvLoop() {
 		// what version of the protocol it should speak.
 		if client.state == StateClientConnected {
 			version := &mumbleproto.Version{
-				Version: proto.Uint32(0x10203),
-				Release: proto.String("Grumble"),
+				Version:     proto.Uint32(0x10205),
+				Release:     proto.String("Grumble"),
+				CryptoModes: cryptstate.SupportedModes(),
 			}
 			if client.server.cfg.BoolValue("SendOSInfo") {
 				version.Os = proto.String(runtime.GOOS)
@@ -529,6 +531,32 @@ func (client *Client) tlsRecvLoop() {
 				client.OSVersion = *version.OsVersion
 			}
 
+			// Extract the client's supported crypto mode.
+			// If the client does not pick a crypto mode
+			// itself, use an invalid mode (the empty string)
+			// as its requested mode. This is effectively
+			// a flag asking for the default crypto mode.
+			requestedMode := ""
+			if len(version.CryptoModes) > 0 {
+				requestedMode = version.CryptoModes[0]
+			}
+
+			// Check if the requested crypto mode is supported
+			// by us. If not, fall back to the default crypto
+			// mode.
+			supportedModes := cryptstate.SupportedModes()
+			ok := false
+			for _, mode := range supportedModes {
+				if requestedMode == mode {
+					ok = true
+					break
+				}
+			}
+			if !ok {
+				requestedMode = "OCB2-AES128"
+			}
+
+			client.CryptoMode = requestedMode
 			client.state = StateClientSentVersion
 		}
 	}
