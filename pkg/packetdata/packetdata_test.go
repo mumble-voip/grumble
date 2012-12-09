@@ -1,4 +1,4 @@
-package packetdatastream
+package packetdata
 
 import (
 	"crypto/rand"

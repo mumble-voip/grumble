@@ -16,7 +16,7 @@ import (
 	"mumbleapp.com/grumble/pkg/blobstore"
 	"mumbleapp.com/grumble/pkg/cryptstate"
 	"mumbleapp.com/grumble/pkg/mumbleproto"
-	"mumbleapp.com/grumble/pkg/packetdatastream"
+	"mumbleapp.com/grumble/pkg/packetdata"
 	"net"
 	"runtime"
 	"time"
@@ -318,8 +318,8 @@ func (client *Client) udpRecvLoop() {
 			var counter uint8
 			outbuf := make([]byte, 1024)
 
-			incoming := packetdatastream.New(buf[1 : 1+(len(buf)-1)])
-			outgoing := packetdatastream.New(outbuf[1 : 1+(len(outbuf)-1)])
+			incoming := packetdata.New(buf[1 : 1+(len(buf)-1)])
+			outgoing := packetdata.New(outbuf[1 : 1+(len(outbuf)-1)])
 			_ = incoming.GetUint32()
 
 			if kind != mumbleproto.UDPMessageVoiceOpus {

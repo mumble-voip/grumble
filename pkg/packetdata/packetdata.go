@@ -3,13 +3,13 @@
 // The use of this source code is goverened by a BSD-style
 // license that can be found in the LICENSE-file.
 
-package packetdatastream
+package packetdata
 
 import (
 	"math"
 )
 
-type PacketDataStream struct {
+type PacketData struct {
 	Buf       []byte
 	offset    int
 	maxsize   int
@@ -17,19 +17,19 @@ type PacketDataStream struct {
 	ok        bool
 }
 
-func New(buf []byte) (pds *PacketDataStream) {
-	pds = new(PacketDataStream)
+func New(buf []byte) (pds *PacketData) {
+	pds = new(PacketData)
 	pds.Buf = buf
 	pds.maxsize = len(buf)
 	pds.ok = true
 	return
 }
 
-func (pds *PacketDataStream) IsValid() bool {
+func (pds *PacketData) IsValid() bool {
 	return pds.ok
 }
 
-func (pds *PacketDataStream) Skip(skip int) {
+func (pds *PacketData) Skip(skip int) {
 	if pds.Left() >= skip {
 		pds.offset += skip
 	} else {
@@ -39,18 +39,18 @@ func (pds *PacketDataStream) Skip(skip int) {
 
 // Returns number of bytes remaining in
 // the buffer.
-func (pds *PacketDataStream) Left() int {
+func (pds *PacketData) Left() int {
 	return int(pds.maxsize - pds.offset)
 }
 
 // Returns the size of the currently-assembled data
 // stream
-func (pds *PacketDataStream) Size() int {
+func (pds *PacketData) Size() int {
 	return pds.offset
 }
 
-// Get the next byte from the PacketDataStream as a uint64
-func (pds *PacketDataStream) next() (ret uint64) {
+// Get the next byte from the PacketData as a uint64
+func (pds *PacketData) next() (ret uint64) {
 	if pds.offset < pds.maxsize {
 		ret = uint64(pds.Buf[pds.offset])
 		pds.offset += 1
@@ -61,8 +61,8 @@ func (pds *PacketDataStream) next() (ret uint64) {
 	return 0
 }
 
-// Get the next byte from the PacketDataStream as a byte (uint8)
-func (pds *PacketDataStream) Next8() (ret uint8) {
+// Get the next byte from the PacketData as a byte (uint8)
+func (pds *PacketData) Next8() (ret uint8) {
 	if pds.offset < pds.maxsize {
 		ret = uint8(pds.Buf[pds.offset])
 		pds.offset += 1
@@ -74,8 +74,8 @@ func (pds *PacketDataStream) Next8() (ret uint8) {
 }
 
 // Put a byte (represented in an uint64) into the
-// PacketDataStream.
-func (pds *PacketDataStream) append(val uint64) {
+// PacketData.
+func (pds *PacketData) append(val uint64) {
 	if val > 0xff {
 		pds.ok = false
 		return
@@ -91,10 +91,10 @@ func (pds *PacketDataStream) append(val uint64) {
 
 }
 
-// Add a variably-sized integer to the PacketDataStream.
-// The PacketDataStream will figure out the most efficient
+// Add a variably-sized integer to the PacketData.
+// The PacketData will figure out the most efficient
 // encoding based on the binary representation of the value.
-func (pds *PacketDataStream) addVarint(val uint64) {
+func (pds *PacketData) addVarint(val uint64) {
 	i := val
 
 	if (i&0x8000000000000000) != 0 && ^i < 0x100000000 {
@@ -140,7 +140,7 @@ func (pds *PacketDataStream) addVarint(val uint64) {
 	}
 }
 
-func (pds *PacketDataStream) getVarint() (i uint64) {
+func (pds *PacketData) getVarint() (i uint64) {
 	v := pds.next()
 
 	if (v & 0x80) == 0x00 {
@@ -170,89 +170,89 @@ func (pds *PacketDataStream) getVarint() (i uint64) {
 	return
 }
 
-// Read a uint64 from the PacketDataStream
-func (pds *PacketDataStream) GetUint64() uint64 {
+// Read a uint64 from the PacketData
+func (pds *PacketData) GetUint64() uint64 {
 	return pds.getVarint()
 }
 
-// Write a uint64 to the PacketDataStream
-func (pds *PacketDataStream) PutUint64(val uint64) {
+// Write a uint64 to the PacketData
+func (pds *PacketData) PutUint64(val uint64) {
 	pds.addVarint(val)
 }
 
-// Read a uint32 from the PacketDataStream
-func (pds *PacketDataStream) GetUint32() uint32 {
+// Read a uint32 from the PacketData
+func (pds *PacketData) GetUint32() uint32 {
 	return uint32(pds.getVarint())
 }
 
-// Write a uint32 to the PacketDataStream
-func (pds *PacketDataStream) PutUint32(val uint32) {
+// Write a uint32 to the PacketData
+func (pds *PacketData) PutUint32(val uint32) {
 	pds.addVarint(uint64(val))
 }
 
-// Read a uint16 from the PacketDataStream
-func (pds *PacketDataStream) GetUint16() uint16 {
+// Read a uint16 from the PacketData
+func (pds *PacketData) GetUint16() uint16 {
 	return uint16(pds.getVarint())
 }
 
-// Write a uint16 to the PacketDataStream
-func (pds *PacketDataStream) PutUint16(val uint16) {
+// Write a uint16 to the PacketData
+func (pds *PacketData) PutUint16(val uint16) {
 	pds.addVarint(uint64(val))
 }
 
-// Read a uint8 from the PacketDataStream
-func (pds *PacketDataStream) GetUint8() uint8 {
+// Read a uint8 from the PacketData
+func (pds *PacketData) GetUint8() uint8 {
 	varint := pds.getVarint()
 	return uint8(varint)
 }
 
-// Write a uint8 to the PacketDataStream
-func (pds *PacketDataStream) PutUint8(val uint8) {
+// Write a uint8 to the PacketData
+func (pds *PacketData) PutUint8(val uint8) {
 	pds.addVarint(uint64(val))
 }
 
-// Read a int64 from the PacketDataStream
-func (pds *PacketDataStream) GetInt64() int64 {
+// Read a int64 from the PacketData
+func (pds *PacketData) GetInt64() int64 {
 	return int64(pds.getVarint())
 }
 
-// Write a int64 to the PacketDataStream
-func (pds *PacketDataStream) PutInt64(val int64) {
+// Write a int64 to the PacketData
+func (pds *PacketData) PutInt64(val int64) {
 	pds.addVarint(uint64(val))
 }
 
-// Read a int32 from the PacketDataStream
-func (pds *PacketDataStream) GetInt32() int32 {
+// Read a int32 from the PacketData
+func (pds *PacketData) GetInt32() int32 {
 	return int32(pds.getVarint())
 }
 
-// Write a int32 to the PacketDataStream
-func (pds *PacketDataStream) PutInt32(val int32) {
+// Write a int32 to the PacketData
+func (pds *PacketData) PutInt32(val int32) {
 	pds.addVarint(uint64(val))
 }
 
-// Read a int16 from the PacketDataStream
-func (pds *PacketDataStream) GetInt16() int16 {
+// Read a int16 from the PacketData
+func (pds *PacketData) GetInt16() int16 {
 	return int16(pds.getVarint())
 }
 
-// Write a int16 to the PacketDataStream
-func (pds *PacketDataStream) PutInt16(val int16) {
+// Write a int16 to the PacketData
+func (pds *PacketData) PutInt16(val int16) {
 	pds.addVarint(uint64(val))
 }
 
-// Read a int8 from the PacketDataStream
-func (pds *PacketDataStream) GetInt8() int8 {
+// Read a int8 from the PacketData
+func (pds *PacketData) GetInt8() int8 {
 	return int8(pds.getVarint())
 }
 
-// Write a int8 to the PacketDataStream
-func (pds *PacketDataStream) PutInt8(val int8) {
+// Write a int8 to the PacketData
+func (pds *PacketData) PutInt8(val int8) {
 	pds.addVarint(uint64(val))
 }
 
-// Read a float32 from the PacketDataStream
-func (pds *PacketDataStream) GetFloat32() float32 {
+// Read a float32 from the PacketData
+func (pds *PacketData) GetFloat32() float32 {
 	if pds.Left() < 4 {
 		pds.ok = false
 		return 0
@@ -264,8 +264,8 @@ func (pds *PacketDataStream) GetFloat32() float32 {
 	return math.Float32frombits(val)
 }
 
-// Write a float32 to the PacketDataStream
-func (pds *PacketDataStream) PutFloat32(val float32) {
+// Write a float32 to the PacketData
+func (pds *PacketData) PutFloat32(val float32) {
 	bits := math.Float32bits(val)
 	pds.append(uint64((bits >> 24) & 0xff))
 	pds.append(uint64((bits >> 16) & 0xff))
@@ -273,8 +273,8 @@ func (pds *PacketDataStream) PutFloat32(val float32) {
 	pds.append(uint64(bits & 0xff))
 }
 
-// Read a float64 from the PacketDataStream.
-func (pds *PacketDataStream) GetFloat64() float64 {
+// Read a float64 from the PacketData.
+func (pds *PacketData) GetFloat64() float64 {
 	if pds.Left() < 8 {
 		pds.ok = false
 		return 0
@@ -286,8 +286,8 @@ func (pds *PacketDataStream) GetFloat64() float64 {
 	return math.Float64frombits(val)
 }
 
-// Write a float64 to the PacketDataStream
-func (pds *PacketDataStream) PutFloat64(val float64) {
+// Write a float64 to the PacketData
+func (pds *PacketData) PutFloat64(val float64) {
 	bits := math.Float64bits(val)
 	pds.append((bits >> 56) & 0xff)
 	pds.append((bits >> 48) & 0xff)
@@ -299,8 +299,8 @@ func (pds *PacketDataStream) PutFloat64(val float64) {
 	pds.append(bits & 0xff)
 }
 
-// Copy a buffer out of the PacketDataStream into dst.
-func (pds *PacketDataStream) CopyBytes(dst []byte) {
+// Copy a buffer out of the PacketData into dst.
+func (pds *PacketData) CopyBytes(dst []byte) {
 	if pds.Left() >= len(dst) {
 		if copy(dst, pds.Buf[pds.offset:pds.offset+len(dst)]) != len(dst) {
 			pds.ok = false
@@ -310,9 +310,9 @@ func (pds *PacketDataStream) CopyBytes(dst []byte) {
 	}
 }
 
-// Put a buffer src into the PacketDataStream at the
+// Put a buffer src into the PacketData at the
 // current offset.
-func (pds *PacketDataStream) PutBytes(src []byte) {
+func (pds *PacketData) PutBytes(src []byte) {
 	if pds.Left() >= len(src) {
 		if copy(pds.Buf[pds.offset:pds.offset+len(src)], src) != len(src) {
 			pds.ok = false
