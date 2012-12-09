@@ -205,9 +205,6 @@ func main() {
 		}
 	}
 
-	// Run the SSH admin console.
-	RunSSH()
-
 	// Launch the servers we found during launch...
 	for _, server := range servers {
 		err = server.Start()

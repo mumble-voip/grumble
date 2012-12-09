@@ -29,9 +29,6 @@ var usageTmpl = `usage: grumble [options]
  --log <log-path> (default: $DATADIR/grumble.log)
      Log file path.
 
- --ssh <[addr]:port> (default: 46545)
-     Address to use for SSH administration.
-
  --regen-keys
      Force grumble to regenerate its global RSA
      keypair (and certificate).
@@ -51,7 +48,6 @@ type args struct {
 	ShowHelp  bool
 	DataDir   string
 	LogPath   string
-	SshAddr   string
 	RegenKeys bool
 	SQLiteDB  string
 	CleanUp   bool
@@ -94,7 +90,6 @@ func init() {
 	flag.BoolVar(&Args.ShowHelp, "help", false, "")
 	flag.StringVar(&Args.DataDir, "datadir", defaultDataDir(), "")
 	flag.StringVar(&Args.LogPath, "log", defaultLogPath(), "")
-	flag.StringVar(&Args.SshAddr, "ssh", "localhost:46545", "")
 	flag.BoolVar(&Args.RegenKeys, "regen-keys", false, "")
 
 	flag.StringVar(&Args.SQLiteDB, "import-murmurdb", "", "")
