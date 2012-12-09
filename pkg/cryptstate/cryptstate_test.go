@@ -68,7 +68,10 @@ func TestOCB2AES128Decrypt(t *testing.T) {
 	cs := CryptState{}
 	out := make([]byte, 15)
 	cs.SetKey("OCB2-AES128", key[:], div[:], eiv[:])
-	cs.Decrypt(out, crypted[:])
+	err := cs.Decrypt(out, crypted[:])
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
 
 	if !bytes.Equal(out, expected[:]) {
 		t.Errorf("Mismatch in output")
@@ -146,11 +149,40 @@ func TestXSalsa20Poly1305Decrypt(t *testing.T) {
 	}
 
 	message, _ := hex.DecodeString("028442bc313f4626f1359e3b50122b6ce6fe66ddfe7d39d14e637eb4fd5b45beadab55198df6ab5368439792a23c87db70acb6156dc5ef957ac04f6276cf6093b84be77ff0849cc33e34b7254d5a8f65ad")
-	cs.SetKey("XSalsa20-Poly1305", key[:], div[:], eiv[:])
+	cs.SetKey("XSalsa20-Poly1305", key[:], eiv[:], div[:])
 	dst := make([]byte, len(message)-cs.Overhead())
-	cs.Decrypt(dst, message[:])
+	err := cs.Decrypt(dst, message[:])
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
 
 	if !bytes.Equal(dst, expected[:]) {
 		t.Fatalf("mismatch! got\n%x\n, expected\n%x", dst, expected)
+	}
+}
+
+func TestNullEncrypt(t *testing.T) {
+	cs := CryptState{}
+	cs.SetKey("NULL", []byte{}, []byte{1}, []byte{1})
+	msg := []byte("HelloWorld")
+	dst := make([]byte, len(msg)+cs.Overhead())
+	cs.Encrypt(dst, msg)
+	if !bytes.Equal(dst[1:], msg) {
+		t.Fatalf("mismatch! got\n%x\n, expected\n%x", dst, msg)
+	}
+}
+
+func TestNullDecrypt(t *testing.T) {
+	cs := CryptState{}
+	cs.SetKey("NULL", []byte{}, []byte{1}, []byte{1})
+	msg := []byte{2}
+	msg = append(msg, []byte("HelloWorld")...)
+	dst := make([]byte, len(msg)-cs.Overhead())
+	err := cs.Decrypt(dst, msg)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	if !bytes.Equal(dst, msg[1:]) {
+		t.Fatalf("mismatch! got\n%x\n, expected\n%x", dst, msg)
 	}
 }
