@@ -8,9 +8,10 @@ import (
 	"bytes"
 	"crypto/aes"
 	"testing"
+	"encoding/hex"
 )
 
-func TestEncrypt(t *testing.T) {
+func TestOCB2AES128Encrypt(t *testing.T) {
 	msg := [15]byte{
 		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
 	}
@@ -32,7 +33,7 @@ func TestEncrypt(t *testing.T) {
 
 	cs := CryptState{}
 	out := make([]byte, 19)
-	cs.SetKey(key[:], eiv[:], div[:])
+	cs.SetKey("OCB2-AES128", key[:], eiv[:], div[:])
 	cs.Encrypt(out, msg[:])
 
 	if !bytes.Equal(out[:], expected[:]) {
@@ -44,7 +45,7 @@ func TestEncrypt(t *testing.T) {
 	}
 }
 
-func TestDecrypt(t *testing.T) {
+func TestOCB2AES128Decrypt(t *testing.T) {
 	key := [aes.BlockSize]byte{
 		0x96, 0x8b, 0x1b, 0x0c, 0x53, 0x1e, 0x1f, 0x80, 0xa6, 0x1d, 0xcb, 0x27, 0x94, 0x09, 0x6f, 0x32,
 	}
@@ -66,7 +67,7 @@ func TestDecrypt(t *testing.T) {
 
 	cs := CryptState{}
 	out := make([]byte, 15)
-	cs.SetKey(key[:], div[:], eiv[:])
+	cs.SetKey("OCB2-AES128", key[:], div[:], eiv[:])
 	cs.Decrypt(out, crypted[:])
 
 	if !bytes.Equal(out, expected[:]) {
@@ -75,5 +76,81 @@ func TestDecrypt(t *testing.T) {
 
 	if !bytes.Equal(cs.DecryptIV, post_div[:]) {
 		t.Errorf("Mismatch in DIV")
+	}
+}
+
+// Test that our wrapped NaCl secretbox cipher
+// works. The test data for this test was lifted
+// from the secretbox_test.go file.
+func TestXSalsa20Poly1305Encrypt(t *testing.T) {
+	cs := CryptState{}
+
+	var key[32]byte
+	var eiv[24]byte
+	var div[24]byte
+	var message [64]byte
+
+	for i := range key[:] {
+		key[i] = 1
+	}
+
+	// Since we pre-increment our EIV,
+	// this look a bit off compared to
+	// the secretbox_test.go test case.
+	for i := range eiv[:] {
+		eiv[i] = 2
+		div[i] = 2
+	}
+	eiv[0] = 1
+	div[0] = 1
+
+	for i := range message[:] {
+		message[i] = 3
+	}
+
+	cs.SetKey("XSalsa20-Poly1305", key[:], div[:], eiv[:])
+	dst := make([]byte, len(message)+cs.Overhead())
+	cs.Encrypt(dst, message[:])
+
+	expected, _ := hex.DecodeString("8442bc313f4626f1359e3b50122b6ce6fe66ddfe7d39d14e637eb4fd5b45beadab55198df6ab5368439792a23c87db70acb6156dc5ef957ac04f6276cf6093b84be77ff0849cc33e34b7254d5a8f65ad")
+	if !bytes.Equal(dst[1:], expected) {
+		t.Fatalf("mismatch! got\n%x\n, expected\n%x", dst, expected)
+	}
+}
+
+// Test that we can reverse the result of the Encrypt test.
+func TestXSalsa20Poly1305Decrypt(t *testing.T) {
+	cs := CryptState{}
+
+	var key[32]byte
+	var eiv[24]byte
+	var div[24]byte
+	var expected [64]byte
+
+	for i := range key[:] {
+		key[i] = 1
+	}
+
+	// Since we pre-increment our EIV,
+	// this look a bit off compared to
+	// the secretbox_test.go test case.
+	for i := range eiv[:] {
+		eiv[i] = 2
+		div[i] = 2
+	}
+	eiv[0] = 1
+	div[0] = 1
+
+	for i := range expected[:] {
+		expected[i] = 3
+	}
+
+	message, _ := hex.DecodeString("028442bc313f4626f1359e3b50122b6ce6fe66ddfe7d39d14e637eb4fd5b45beadab55198df6ab5368439792a23c87db70acb6156dc5ef957ac04f6276cf6093b84be77ff0849cc33e34b7254d5a8f65ad")
+	cs.SetKey("XSalsa20-Poly1305", key[:], div[:], eiv[:])
+	dst := make([]byte, len(message)-cs.Overhead())
+	cs.Decrypt(dst, message[:])
+
+	if !bytes.Equal(dst, expected[:]) {
+		t.Fatalf("mismatch! got\n%x\n, expected\n%x", dst, expected)
 	}
 }

@@ -5,11 +5,9 @@
 package cryptstate
 
 import (
-	"crypto/aes"
 	"crypto/rand"
 	"errors"
 	"io"
-	"mumbleapp.com/grumble/pkg/cryptstate/ocb2"
 	"time"
 )
 
@@ -51,30 +49,39 @@ func SupportedModes() []string {
 }
 
 // createMode creates the CryptoMode with the given mode name.
-func createMode(mode string) CryptoMode {
+func createMode(mode string) (CryptoMode, error) {
 	switch mode {
 	case "OCB2-AES128":
-		return &ocb2Mode{}
+		return &ocb2Mode{}, nil
+	case "XSalsa20-Poly1305":
+		return &secretBoxMode{}, nil
 	}
-	panic("cryptstate: no such CryptoMode")
+	return nil, errors.New("cryptstate: no such CryptoMode")
 }
 
-func (cs *CryptState) GenerateKey() error {
-	cs.mode = createMode("OCB2-AES128")
-	cs.Key = make([]byte, cs.mode.KeySize())
-	_, err := io.ReadFull(rand.Reader, cs.Key)
+func (cs *CryptState) GenerateKey(mode string) error {
+	cm, err := createMode(mode)
 	if err != nil {
 		return err
 	}
-	cs.mode.SetKey(cs.Key)
 
-	cs.EncryptIV = make([]byte, ocb2.NonceSize)
+	key := make([]byte, cm.KeySize())
+	_, err = io.ReadFull(rand.Reader, key)
+	if err != nil {
+		return err
+	}
+
+	cm.SetKey(key)
+	cs.mode = cm
+	cs.Key = key
+
+	cs.EncryptIV = make([]byte, cm.NonceSize())
 	_, err = io.ReadFull(rand.Reader, cs.EncryptIV)
 	if err != nil {
 		return err
 	}
 
-	cs.DecryptIV = make([]byte, ocb2.NonceSize)
+	cs.DecryptIV = make([]byte, cm.NonceSize())
 	_, err = io.ReadFull(rand.Reader, cs.DecryptIV)
 	if err != nil {
 		return err
@@ -83,17 +90,19 @@ func (cs *CryptState) GenerateKey() error {
 	return nil
 }
 
-func (cs *CryptState) SetKey(key []byte, eiv []byte, div []byte) error {
-	cs.Key = key
-	cs.EncryptIV = eiv
-	cs.DecryptIV = div
-
-	cipher, err := aes.NewCipher(cs.Key)
+func (cs *CryptState) SetKey(mode string, key []byte, eiv []byte, div []byte) error {
+	cm, err := createMode(mode)
 	if err != nil {
 		return err
 	}
 
-	cs.mode = &ocb2Mode{cipher: cipher}
+	cm.SetKey(key)
+	cs.mode = cm
+	cs.Key = key
+
+	cs.EncryptIV = eiv
+	cs.DecryptIV = div
+
 	return nil
 }
 

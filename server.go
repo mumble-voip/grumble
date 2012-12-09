@@ -504,7 +504,7 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	}
 
 	// Setup the cryptstate for the client.
-	err = client.crypt.GenerateKey()
+	err = client.crypt.GenerateKey(client.CryptoMode)
 	if err != nil {
 		client.Panicf("%v", err)
 		return
