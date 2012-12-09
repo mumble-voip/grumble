@@ -45,7 +45,10 @@ type CryptState struct {
 
 // SupportedModes returns the list of supported CryptoModes.
 func SupportedModes() []string {
-	return []string{"OCB2-AES128"}
+	return []string{
+		"OCB2-AES128",
+		"XSalsa20-Poly1305",
+	}
 }
 
 // createMode creates the CryptoMode with the given mode name.
