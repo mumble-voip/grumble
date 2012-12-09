@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const DecryptHistorySize = 0x100
+const decryptHistorySize = 0x100
 
 type CryptoMode interface {
 	NonceSize() int
@@ -39,7 +39,7 @@ type CryptState struct {
 	RemoteLost   uint32
 	RemoteResync uint32
 
-	decryptHistory [DecryptHistorySize]byte
+	decryptHistory [decryptHistorySize]byte
 	mode           CryptoMode
 }
 
