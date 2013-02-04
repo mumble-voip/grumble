@@ -18,7 +18,6 @@ import (
 	"hash"
 	"log"
 	"mumbleapp.com/grumble/pkg/ban"
-	"mumbleapp.com/grumble/pkg/blobstore"
 	"mumbleapp.com/grumble/pkg/freezer"
 	"mumbleapp.com/grumble/pkg/htmlfilter"
 	"mumbleapp.com/grumble/pkg/logtarget"
@@ -610,7 +609,7 @@ func (server *Server) finishAuthenticate(client *Client) {
 			if client.Version >= 0x10203 {
 				userstate.TextureHash = client.user.TextureBlobHashBytes()
 			} else {
-				buf, err := blobstore.Get(client.user.TextureBlob)
+				buf, err := blobStore.Get(client.user.TextureBlob)
 				if err != nil {
 					server.Panicf("Blobstore error: %v", err.Error())
 				}
@@ -623,7 +622,7 @@ func (server *Server) finishAuthenticate(client *Client) {
 			if client.Version >= 0x10203 {
 				userstate.CommentHash = client.user.CommentBlobHashBytes()
 			} else {
-				buf, err := blobstore.Get(client.user.CommentBlob)
+				buf, err := blobStore.Get(client.user.CommentBlob)
 				if err != nil {
 					server.Panicf("Blobstore error: %v", err.Error())
 				}
@@ -796,7 +795,7 @@ func (server *Server) sendUserList(client *Client) {
 				if client.Version >= 0x10203 {
 					userstate.TextureHash = connectedClient.user.TextureBlobHashBytes()
 				} else {
-					buf, err := blobstore.Get(connectedClient.user.TextureBlob)
+					buf, err := blobStore.Get(connectedClient.user.TextureBlob)
 					if err != nil {
 						server.Panicf("Blobstore error: %v", err.Error())
 					}
@@ -809,7 +808,7 @@ func (server *Server) sendUserList(client *Client) {
 				if client.Version >= 0x10203 {
 					userstate.CommentHash = connectedClient.user.CommentBlobHashBytes()
 				} else {
-					buf, err := blobstore.Get(connectedClient.user.CommentBlob)
+					buf, err := blobStore.Get(connectedClient.user.CommentBlob)
 					if err != nil {
 						server.Panicf("Blobstore error: %v", err.Error())
 					}

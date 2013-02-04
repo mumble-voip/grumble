@@ -10,7 +10,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"mumbleapp.com/grumble/pkg/ban"
-	"mumbleapp.com/grumble/pkg/blobstore"
 	"mumbleapp.com/grumble/pkg/freezer"
 	"mumbleapp.com/grumble/pkg/mumbleproto"
 	"net"
@@ -251,7 +250,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 
 		key := ""
 		if len(description) > 0 {
-			key, err = blobstore.Put([]byte(description))
+			key, err = blobStore.Put([]byte(description))
 			if err != nil {
 				server.Panicf("Blobstore error: %v", err)
 			}
@@ -433,7 +432,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 			if len(description) == 0 {
 				channel.DescriptionBlob = ""
 			} else {
-				key, err := blobstore.Put([]byte(description))
+				key, err := blobStore.Put([]byte(description))
 				if err != nil {
 					server.Panicf("Blobstore error: %v", err)
 				}
@@ -696,7 +695,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	broadcast := false
 
 	if userstate.Texture != nil && target.user != nil {
-		key, err := blobstore.Put(userstate.Texture)
+		key, err := blobStore.Put(userstate.Texture)
 		if err != nil {
 			server.Panicf("Blobstore error: %v", err)
 			return
@@ -737,7 +736,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	}
 
 	if userstate.Comment != nil && target.user != nil {
-		key, err := blobstore.Put([]byte(*userstate.Comment))
+		key, err := blobStore.Put([]byte(*userstate.Comment))
 		if err != nil {
 			server.Panicf("Blobstore error: %v", err)
 		}
@@ -1467,7 +1466,7 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 					continue
 				}
 				if target.user.HasTexture() {
-					buf, err := blobstore.Get(target.user.TextureBlob)
+					buf, err := blobStore.Get(target.user.TextureBlob)
 					if err != nil {
 						server.Panicf("Blobstore error: %v", err)
 						return
@@ -1492,7 +1491,7 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 					continue
 				}
 				if target.user.HasComment() {
-					buf, err := blobstore.Get(target.user.CommentBlob)
+					buf, err := blobStore.Get(target.user.CommentBlob)
 					if err != nil {
 						server.Panicf("Blobstore error: %v", err)
 						return
@@ -1517,7 +1516,7 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 			if channel, ok := server.Channels[int(cid)]; ok {
 				if channel.HasDescription() {
 					chanstate.Reset()
-					buf, err := blobstore.Get(channel.DescriptionBlob)
+					buf, err := blobStore.Get(channel.DescriptionBlob)
 					if err != nil {
 						server.Panicf("Blobstore error: %v", err)
 						return

@@ -14,7 +14,6 @@ import (
 	"errors"
 	"log"
 	"mumbleapp.com/grumble/pkg/ban"
-	"mumbleapp.com/grumble/pkg/blobstore"
 	"net"
 	"os"
 	"path/filepath"
@@ -148,7 +147,7 @@ func populateChannelInfoFromDatabase(server *Server, c *Channel, db *sql.DB) err
 		}
 
 		if len(description) > 0 {
-			key, err := blobstore.Put([]byte(description))
+			key, err := blobStore.Put([]byte(description))
 			if err != nil {
 				return err
 			}
@@ -428,7 +427,7 @@ func populateUsers(server *Server, db *sql.DB) (err error) {
 		}
 
 		if len(Texture) > 0 {
-			key, err := blobstore.Put(Texture)
+			key, err := blobStore.Put(Texture)
 			if err != nil {
 				return err
 			}
@@ -468,7 +467,7 @@ func populateUsers(server *Server, db *sql.DB) (err error) {
 			case UserInfoEmail:
 				user.Email = Value
 			case UserInfoComment:
-				key, err := blobstore.Put([]byte(Value))
+				key, err := blobStore.Put([]byte(Value))
 				if err != nil {
 					return err
 				}

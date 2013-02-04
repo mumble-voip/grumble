@@ -16,6 +16,7 @@ import (
 )
 
 var servers map[int64]*Server
+var blobStore blobstore.BlobStore
 
 func main() {
 	var err error
@@ -57,10 +58,7 @@ func main() {
 	if err != nil && !os.IsExist(err) {
 		log.Fatalf("Unable to create blob directory: %v", err)
 	}
-	err = blobstore.Open(blobDir)
-	if err != nil {
-		log.Fatalf("Unable to initialize blobstore: %v", err)
-	}
+	blobStore = blobstore.Open(blobDir)
 
 	// Check whether we should regenerate the default global keypair
 	// and corresponding certificate.

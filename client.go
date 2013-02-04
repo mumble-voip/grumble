@@ -13,7 +13,6 @@ import (
 	"errors"
 	"io"
 	"log"
-	"mumbleapp.com/grumble/pkg/blobstore"
 	"mumbleapp.com/grumble/pkg/cryptstate"
 	"mumbleapp.com/grumble/pkg/mumbleproto"
 	"mumbleapp.com/grumble/pkg/packetdata"
@@ -579,7 +578,7 @@ func (client *Client) sendChannelTree(channel *Channel) {
 		if client.Version >= 0x10202 {
 			chanstate.DescriptionHash = channel.DescriptionBlobHashBytes()
 		} else {
-			buf, err := blobstore.Get(channel.DescriptionBlob)
+			buf, err := blobStore.Get(channel.DescriptionBlob)
 			if err != nil {
 				panic("Blobstore error.")
 			}
