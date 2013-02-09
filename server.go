@@ -260,13 +260,11 @@ func (server *Server) handleIncomingClient(conn net.Conn) (err error) {
 	}
 
 	state := tlsconn.ConnectionState()
-	log.Printf("peerCerts = %#v", state.PeerCertificates)
 	if len(state.PeerCertificates) > 0 {
 		hash := sha1.New()
 		hash.Write(state.PeerCertificates[0].Raw)
 		sum := hash.Sum(nil)
 		client.certHash = hex.EncodeToString(sum)
-		log.Printf("%v", client.CertHash())
 	}
 
 	// Check whether the client's cert hash is banned
