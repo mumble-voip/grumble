@@ -13,6 +13,7 @@ import (
 	"database/sql"
 	"errors"
 	"log"
+	"mumbleapp.com/grumble/pkg/acl"
 	"mumbleapp.com/grumble/pkg/ban"
 	"net"
 	"os"
@@ -197,23 +198,23 @@ func populateChannelACLFromDatabase(server *Server, c *Channel, db *sql.DB) erro
 			return err
 		}
 
-		acl := NewChannelACL(c)
-		acl.ApplyHere = ApplyHere
-		acl.ApplySubs = ApplySub
+		aclEntry := acl.ACL{}
+		aclEntry.ApplyHere = ApplyHere
+		aclEntry.ApplySubs = ApplySub
 		if len(UserId) > 0 {
-			acl.UserId, err = strconv.Atoi(UserId)
+			aclEntry.UserId, err = strconv.Atoi(UserId)
 			if err != nil {
 				return err
 			}
 		} else if len(Group) > 0 {
-			acl.Group = Group
+			aclEntry.Group = Group
 		} else {
 			return errors.New("Invalid ACL: Neither Group or UserId specified")
 		}
 
-		acl.Deny = Permission(Deny)
-		acl.Allow = Permission(Allow)
-		c.ACL = append(c.ACL, acl)
+		aclEntry.Deny = acl.Permission(Deny)
+		aclEntry.Allow = acl.Permission(Allow)
+		c.ACL.ACLs = append(c.ACL.ACLs, aclEntry)
 	}
 
 	return nil
@@ -231,7 +232,7 @@ func populateChannelGroupsFromDatabase(server *Server, c *Channel, db *sql.DB) e
 		return err
 	}
 
-	groups := make(map[int64]*Group)
+	groups := make(map[int64]acl.Group)
 
 	for rows.Next() {
 		var (
@@ -245,10 +246,10 @@ func populateChannelGroupsFromDatabase(server *Server, c *Channel, db *sql.DB) e
 			return err
 		}
 
-		g := NewGroup(c, Name)
+		g := acl.EmptyGroupWithName(Name)
 		g.Inherit = Inherit
 		g.Inheritable = Inheritable
-		c.Groups[g.Name] = g
+		c.ACL.Groups[g.Name] = g
 		groups[GroupId] = g
 	}
 
@@ -314,7 +315,7 @@ func populateChannelsFromDatabase(server *Server, db *sql.DB, parentId int) erro
 
 		c := NewChannel(chanid, name)
 		server.Channels[c.Id] = c
-		c.InheritACL = inherit
+		c.ACL.InheritACL = inherit
 		parent.AddChild(c)
 	}
 

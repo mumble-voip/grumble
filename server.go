@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"hash"
 	"log"
+	"mumbleapp.com/grumble/pkg/acl"
 	"mumbleapp.com/grumble/pkg/ban"
 	"mumbleapp.com/grumble/pkg/freezer"
 	"mumbleapp.com/grumble/pkg/htmlfilter"
@@ -107,9 +108,6 @@ type Server struct {
 	numLogOps int
 	freezelog *freezer.Log
 
-	// ACL cache
-	aclcache ACLCache
-
 	// Bans
 	banlock sync.RWMutex
 	Bans    []ban.Ban
@@ -125,7 +123,7 @@ type clientLogForwarder struct {
 
 func (lf clientLogForwarder) Write(incoming []byte) (int, error) {
 	buf := new(bytes.Buffer)
-	buf.WriteString(fmt.Sprintf("<%v:%v(%v)> ", lf.client.Session, lf.client.ShownName(), lf.client.UserId()))
+	buf.WriteString(fmt.Sprintf("<%v:%v(%v)> ", lf.client.Session(), lf.client.ShownName(), lf.client.UserId()))
 	buf.Write(incoming)
 	lf.logger.Output(3, buf.String())
 	return len(incoming), nil
@@ -147,7 +145,6 @@ func NewServer(id int64) (s *Server, err error) {
 	s.nextUserId = 1
 
 	s.Channels = make(map[int]*Channel)
-	s.aclcache = NewACLCache()
 	s.Channels[0] = NewChannel(0, "Root")
 	s.nextChanId = 1
 
@@ -238,8 +235,8 @@ func (server *Server) handleIncomingClient(conn net.Conn) (err error) {
 	client.lf = &clientLogForwarder{client, server.Logger}
 	client.Logger = log.New(client.lf, "", 0)
 
-	client.Session = server.pool.Get()
-	client.Printf("New connection: %v (%v)", conn.RemoteAddr(), client.Session)
+	client.session = server.pool.Get()
+	client.Printf("New connection: %v (%v)", conn.RemoteAddr(), client.Session())
 
 	client.tcpaddr = addr.(*net.TCPAddr)
 	client.server = server
@@ -263,15 +260,17 @@ func (server *Server) handleIncomingClient(conn net.Conn) (err error) {
 	}
 
 	state := tlsconn.ConnectionState()
+	log.Printf("peerCerts = %#v", state.PeerCertificates)
 	if len(state.PeerCertificates) > 0 {
 		hash := sha1.New()
 		hash.Write(state.PeerCertificates[0].Raw)
 		sum := hash.Sum(nil)
-		client.CertHash = hex.EncodeToString(sum)
+		client.certHash = hex.EncodeToString(sum)
+		log.Printf("%v", client.CertHash())
 	}
 
 	// Check whether the client's cert hash is banned
-	if server.IsCertHashBanned(client.CertHash) {
+	if server.IsCertHashBanned(client.CertHash()) {
 		client.Printf("Certificate hash is banned")
 		client.Disconnect()
 		return
@@ -302,8 +301,8 @@ func (server *Server) RemoveClient(client *Client, kicked bool) {
 	}
 	server.hmutex.Unlock()
 
-	delete(server.clients, client.Session)
-	server.pool.Reclaim(client.Session)
+	delete(server.clients, client.Session())
+	server.pool.Reclaim(client.Session())
 
 	// Remove client from channel
 	channel := client.Channel
@@ -316,7 +315,7 @@ func (server *Server) RemoveClient(client *Client, kicked bool) {
 	// at this point.
 	if !kicked && client.state > StateClientAuthenticated {
 		err := server.broadcastProtoMessage(&mumbleproto.UserRemove{
-			Session: proto.Uint32(client.Session),
+			Session: proto.Uint32(client.Session()),
 		})
 		if err != nil {
 			server.Panic("Unable to broadcast UserRemove message for disconnected client.")
@@ -449,7 +448,7 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 	// Set access tokens. Clients can set their access tokens any time
 	// by sending an Authenticate message with he contents of their new
 	// access token list.
-	client.Tokens = auth.Tokens
+	client.tokens = auth.Tokens
 	server.ClearCaches()
 
 	if client.state >= StateClientAuthenticated {
@@ -485,7 +484,7 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 		// First look up registration by name.
 		user, exists := server.UserNameMap[client.Username]
 		if exists {
-			if len(client.CertHash) > 0 && user.CertHash == client.CertHash {
+			if client.HasCertificate() && user.CertHash == client.CertHash() {
 				client.user = user
 			} else {
 				client.RejectAuth(mumbleproto.Reject_WrongUserPW, "Wrong certificate hash")
@@ -494,8 +493,8 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 		}
 
 		// Name matching didn't do.  Try matching by certificate.
-		if client.user == nil && len(client.CertHash) > 0 {
-			user, exists := server.UserCertMap[client.CertHash]
+		if client.user == nil && client.HasCertificate() {
+			user, exists := server.UserCertMap[client.CertHash()]
 			if exists {
 				client.user = user
 			}
@@ -557,15 +556,15 @@ func (server *Server) finishAuthenticate(client *Client) {
 	}
 
 	// Add the client to the connected list
-	server.clients[client.Session] = client
+	server.clients[client.Session()] = client
 
 	// Warn clients without CELT support that they might not be able to talk to everyone else.
 	if len(client.codecs) == 0 {
 		client.codecs = []int32{CeltCompatBitstream}
-		server.Printf("Client %v connected without CELT codecs. Faking compat bitstream.", client.Session)
+		server.Printf("Client %v connected without CELT codecs. Faking compat bitstream.", client.Session())
 		if server.Opus && !client.opus {
 			client.sendMessage(&mumbleproto.TextMessage{
-				Session: []uint32{client.Session},
+				Session: []uint32{client.Session()},
 				Message: proto.String("<strong>WARNING:</strong> Your client doesn't support the CELT codec, you won't be able to talk to or hear most clients. Please make sure your client was built with CELT support."),
 			})
 		}
@@ -592,13 +591,13 @@ func (server *Server) finishAuthenticate(client *Client) {
 	}
 
 	userstate := &mumbleproto.UserState{
-		Session:   proto.Uint32(client.Session),
+		Session:   proto.Uint32(client.Session()),
 		Name:      proto.String(client.ShownName()),
 		ChannelId: proto.Uint32(uint32(channel.Id)),
 	}
 
-	if len(client.CertHash) > 0 {
-		userstate.Hash = proto.String(client.CertHash)
+	if client.HasCertificate() {
+		userstate.Hash = proto.String(client.CertHash())
 	}
 
 	if client.IsRegistered() {
@@ -639,20 +638,18 @@ func (server *Server) finishAuthenticate(client *Client) {
 	server.sendUserList(client)
 
 	sync := &mumbleproto.ServerSync{}
-	sync.Session = proto.Uint32(client.Session)
+	sync.Session = proto.Uint32(client.Session())
 	sync.MaxBandwidth = proto.Uint32(server.cfg.Uint32Value("MaxBandwidth"))
 	sync.WelcomeText = proto.String(server.cfg.StringValue("WelcomeText"))
 	if client.IsSuperUser() {
-		sync.Permissions = proto.Uint64(uint64(AllPermissions))
+		sync.Permissions = proto.Uint64(uint64(acl.AllPermissions))
 	} else {
-		server.HasPermission(client, server.RootChannel(), EnterPermission)
-		perm := server.aclcache.GetPermission(client, server.RootChannel())
-		if !perm.IsCached() {
-			client.Panic("Corrupt ACL cache")
-			return
-		}
-		perm.ClearCacheBit()
-		sync.Permissions = proto.Uint64(uint64(perm))
+		// fixme(mkrautz): previously we calculated the user's
+		// permissions and sent them to the client in here. This
+		// code relied on our ACL cache, but that has been temporarily
+		// thrown out because of our ACL handling code moving to its
+		// own package.
+		sync.Permissions = nil
 	}
 	if err := client.sendMessage(sync); err != nil {
 		client.Panicf("%v", err)
@@ -729,7 +726,7 @@ func (server *Server) updateCodecVersions(connecting *Client) {
 		}
 	} else if server.Opus == enableOpus {
 		if server.Opus && connecting != nil && !connecting.opus {
-			txtMsg.Session = []uint32{connecting.Session}
+			txtMsg.Session = []uint32{connecting.Session()}
 			connecting.sendMessage(txtMsg)
 		}
 		return
@@ -751,7 +748,7 @@ func (server *Server) updateCodecVersions(connecting *Client) {
 	if server.Opus {
 		for _, client := range server.clients {
 			if !client.opus && client.state == StateClientReady {
-				txtMsg.Session = []uint32{connecting.Session}
+				txtMsg.Session = []uint32{connecting.Session()}
 				err := client.sendMessage(txtMsg)
 				if err != nil {
 					client.Panicf("%v", err)
@@ -759,7 +756,7 @@ func (server *Server) updateCodecVersions(connecting *Client) {
 			}
 		}
 		if connecting != nil && !connecting.opus {
-			txtMsg.Session = []uint32{connecting.Session}
+			txtMsg.Session = []uint32{connecting.Session()}
 			connecting.sendMessage(txtMsg)
 		}
 	}
@@ -778,13 +775,13 @@ func (server *Server) sendUserList(client *Client) {
 		}
 
 		userstate := &mumbleproto.UserState{
-			Session:   proto.Uint32(connectedClient.Session),
+			Session:   proto.Uint32(connectedClient.Session()),
 			Name:      proto.String(connectedClient.ShownName()),
 			ChannelId: proto.Uint32(uint32(connectedClient.Channel.Id)),
 		}
 
-		if len(connectedClient.CertHash) > 0 {
-			userstate.Hash = proto.String(connectedClient.CertHash)
+		if connectedClient.HasCertificate() {
+			userstate.Hash = proto.String(connectedClient.CertHash())
 		}
 
 		if connectedClient.IsRegistered() {
@@ -857,11 +854,10 @@ func (server *Server) sendClientPermissions(client *Client, channel *Channel) {
 		return
 	}
 
-	// Update cache
-	server.HasPermission(client, channel, EnterPermission)
-	perm := server.aclcache.GetPermission(client, channel)
+	// fixme(mkrautz): re-add when we have ACL caching
+	return
 
-	// fixme(mkrautz): Cache which permissions we've already sent.
+	perm := acl.Permission(acl.NonePermission)
 	client.sendMessage(&mumbleproto.PermissionQuery{
 		ChannelId:   proto.Uint32(uint32(channel.Id)),
 		Permissions: proto.Uint32(uint32(perm)),
@@ -1038,7 +1034,6 @@ func (server *Server) handleUdpPacket(udpaddr *net.UDPAddr, buf []byte, nread in
 
 // Clear the Server's caches
 func (server *Server) ClearCaches() {
-	server.aclcache = NewACLCache()
 	for _, client := range server.clients {
 		client.ClearCaches()
 	}
@@ -1063,7 +1058,7 @@ func (server *Server) userEnterChannel(client *Client, channel *Channel, usersta
 
 	server.UpdateFrozenUserLastChannel(client)
 
-	canspeak := server.HasPermission(client, channel, SpeakPermission)
+	canspeak := acl.HasPermission(&channel.ACL, client, acl.SpeakPermission)
 	if canspeak == client.Suppress {
 		client.Suppress = !canspeak
 		userstate.Suppress = proto.Bool(client.Suppress)
@@ -1090,16 +1085,16 @@ func (s *Server) RegisterClient(client *Client) (uid uint32, err error) {
 	}
 
 	// Grumble can only register users with certificates.
-	if len(client.CertHash) == 0 {
+	if client.HasCertificate() {
 		return 0, errors.New("no cert hash")
 	}
 
 	user.Email = client.Email
-	user.CertHash = client.CertHash
+	user.CertHash = client.CertHash()
 
 	uid = s.nextUserId
 	s.Users[uid] = user
-	s.UserCertMap[client.CertHash] = user
+	s.UserCertMap[client.CertHash()] = user
 	s.UserNameMap[client.Username] = user
 
 	return uid, nil
@@ -1126,16 +1121,16 @@ func (s *Server) RemoveRegistration(uid uint32) (err error) {
 // Remove references for user id uid from channel. Traverses subchannels.
 func (s *Server) removeRegisteredUserFromChannel(uid uint32, channel *Channel) {
 
-	newACL := []*ChannelACL{}
-	for _, chanacl := range channel.ACL {
+	newACL := []acl.ACL{}
+	for _, chanacl := range channel.ACL.ACLs {
 		if chanacl.UserId == int(uid) {
 			continue
 		}
 		newACL = append(newACL, chanacl)
 	}
-	channel.ACL = newACL
+	channel.ACL.ACLs = newACL
 
-	for _, grp := range channel.Groups {
+	for _, grp := range channel.ACL.Groups {
 		if _, ok := grp.Add[int(uid)]; ok {
 			delete(grp.Add, int(uid))
 		}
@@ -1155,7 +1150,7 @@ func (s *Server) removeRegisteredUserFromChannel(uid uint32, channel *Channel) {
 // Remove a channel
 func (server *Server) RemoveChannel(channel *Channel) {
 	// Can't remove root
-	if channel.parent == nil {
+	if channel == server.RootChannel() {
 		return
 	}
 
@@ -1172,12 +1167,12 @@ func (server *Server) RemoveChannel(channel *Channel) {
 	// Remove all clients
 	for _, client := range channel.clients {
 		target := channel.parent
-		for target.parent != nil && !server.HasPermission(client, target, EnterPermission) {
+		for target.parent != nil && !acl.HasPermission(&target.ACL, client, acl.EnterPermission) {
 			target = target.parent
 		}
 
 		userstate := &mumbleproto.UserState{}
-		userstate.Session = proto.Uint32(client.Session)
+		userstate.Session = proto.Uint32(client.Session())
 		userstate.ChannelId = proto.Uint32(uint32(target.Id))
 		server.userEnterChannel(client, target, userstate)
 		if err := server.broadcastProtoMessage(userstate); err != nil {

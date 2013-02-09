@@ -6,6 +6,7 @@ package main
 
 import (
 	"encoding/hex"
+	"mumbleapp.com/grumble/pkg/acl"
 )
 
 // A Mumble channel
@@ -20,11 +21,7 @@ type Channel struct {
 	children  map[int]*Channel
 
 	// ACL
-	ACL        []*ChannelACL
-	InheritACL bool
-
-	// Groups
-	Groups map[string]*Group
+	ACL acl.Context
 
 	// Links
 	Links map[int]*Channel
@@ -39,8 +36,7 @@ func NewChannel(id int, name string) (channel *Channel) {
 	channel.Name = name
 	channel.clients = make(map[uint32]*Client)
 	channel.children = make(map[int]*Channel)
-	channel.ACL = []*ChannelACL{}
-	channel.Groups = make(map[string]*Group)
+	channel.ACL.Groups = make(map[string]acl.Group)
 	channel.Links = make(map[int]*Channel)
 	return
 }
@@ -48,24 +44,26 @@ func NewChannel(id int, name string) (channel *Channel) {
 // Add a child channel to a channel
 func (channel *Channel) AddChild(child *Channel) {
 	child.parent = channel
+	child.ACL.Parent = &channel.ACL
 	channel.children[child.Id] = child
 }
 
 // Remove a child channel from a parent
 func (channel *Channel) RemoveChild(child *Channel) {
 	child.parent = nil
+	child.ACL.Parent = nil
 	delete(channel.children, child.Id)
 }
 
 // Add client
 func (channel *Channel) AddClient(client *Client) {
-	channel.clients[client.Session] = client
+	channel.clients[client.Session()] = client
 	client.Channel = channel
 }
 
 // Remove client
 func (channel *Channel) RemoveClient(client *Client) {
-	delete(channel.clients, client.Session)
+	delete(channel.clients, client.Session())
 	client.Channel = nil
 }
 

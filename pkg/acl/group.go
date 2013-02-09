@@ -1,8 +1,7 @@
-// Copyright (c) 2010 The Grumble Authors
+// Copyright (c) 2010-2013 The Grumble Authors
 // The use of this source code is goverened by a BSD-style
 // license that can be found in the LICENSE-file.
-
-package main
+package acl
 
 import (
 	"log"
@@ -10,10 +9,8 @@ import (
 	"strings"
 )
 
+// Group represents a Group in an Context.
 type Group struct {
-	// The channel that this group resides in
-	Channel *Channel
-
 	// The name of this group
 	Name string
 
@@ -33,11 +30,9 @@ type Group struct {
 	Temporary map[int]bool
 }
 
-// Create a new group for channel with name. Does not add it to the channels
-// group list.
-func NewGroup(channel *Channel, name string) *Group {
-	grp := &Group{}
-	grp.Channel = channel
+// EmptyGroupWithName creates a new Group with the given name.
+func EmptyGroupWithName(name string) Group {
+	grp := Group{}
 	grp.Name = name
 	grp.Add = make(map[int]bool)
 	grp.Remove = make(map[int]bool)
@@ -45,13 +40,13 @@ func NewGroup(channel *Channel, name string) *Group {
 	return grp
 }
 
-// Check whether the Add set contains id.
+// AddContains checks whether the Add set contains id.
 func (group *Group) AddContains(id int) (ok bool) {
 	_, ok = group.Add[id]
 	return
 }
 
-// Get the list of user ids in the Add set.
+// AddUsers gets the list of user ids in the Add set.
 func (group *Group) AddUsers() []int {
 	users := []int{}
 	for uid, _ := range group.Add {
@@ -60,13 +55,13 @@ func (group *Group) AddUsers() []int {
 	return users
 }
 
-// Check whether the Remove set contains id.
+// RemoveContains checks whether the Remove set contains id.
 func (group *Group) RemoveContains(id int) (ok bool) {
 	_, ok = group.Remove[id]
 	return
 }
 
-// Get the list of user ids in the Remove set.
+// RemoveUsers gets the list of user ids in the Remove set.
 func (group *Group) RemoveUsers() []int {
 	users := []int{}
 	for uid, _ := range group.Remove {
@@ -75,41 +70,38 @@ func (group *Group) RemoveUsers() []int {
 	return users
 }
 
-// Check whether the Temporary set contains id.
+// TemporaryContains checks whether the Temporary set contains id.
 func (group *Group) TemporaryContains(id int) (ok bool) {
 	_, ok = group.Temporary[id]
 	return
 }
 
-// Get the set of user id's from the group. This includes group
-// members that have been inherited from an ancestor.
-func (group *Group) Members() map[int]bool {
-	groups := []*Group{}
+// MembersInContext gets the set of user id's from the group in the given context.
+// This includes group members that have been inherited from an ancestor context.
+func (group *Group) MembersInContext(ctx *Context) map[int]bool {
+	groups := []Group{}
 	members := map[int]bool{}
 
-	// The channel that the group is defined on.
-	channel := group.Channel
-
-	// Walk a group's channel tree, starting with the channel the group
-	// is defined on, followed by its parent channels.
-	iter := group.Channel
-	for iter != nil {
-		curgroup := iter.Groups[group.Name]
-		if curgroup != nil {
+	// Walk a group's context chain, starting with the context the group
+	// is defined on, followed by its parent contexts.
+	origCtx := ctx
+	for ctx != nil {
+		curgroup, ok := ctx.Groups[group.Name]
+		if ok {
 			// If the group is not inheritable, and we're looking at an
 			// ancestor group, we've looked in all the groups we should.
-			if iter != channel && !curgroup.Inheritable {
+			if ctx != origCtx && !curgroup.Inheritable {
 				break
 			}
 			// Add the group to the list of groups to be considered
-			groups = append([]*Group{curgroup}, groups...)
+			groups = append([]Group{curgroup}, groups...)
 			// If this group does not inherit from groups in its ancestors, stop looking
 			// for more ancestor groups.
 			if !curgroup.Inherit {
 				break
 			}
 		}
-		iter = iter.parent
+		ctx = ctx.Parent
 	}
 
 	for _, curgroup := range groups {
@@ -124,13 +116,18 @@ func (group *Group) Members() map[int]bool {
 	return members
 }
 
-// Checks whether a user is a member of the group as defined on channel.
-// The channel current is the channel that group membership is currently being evaluated for.
-// The channel aclchan is the channel that the group is defined on. This means that current inherits
-// the group from an acl in aclchan.
+// GroupMemberCheck checks whether a user is a member
+// of the group as defined in the given context.
 //
-// The channel aclchan will always be either equal to current, or be an ancestor.
-func GroupMemberCheck(current *Channel, aclchan *Channel, name string, client *Client) (ok bool) {
+// The 'current' context is the context that group
+// membership is currently being evaluated for.
+// 
+// The 'acl' context is the context of the ACL that
+// that group membership is being evaluated for.
+//
+// The acl context will always be either equal to
+// current, or be an ancestor.
+func GroupMemberCheck(current *Context, acl *Context, name string, user User) (ok bool) {
 	valid := true
 	invert := false
 	token := false
@@ -160,7 +157,7 @@ func GroupMemberCheck(current *Channel, aclchan *Channel, name string, client *C
 		}
 		// Evaluate in ACL context (not current channel)
 		if name[0] == '~' {
-			channel = aclchan
+			channel = acl
 			name = name[1:]
 			continue
 		}
@@ -182,8 +179,8 @@ func GroupMemberCheck(current *Channel, aclchan *Channel, name string, client *C
 	if token {
 		// The user is part of this group if the remaining name is part of
 		// his access token list. The name check is case-insensitive.
-		for _, clientToken := range client.Tokens {
-			if strings.ToLower(name) == strings.ToLower(clientToken) {
+		for _, token := range user.Tokens() {
+			if strings.ToLower(name) == strings.ToLower(token) {
 				return true
 			}
 		}
@@ -191,7 +188,7 @@ func GroupMemberCheck(current *Channel, aclchan *Channel, name string, client *C
 	} else if hash {
 		// The client is part of this group if the remaining name matches the
 		// client's cert hash.
-		if strings.ToLower(name) == strings.ToLower(client.CertHash) {
+		if strings.ToLower(name) == strings.ToLower(user.CertHash()) {
 			return true
 		}
 		return false
@@ -204,7 +201,7 @@ func GroupMemberCheck(current *Channel, aclchan *Channel, name string, client *C
 	} else if name == "auth" {
 		// The user is part of the auth group is he is authenticated. That is,
 		// his UserId is >= 0.
-		return client.IsRegistered()
+		return user.UserId() >= 0
 	} else if name == "strong" {
 		// The user is part of the strong group if he is authenticated to the server
 		// via a strong certificate (i.e. non-self-signed, trusted by the server's
@@ -213,10 +210,10 @@ func GroupMemberCheck(current *Channel, aclchan *Channel, name string, client *C
 		return false
 	} else if name == "in" {
 		// Is the user in the currently evaluated channel?
-		return client.Channel == channel
+		return user.ACLContext() == channel
 	} else if name == "out" {
 		// Is the user not in the currently evaluated channel?
-		return client.Channel != channel
+		return user.ACLContext() != channel
 	} else if name == "sub" {
 		// fixme(mkrautz): The sub group implementation below hasn't been thoroughly
 		// tested yet. It might be a bit buggy!
@@ -255,45 +252,30 @@ func GroupMemberCheck(current *Channel, aclchan *Channel, name string, client *C
 			}
 		}
 
-		// Build a chain of channels, starting from the client's current channel.
-		playerChain := []*Channel{}
-		iter := client.Channel
-		for iter != nil {
-			playerChain = append([]*Channel{iter}, playerChain...)
-			iter = iter.parent
-		}
-		// Build a chain of channels, starting from the channel current. This is
-		// the channel that group membership is checked against, notwithstanding
-		// the ~ group operator.
-		groupChain := []*Channel{}
-		iter = current
-		for iter != nil {
-			groupChain = append([]*Channel{iter}, groupChain...)
-			iter = iter.parent
-		}
+		// Build a context chain starting from the
+		// user's current context.
+		userChain := buildChain(user.ACLContext())
+		// Build a chain of contexts, starting from
+		// the 'current' context. This is the context
+		// that group membership is checked against,
+		// notwithstanding the ~ group operator.
+		groupChain := buildChain(current)
 
-		// Helper function that finds the given channel in the channels slice.
-		// Returns -1 if the given channel was not found in the slice.
-		indexOf := func(channels []*Channel, channel *Channel) int {
-			for i, iter := range channels {
-				if iter == channel {
-					return i
-				}
-			}
-			return -1
-		}
-
-		// Find the index of channel that the group is currently being evaluated on.
-		// This can be either aclchan or current depending on the ~ group operator.
-		cofs := indexOf(groupChain, channel)
+		// Find the index of the context that the group
+		// is currently being evaluated on. This can be
+		// either the 'acl' context or 'current' context
+		// depending on the ~ group operator.
+		cofs := indexOf(groupChain, current)
 		if cofs == -1 {
 			valid = false
 			return false
 		}
 
-		// Add the first parameter of our sub group to cofs to get our 'base' channel.
+		// Add the first parameter of our sub group to cofs
+		// to get our base context.
 		cofs += minpath
-		// Check that the minpath parameter that was given is a valid index for groupChain.
+		// Check that the minpath parameter that was given
+		// is a valid index for groupChain.
 		if cofs >= len(groupChain) {
 			valid = false
 			return false
@@ -301,48 +283,50 @@ func GroupMemberCheck(current *Channel, aclchan *Channel, name string, client *C
 			cofs = 0
 		}
 
-		// If our 'base' channel is not in the playerChain, the group does not apply to the client.
-		if indexOf(playerChain, groupChain[cofs]) == -1 {
+		// If our base context is not in the userChain, the
+		// group does not apply to the user.
+		if indexOf(userChain, groupChain[cofs]) == -1 {
 			return false
 		}
 
-		// Down here, we're certain that the playerChain includes the base channel
-		// *somewhere*. We must now determine if the path depth makes the user a
-		// member of the group.
+		// Down here, we're certain that the userChain
+		// includes the base context somewhere in its
+		// chain. We must now determine if the path depth
+		// makes the user a member of the group.
 		mindepth := cofs + mindesc
 		maxdepth := cofs + maxdesc
-		pdepth := len(playerChain) - 1
+		pdepth := len(userChain) - 1
 		return pdepth >= mindepth && pdepth <= maxdepth
 
 	} else {
 		// Non-magic groups
-		groups := []*Group{}
+		groups := []Group{}
 
 		iter := channel
 		for iter != nil {
 			if group, ok := iter.Groups[name]; ok {
 				// Skip non-inheritable groups if we're in parents
-				// of our evaluated channel.
+				// of our evaluated context.
 				if iter != channel && !group.Inheritable {
 					break
 				}
 				// Prepend group
-				groups = append([]*Group{group}, groups...)
+				groups = append([]Group{group}, groups...)
 				// If this group does not inherit from groups in its ancestors, stop looking
 				// for more ancestor groups.
 				if !group.Inherit {
 					break
 				}
 			}
-			iter = iter.parent
+			iter = iter.Parent
 		}
 
 		isMember := false
 		for _, group := range groups {
-			if group.AddContains(client.UserId()) || group.TemporaryContains(client.UserId()) || group.TemporaryContains(-int(client.Session)) {
+			if group.AddContains(user.UserId()) || group.TemporaryContains(user.UserId()) || group.TemporaryContains(-int(user.Session())) {
 				isMember = true
 			}
-			if group.RemoveContains(client.UserId()) {
+			if group.RemoveContains(user.UserId()) {
 				isMember = false
 			}
 		}
@@ -352,28 +336,21 @@ func GroupMemberCheck(current *Channel, aclchan *Channel, name string, client *C
 	return false
 }
 
-// Get the list of group names in a particular channel.
-// This function walks the through the channel and all its
-// parent channels to figure out all groups that affect
-// the channel while considering group inheritance.
-func (channel *Channel) GroupNames() map[string]bool {
+// Get the list of group names for the given ACL context.
+// 
+// This function walks the through the context chain to figure
+// out all groups that affect the given context whilst considering
+// group inheritance.
+func (ctx *Context) GroupNames() []string {
 	names := map[string]bool{}
+	origCtx := ctx
+	contexts := []*Context{}
 
-	// Construct a list of channels. Fartherst away ancestors
-	// are put in front of the list, allowing us to linearly
-	// iterate the list to determine inheritance.
-	channels := []*Channel{}
-	iter := channel
-	for iter != nil {
-		channels = append([]*Channel{iter}, channels...)
-		iter = iter.parent
-	}
-
-	// Walk through all channels and groups in them.
-	for _, iter := range channels {
-		for _, group := range iter.Groups {
+	// Walk through the whole context chain and all groups in it.
+	for _, ctx := range contexts {
+		for _, group := range ctx.Groups {
 			// A non-inheritable group in parent. Discard it.
-			if channel != iter && !group.Inheritable {
+			if ctx != origCtx && !group.Inheritable {
 				delete(names, group.Name)
 				// An inheritable group. Add it to the list.
 			} else {
@@ -381,5 +358,13 @@ func (channel *Channel) GroupNames() map[string]bool {
 			}
 		}
 	}
-	return names
+
+	// Convert to slice
+	stringNames := make([]string, 0, len(names))
+	for name, ok := range names {
+		if ok {
+			stringNames = append(stringNames, name)
+		}
+	}
+	return stringNames
 }

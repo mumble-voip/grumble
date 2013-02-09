@@ -13,6 +13,7 @@ import (
 	"errors"
 	"io"
 	"log"
+	"mumbleapp.com/grumble/pkg/acl"
 	"mumbleapp.com/grumble/pkg/cryptstate"
 	"mumbleapp.com/grumble/pkg/mumbleproto"
 	"mumbleapp.com/grumble/pkg/packetdata"
@@ -74,10 +75,10 @@ type Client struct {
 
 	// Personal
 	Username        string
-	Session         uint32
-	CertHash        string
+	session         uint32
+	certHash        string
 	Email           string
-	Tokens          []string
+	tokens          []string
 	Channel         *Channel
 	SelfMute        bool
 	SelfDeaf        bool
@@ -97,7 +98,7 @@ func (client *Client) IsRegistered() bool {
 
 // Does the client have a certificate?
 func (client *Client) HasCertificate() bool {
-	return len(client.CertHash) > 0
+	return len(client.certHash) > 0
 }
 
 // Is the client the SuperUser?
@@ -106,6 +107,22 @@ func (client *Client) IsSuperUser() bool {
 		return false
 	}
 	return client.user.Id == 0
+}
+
+func (client *Client) ACLContext() *acl.Context {
+	return &client.Channel.ACL
+}
+
+func (client *Client) CertHash() string {
+	return client.certHash
+}
+
+func (client *Client) Session() uint32 {
+	return client.session
+}
+
+func (client *Client) Tokens() []string {
+	return client.tokens
 }
 
 // Get the User ID of this client.
@@ -252,7 +269,7 @@ func (c *Client) sendPermissionDeniedTypeUser(denyType mumbleproto.PermissionDen
 		Type: denyType.Enum(),
 	}
 	if user != nil {
-		pd.Session = proto.Uint32(uint32(user.Session))
+		pd.Session = proto.Uint32(uint32(user.Session()))
 	}
 	err := c.sendMessage(pd)
 	if err != nil {
@@ -262,11 +279,11 @@ func (c *Client) sendPermissionDeniedTypeUser(denyType mumbleproto.PermissionDen
 }
 
 // Send permission denied by who, what, where
-func (c *Client) sendPermissionDenied(who *Client, where *Channel, what Permission) {
+func (c *Client) sendPermissionDenied(who *Client, where *Channel, what acl.Permission) {
 	pd := &mumbleproto.PermissionDenied{
 		Permission: proto.Uint32(uint32(what)),
 		ChannelId:  proto.Uint32(uint32(where.Id)),
-		Session:    proto.Uint32(who.Session),
+		Session:    proto.Uint32(who.Session()),
 		Type:       mumbleproto.PermissionDenied_Permission.Enum(),
 	}
 	err := c.sendMessage(pd)
@@ -334,7 +351,7 @@ func (client *Client) udpRecvLoop() {
 				incoming.Skip(size & 0x1fff)
 			}
 
-			outgoing.PutUint32(client.Session)
+			outgoing.PutUint32(client.Session())
 			outgoing.PutBytes(buf[1 : 1+(len(buf)-1)])
 			outbuf[0] = buf[0] & 0xe0 // strip target
 

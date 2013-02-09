@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"mumbleapp.com/grumble/pkg/acl"
 	"mumbleapp.com/grumble/pkg/ban"
 	"mumbleapp.com/grumble/pkg/freezer"
 	"mumbleapp.com/grumble/pkg/mumbleproto"
@@ -170,12 +171,12 @@ func (channel *Channel) Freeze() (fc *freezer.Channel, err error) {
 		fc.ParentId = proto.Uint32(uint32(channel.parent.Id))
 	}
 	fc.Position = proto.Int64(int64(channel.Position))
-	fc.InheritAcl = proto.Bool(channel.InheritACL)
+	fc.InheritAcl = proto.Bool(channel.ACL.InheritACL)
 
 	// Freeze the channel's ACLs
 	acls := []*freezer.ACL{}
-	for _, acl := range channel.ACL {
-		facl, err := acl.Freeze()
+	for _, acl := range channel.ACL.ACLs {
+		facl, err := FreezeACL(acl)
 		if err != nil {
 			return nil, err
 		}
@@ -185,8 +186,8 @@ func (channel *Channel) Freeze() (fc *freezer.Channel, err error) {
 
 	// Freeze the channel's groups
 	groups := []*freezer.Group{}
-	for _, grp := range channel.Groups {
-		fgrp, err := grp.Freeze()
+	for _, grp := range channel.ACL.Groups {
+		fgrp, err := FreezeGroup(grp)
 		if err != nil {
 			return nil, err
 		}
@@ -217,7 +218,7 @@ func (c *Channel) Unfreeze(fc *freezer.Channel) {
 		c.Position = int(*fc.Position)
 	}
 	if fc.InheritAcl != nil {
-		c.InheritACL = *fc.InheritAcl
+		c.ACL.InheritACL = *fc.InheritAcl
 	}
 	if fc.DescriptionBlob != nil {
 		c.DescriptionBlob = *fc.DescriptionBlob
@@ -225,41 +226,41 @@ func (c *Channel) Unfreeze(fc *freezer.Channel) {
 
 	// Update ACLs
 	if fc.Acl != nil {
-		c.ACL = nil
+		c.ACL.ACLs = nil
 		for _, facl := range fc.Acl {
-			acl := NewChannelACL(c)
+			aclEntry := acl.ACL{}
 			if facl.ApplyHere != nil {
-				acl.ApplyHere = *facl.ApplyHere
+				aclEntry.ApplyHere = *facl.ApplyHere
 			}
 			if facl.ApplySubs != nil {
-				acl.ApplySubs = *facl.ApplySubs
+				aclEntry.ApplySubs = *facl.ApplySubs
 			}
 			if facl.UserId != nil {
-				acl.UserId = int(*facl.UserId)
+				aclEntry.UserId = int(*facl.UserId)
 			} else {
-				acl.UserId = -1
+				aclEntry.UserId = -1
 			}
 			if facl.Group != nil {
-				acl.Group = *facl.Group
+				aclEntry.Group = *facl.Group
 			}
 			if facl.Deny != nil {
-				acl.Deny = Permission(*facl.Deny)
+				aclEntry.Deny = acl.Permission(*facl.Deny)
 			}
 			if facl.Allow != nil {
-				acl.Allow = Permission(*facl.Allow)
+				aclEntry.Allow = acl.Permission(*facl.Allow)
 			}
-			c.ACL = append(c.ACL, acl)
+			c.ACL.ACLs = append(c.ACL.ACLs, aclEntry)
 		}
 	}
 
 	// Update groups
 	if fc.Groups != nil {
-		c.Groups = make(map[string]*Group)
+		c.ACL.Groups = make(map[string]acl.Group)
 		for _, fgrp := range fc.Groups {
 			if fgrp.Name == nil {
 				continue
 			}
-			g := NewGroup(c, *fgrp.Name)
+			g := acl.Group{}
 			if fgrp.Inherit != nil {
 				g.Inherit = *fgrp.Inherit
 			}
@@ -272,7 +273,7 @@ func (c *Channel) Unfreeze(fc *freezer.Channel) {
 			for _, uid := range fgrp.Remove {
 				g.Remove[int(uid)] = true
 			}
-			c.Groups[g.Name] = g
+			c.ACL.Groups[g.Name] = g
 		}
 	}
 
@@ -331,40 +332,34 @@ func (u *User) Unfreeze(fu *freezer.User) {
 
 // Freeze a ChannelACL into it a flattened protobuf-based structure
 // ready to be persisted to disk.
-func (acl *ChannelACL) Freeze() (facl *freezer.ACL, err error) {
-	facl = new(freezer.ACL)
-
-	if acl.UserId != -1 {
-		facl.UserId = proto.Uint32(uint32(acl.UserId))
+func FreezeACL(aclEntry acl.ACL) (*freezer.ACL, error) {
+	frozenAcl := &freezer.ACL{}
+	if aclEntry.UserId != -1 {
+		frozenAcl.UserId = proto.Uint32(uint32(aclEntry.UserId))
 	} else {
-		facl.Group = proto.String(acl.Group)
+		frozenAcl.Group = proto.String(aclEntry.Group)
 	}
-	facl.ApplyHere = proto.Bool(acl.ApplyHere)
-	facl.ApplySubs = proto.Bool(acl.ApplySubs)
-	facl.Allow = proto.Uint32(uint32(acl.Allow))
-	facl.Deny = proto.Uint32(uint32(acl.Deny))
-
-	return
+	frozenAcl.ApplyHere = proto.Bool(aclEntry.ApplyHere)
+	frozenAcl.ApplySubs = proto.Bool(aclEntry.ApplySubs)
+	frozenAcl.Allow = proto.Uint32(uint32(aclEntry.Allow))
+	frozenAcl.Deny = proto.Uint32(uint32(aclEntry.Deny))
+	return frozenAcl, nil
 }
 
 // Freeze a Group into a flattened protobuf-based structure
 // ready to be persisted to disk.
-func (group *Group) Freeze() (fgrp *freezer.Group, err error) {
-	fgrp = new(freezer.Group)
-
-	fgrp.Name = proto.String(group.Name)
-	fgrp.Inherit = proto.Bool(group.Inherit)
-	fgrp.Inheritable = proto.Bool(group.Inheritable)
-
+func FreezeGroup(group acl.Group) (*freezer.Group, error) {
+	frozenGroup := &freezer.Group{}
+	frozenGroup.Name = proto.String(group.Name)
+	frozenGroup.Inherit = proto.Bool(group.Inherit)
+	frozenGroup.Inheritable = proto.Bool(group.Inheritable)
 	for _, id := range group.AddUsers() {
-		fgrp.Add = append(fgrp.Add, uint32(id))
+		frozenGroup.Add = append(frozenGroup.Add, uint32(id))
 	}
-
 	for _, id := range group.RemoveUsers() {
-		fgrp.Remove = append(fgrp.Remove, uint32(id))
+		frozenGroup.Remove = append(frozenGroup.Remove, uint32(id))
 	}
-
-	return
+	return frozenGroup, nil
 }
 
 // Create a new server from its on-disk representation.
@@ -788,11 +783,11 @@ func (server *Server) UpdateFrozenChannelACLs(channel *Channel) {
 	fc := &freezer.Channel{}
 
 	fc.Id = proto.Uint32(uint32(channel.Id))
-	fc.InheritAcl = proto.Bool(channel.InheritACL)
+	fc.InheritAcl = proto.Bool(channel.ACL.InheritACL)
 
 	acls := []*freezer.ACL{}
-	for _, acl := range channel.ACL {
-		facl, err := acl.Freeze()
+	for _, aclEntry := range channel.ACL.ACLs {
+		facl, err := FreezeACL(aclEntry)
 		if err != nil {
 			return
 		}
@@ -801,8 +796,8 @@ func (server *Server) UpdateFrozenChannelACLs(channel *Channel) {
 	fc.Acl = acls
 
 	groups := []*freezer.Group{}
-	for _, grp := range channel.Groups {
-		fgrp, err := grp.Freeze()
+	for _, grp := range channel.ACL.Groups {
+		fgrp, err := FreezeGroup(grp)
 		if err != nil {
 			return
 		}

@@ -4,6 +4,8 @@
 
 package main
 
+import "mumbleapp.com/grumble/pkg/acl"
+
 // A VoiceTarget holds information about a single
 // VoiceTarget entry of a Client.
 type VoiceTarget struct {
@@ -72,9 +74,9 @@ func (vt *VoiceTarget) SendVoiceBroadcast(vb *VoiceBroadcast) {
 			}
 
 			if !vtc.subChannels && !vtc.links && vtc.onlyGroup == "" {
-				if server.HasPermission(client, channel, WhisperPermission) {
+				if acl.HasPermission(&channel.ACL, client, acl.WhisperPermission) {
 					for _, target := range channel.clients {
-						fromChannels[target.Session] = target
+						fromChannels[target.Session()] = target
 					}
 				}
 			} else {
@@ -92,10 +94,10 @@ func (vt *VoiceTarget) SendVoiceBroadcast(vb *VoiceBroadcast) {
 					}
 				}
 				for _, newchan := range newchans {
-					if server.HasPermission(client, newchan, WhisperPermission) {
+					if acl.HasPermission(&newchan.ACL, client, acl.WhisperPermission) {
 						for _, target := range newchan.clients {
-							if vtc.onlyGroup == "" || GroupMemberCheck(newchan, newchan, vtc.onlyGroup, target) {
-								fromChannels[target.Session] = target
+							if vtc.onlyGroup == "" || acl.GroupMemberCheck(&newchan.ACL, &newchan.ACL, vtc.onlyGroup, target) {
+								fromChannels[target.Session()] = target
 							}
 						}
 					}
@@ -106,15 +108,15 @@ func (vt *VoiceTarget) SendVoiceBroadcast(vb *VoiceBroadcast) {
 		for _, session := range vt.sessions {
 			target := server.clients[session]
 			if target != nil {
-				if _, alreadyInFromChannels := fromChannels[target.Session]; !alreadyInFromChannels {
-					direct[target.Session] = target
+				if _, alreadyInFromChannels := fromChannels[target.Session()]; !alreadyInFromChannels {
+					direct[target.Session()] = target
 				}
 			}
 		}
 
 		// Make sure we don't send to ourselves.
-		delete(direct, client.Session)
-		delete(fromChannels, client.Session)
+		delete(direct, client.Session())
+		delete(fromChannels, client.Session())
 
 		if vt.directCache == nil {
 			vt.directCache = direct

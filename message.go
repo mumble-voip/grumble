@@ -9,6 +9,7 @@ import (
 	"crypto/aes"
 	"crypto/tls"
 	"fmt"
+	"mumbleapp.com/grumble/pkg/acl"
 	"mumbleapp.com/grumble/pkg/ban"
 	"mumbleapp.com/grumble/pkg/freezer"
 	"mumbleapp.com/grumble/pkg/mumbleproto"
@@ -129,8 +130,8 @@ func (server *Server) handleChannelRemoveMessage(client *Client, msg *Message) {
 		return
 	}
 
-	if !server.HasPermission(client, channel, WritePermission) {
-		client.sendPermissionDenied(client, channel, WritePermission)
+	if !acl.HasPermission(&channel.ACL, client, acl.WritePermission) {
+		client.sendPermissionDenied(client, channel, acl.WritePermission)
 		return
 	}
 
@@ -225,13 +226,13 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 		}
 
 		// Check whether the client has permission to create the channel in parent.
-		perm := Permission(NonePermission)
+		perm := acl.Permission(acl.NonePermission)
 		if *chanstate.Temporary {
-			perm = Permission(TempChannelPermission)
+			perm = acl.Permission(acl.TempChannelPermission)
 		} else {
-			perm = Permission(MakeChannelPermission)
+			perm = acl.Permission(acl.MakeChannelPermission)
 		}
-		if !server.HasPermission(client, parent, perm) {
+		if !acl.HasPermission(&parent.ACL, client, perm) {
 			client.sendPermissionDenied(client, parent, perm)
 			return
 		}
@@ -265,26 +266,26 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 
 		// Add the creator to the channel's admin group
 		if client.IsRegistered() {
-			grp := NewGroup(channel, "admin")
+			grp := acl.EmptyGroupWithName("admin")
 			grp.Add[client.UserId()] = true
-			channel.Groups["admin"] = grp
+			channel.ACL.Groups["admin"] = grp
 		}
 
 		// If the client wouldn't have WritePermission in the just-created channel,
 		// add a +write ACL for the user's hash.
-		if !server.HasPermission(client, channel, WritePermission) {
-			acl := NewChannelACL(channel)
-			acl.ApplyHere = true
-			acl.ApplySubs = true
+		if !acl.HasPermission(&channel.ACL, client, acl.WritePermission) {
+			aclEntry := acl.ACL{}
+			aclEntry.ApplyHere = true
+			aclEntry.ApplySubs = true
 			if client.IsRegistered() {
-				acl.UserId = client.UserId()
+				aclEntry.UserId = client.UserId()
 			} else {
-				acl.Group = "$" + client.CertHash
+				aclEntry.Group = "$" + client.CertHash()
 			}
-			acl.Deny = Permission(NonePermission)
-			acl.Allow = Permission(WritePermission | TraversePermission)
+			aclEntry.Deny = acl.Permission(acl.NonePermission)
+			aclEntry.Allow = acl.Permission(acl.WritePermission | acl.TraversePermission)
 
-			channel.ACL = append(channel.ACL, acl)
+			channel.ACL.ACLs = append(channel.ACL.ACLs, aclEntry)
 
 			server.ClearCaches()
 		}
@@ -308,7 +309,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 		// If it's a temporary channel, move the creator in there.
 		if channel.IsTemporary() {
 			userstate := &mumbleproto.UserState{}
-			userstate.Session = proto.Uint32(client.Session)
+			userstate.Session = proto.Uint32(client.Session())
 			userstate.ChannelId = proto.Uint32(uint32(channel.Id))
 			server.userEnterChannel(client, channel, userstate)
 			server.broadcastProtoMessage(userstate)
@@ -321,24 +322,24 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 		if chanstate.Name != nil {
 			// The client can only rename the channel if it has WritePermission in the channel.
 			// Also, clients cannot change the name of the root channel.
-			if !server.HasPermission(client, channel, WritePermission) || channel.Id == 0 {
-				client.sendPermissionDenied(client, channel, WritePermission)
+			if !acl.HasPermission(&channel.ACL, client, acl.WritePermission) || channel.Id == 0 {
+				client.sendPermissionDenied(client, channel, acl.WritePermission)
 				return
 			}
 		}
 
 		// Description change
 		if chanstate.Description != nil {
-			if !server.HasPermission(client, channel, WritePermission) {
-				client.sendPermissionDenied(client, channel, WritePermission)
+			if !acl.HasPermission(&channel.ACL, client, acl.WritePermission) {
+				client.sendPermissionDenied(client, channel, acl.WritePermission)
 				return
 			}
 		}
 
 		// Position change
 		if chanstate.Position != nil {
-			if !server.HasPermission(client, channel, WritePermission) {
-				client.sendPermissionDenied(client, channel, WritePermission)
+			if !acl.HasPermission(&channel.ACL, client, acl.WritePermission) {
+				client.sendPermissionDenied(client, channel, acl.WritePermission)
 				return
 			}
 		}
@@ -367,14 +368,14 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 			}
 
 			// To move a channel, the user must have WritePermission in the channel
-			if !server.HasPermission(client, channel, WritePermission) {
-				client.sendPermissionDenied(client, channel, WritePermission)
+			if !acl.HasPermission(&channel.ACL, client, acl.WritePermission) {
+				client.sendPermissionDenied(client, channel, acl.WritePermission)
 				return
 			}
 
 			// And the user must also have MakeChannel permission in the new parent
-			if !server.HasPermission(client, parent, MakeChannelPermission) {
-				client.sendPermissionDenied(client, parent, MakeChannelPermission)
+			if !acl.HasPermission(&parent.ACL, client, acl.MakeChannelPermission) {
+				client.sendPermissionDenied(client, parent, acl.MakeChannelPermission)
 				return
 			}
 
@@ -392,8 +393,8 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 		linkremove := []*Channel{}
 		if len(chanstate.LinksAdd) > 0 || len(chanstate.LinksRemove) > 0 {
 			// Client must have permission to link
-			if !server.HasPermission(client, channel, LinkChannelPermission) {
-				client.sendPermissionDenied(client, channel, LinkChannelPermission)
+			if !acl.HasPermission(&channel.ACL, client, acl.LinkChannelPermission) {
+				client.sendPermissionDenied(client, channel, acl.LinkChannelPermission)
 				return
 			}
 			// Add any valid channels to linkremove slice
@@ -405,8 +406,8 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 			// Add any valid channels to linkadd slice
 			for _, cid := range chanstate.LinksAdd {
 				if iter, ok := server.Channels[int(cid)]; ok {
-					if !server.HasPermission(client, iter, LinkChannelPermission) {
-						client.sendPermissionDenied(client, iter, LinkChannelPermission)
+					if !acl.HasPermission(&iter.ACL, client, acl.LinkChannelPermission) {
+						client.sendPermissionDenied(client, iter, acl.LinkChannelPermission)
 						return
 					}
 					linkadd = append(linkadd, iter)
@@ -500,12 +501,13 @@ func (server *Server) handleUserRemoveMessage(client *Client, msg *Message) {
 	}
 
 	// Check client's permissions
-	perm := Permission(KickPermission)
+	perm := acl.Permission(acl.KickPermission)
 	if isBan {
-		perm = Permission(BanPermission)
+		perm = acl.Permission(acl.BanPermission)
 	}
-	if removeClient.IsSuperUser() || !server.HasPermission(client, server.RootChannel(), perm) {
-		client.sendPermissionDenied(client, server.RootChannel(), perm)
+	rootChan := server.RootChannel()
+	if removeClient.IsSuperUser() || !acl.HasPermission(&rootChan.ACL, client, perm) {
+		client.sendPermissionDenied(client, rootChan, perm)
 		return
 	}
 
@@ -517,7 +519,7 @@ func (server *Server) handleUserRemoveMessage(client *Client, msg *Message) {
 			ban.Reason = *userremove.Reason
 		}
 		ban.Username = removeClient.ShownName()
-		ban.CertHash = removeClient.CertHash
+		ban.CertHash = removeClient.CertHash()
 		ban.Start = time.Now().Unix()
 		ban.Duration = 0
 
@@ -527,16 +529,16 @@ func (server *Server) handleUserRemoveMessage(client *Client, msg *Message) {
 		server.banlock.Unlock()
 	}
 
-	userremove.Actor = proto.Uint32(uint32(client.Session))
+	userremove.Actor = proto.Uint32(uint32(client.Session()))
 	if err = server.broadcastProtoMessage(userremove); err != nil {
 		server.Panicf("Unable to broadcast UserRemove message")
 		return
 	}
 
 	if isBan {
-		client.Printf("Kick-banned %v (%v)", removeClient.ShownName(), removeClient.Session)
+		client.Printf("Kick-banned %v (%v)", removeClient.ShownName(), removeClient.Session())
 	} else {
-		client.Printf("Kicked %v (%v)", removeClient.ShownName(), removeClient.Session)
+		client.Printf("Kicked %v (%v)", removeClient.ShownName(), removeClient.Session())
 	}
 
 	removeClient.ForceDisconnect()
@@ -551,7 +553,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 		return
 	}
 
-	actor, ok := server.clients[client.Session]
+	actor, ok := server.clients[client.Session()]
 	if !ok {
 		server.Panic("Client not found in server's client map.")
 		return
@@ -565,8 +567,8 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 		}
 	}
 
-	userstate.Session = proto.Uint32(target.Session)
-	userstate.Actor = proto.Uint32(actor.Session)
+	userstate.Session = proto.Uint32(target.Session())
+	userstate.Actor = proto.Uint32(actor.Session())
 
 	// Does it have a channel ID?
 	if userstate.ChannelId != nil {
@@ -578,15 +580,15 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 
 		// If the user and the actor aren't the same, check whether the actor has MovePermission on
 		// the user's curent channel.
-		if actor != target && !server.HasPermission(actor, target.Channel, MovePermission) {
-			client.sendPermissionDenied(actor, target.Channel, MovePermission)
+		if actor != target && !acl.HasPermission(&target.Channel.ACL, actor, acl.MovePermission) {
+			client.sendPermissionDenied(actor, target.Channel, acl.MovePermission)
 			return
 		}
 
 		// Check whether the actor has MovePermission on dstChan.  Check whether user has EnterPermission
 		// on dstChan.
-		if !server.HasPermission(actor, dstChan, MovePermission) && !server.HasPermission(target, dstChan, EnterPermission) {
-			client.sendPermissionDenied(target, dstChan, EnterPermission)
+		if !acl.HasPermission(&dstChan.ACL, actor, acl.MovePermission) && !acl.HasPermission(&dstChan.ACL, target, acl.EnterPermission) {
+			client.sendPermissionDenied(target, dstChan, acl.EnterPermission)
 			return
 		}
 
@@ -606,14 +608,14 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 		}
 
 		// Check whether the actor has 'mutedeafen' permission on user's channel.
-		if !server.HasPermission(actor, target.Channel, MuteDeafenPermission) {
-			client.sendPermissionDenied(actor, target.Channel, MuteDeafenPermission)
+		if !acl.HasPermission(&target.Channel.ACL, actor, acl.MuteDeafenPermission) {
+			client.sendPermissionDenied(actor, target.Channel, acl.MuteDeafenPermission)
 			return
 		}
 
 		// Check if this was a suppress operation. Only the server can suppress users.
 		if userstate.Suppress != nil {
-			client.sendPermissionDenied(actor, target.Channel, MuteDeafenPermission)
+			client.sendPermissionDenied(actor, target.Channel, acl.MuteDeafenPermission)
 			return
 		}
 	}
@@ -626,8 +628,9 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 		if target != actor {
 			// Check if actor has 'move' permissions on the root channel. It is needed
 			// to clear another user's comment.
-			if !server.HasPermission(actor, server.RootChannel(), MovePermission) {
-				client.sendPermissionDenied(actor, server.RootChannel(), MovePermission)
+			rootChan := server.RootChannel()
+			if !acl.HasPermission(&rootChan.ACL, actor, acl.MovePermission) {
+				client.sendPermissionDenied(actor, rootChan, acl.MovePermission)
 				return
 			}
 
@@ -660,17 +663,18 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	if userstate.UserId != nil {
 		// If user == actor, check for SelfRegisterPermission on root channel.
 		// If user != actor, check for RegisterPermission permission on root channel.
-		perm := Permission(RegisterPermission)
+		perm := acl.Permission(acl.RegisterPermission)
 		if actor == target {
-			perm = Permission(SelfRegisterPermission)
+			perm = acl.Permission(acl.SelfRegisterPermission)
 		}
 
-		if target.IsRegistered() || !server.HasPermission(actor, server.RootChannel(), perm) {
-			client.sendPermissionDenied(actor, server.RootChannel(), perm)
+		rootChan := server.RootChannel()
+		if target.IsRegistered() || !acl.HasPermission(&rootChan.ACL, actor, perm) {
+			client.sendPermissionDenied(actor, rootChan, perm)
 			return
 		}
 
-		if len(target.CertHash) == 0 {
+		if !target.HasCertificate() {
 			client.sendPermissionDeniedTypeUser(mumbleproto.PermissionDenied_MissingCertificate, target)
 			return
 		}
@@ -890,8 +894,9 @@ func (server *Server) handleBanListMessage(client *Client, msg *Message) {
 		return
 	}
 
-	if !server.HasPermission(client, server.RootChannel(), BanPermission) {
-		client.sendPermissionDenied(client, server.RootChannel(), BanPermission)
+	rootChan := server.RootChannel()
+	if !acl.HasPermission(&rootChan.ACL, client, acl.BanPermission) {
+		client.sendPermissionDenied(client, rootChan, acl.BanPermission)
 		return
 	}
 
@@ -974,12 +979,12 @@ func (server *Server) handleTextMessage(client *Client, msg *Message) {
 	// Tree
 	for _, chanid := range txtmsg.TreeId {
 		if channel, ok := server.Channels[int(chanid)]; ok {
-			if !server.HasPermission(client, channel, TextMessagePermission) {
-				client.sendPermissionDenied(client, channel, TextMessagePermission)
+			if !acl.HasPermission(&channel.ACL, client, acl.TextMessagePermission) {
+				client.sendPermissionDenied(client, channel, acl.TextMessagePermission)
 				return
 			}
 			for _, target := range channel.clients {
-				clients[target.Session] = target
+				clients[target.Session()] = target
 			}
 		}
 	}
@@ -987,12 +992,12 @@ func (server *Server) handleTextMessage(client *Client, msg *Message) {
 	// Direct-to-channel
 	for _, chanid := range txtmsg.ChannelId {
 		if channel, ok := server.Channels[int(chanid)]; ok {
-			if !server.HasPermission(client, channel, TextMessagePermission) {
-				client.sendPermissionDenied(client, channel, TextMessagePermission)
+			if !acl.HasPermission(&channel.ACL, client, acl.TextMessagePermission) {
+				client.sendPermissionDenied(client, channel, acl.TextMessagePermission)
 				return
 			}
 			for _, target := range channel.clients {
-				clients[target.Session] = target
+				clients[target.Session()] = target
 			}
 		}
 	}
@@ -1000,8 +1005,8 @@ func (server *Server) handleTextMessage(client *Client, msg *Message) {
 	// Direct-to-clients
 	for _, session := range txtmsg.Session {
 		if target, ok := server.clients[session]; ok {
-			if !server.HasPermission(client, target.Channel, TextMessagePermission) {
-				client.sendPermissionDenied(client, target.Channel, TextMessagePermission)
+			if !acl.HasPermission(&target.Channel.ACL, client, acl.TextMessagePermission) {
+				client.sendPermissionDenied(client, target.Channel, acl.TextMessagePermission)
 				return
 			}
 			clients[session] = target
@@ -1009,11 +1014,11 @@ func (server *Server) handleTextMessage(client *Client, msg *Message) {
 	}
 
 	// Remove ourselves
-	delete(clients, client.Session)
+	delete(clients, client.Session())
 
 	for _, target := range clients {
 		target.sendMessage(&mumbleproto.TextMessage{
-			Actor:   proto.Uint32(client.Session),
+			Actor:   proto.Uint32(client.Session()),
 			Message: txtmsg.Message,
 		})
 	}
@@ -1021,22 +1026,22 @@ func (server *Server) handleTextMessage(client *Client, msg *Message) {
 
 // ACL set/query
 func (server *Server) handleAclMessage(client *Client, msg *Message) {
-	acl := &mumbleproto.ACL{}
-	err := proto.Unmarshal(msg.buf, acl)
+	pacl := &mumbleproto.ACL{}
+	err := proto.Unmarshal(msg.buf, pacl)
 	if err != nil {
 		client.Panic(err)
 		return
 	}
 
 	// Look up the channel this ACL message operates on.
-	channel, ok := server.Channels[int(*acl.ChannelId)]
+	channel, ok := server.Channels[int(*pacl.ChannelId)]
 	if !ok {
 		return
 	}
 
 	// Does the user have permission to update or look at ACLs?
-	if !server.HasPermission(client, channel, WritePermission) && !(channel.parent != nil && server.HasPermission(client, channel.parent, WritePermission)) {
-		client.sendPermissionDenied(client, channel, WritePermission)
+	if !acl.HasPermission(&channel.ACL, client, acl.WritePermission) && !(channel.parent != nil && acl.HasPermission(&channel.parent.ACL, client, acl.WritePermission)) {
+		client.sendPermissionDenied(client, channel, acl.WritePermission)
 		return
 	}
 
@@ -1047,14 +1052,14 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 	users := map[int]bool{}
 
 	// Query the current ACL state for the channel
-	if acl.Query != nil && *acl.Query != false {
-		reply.InheritAcls = proto.Bool(channel.InheritACL)
+	if pacl.Query != nil && *pacl.Query != false {
+		reply.InheritAcls = proto.Bool(channel.ACL.InheritACL)
 		// Walk the channel tree to get all relevant channels.
 		// (Stop if we reach a channel that doesn't have the InheritACL flag set)
 		iter := channel
 		for iter != nil {
 			channels = append([]*Channel{iter}, channels...)
-			if iter == channel || iter.InheritACL {
+			if iter == channel || iter.ACL.InheritACL {
 				iter = iter.parent
 			} else {
 				iter = nil
@@ -1065,7 +1070,7 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 		// in our channel list.
 		reply.Acls = []*mumbleproto.ACL_ChanACL{}
 		for _, iter := range channels {
-			for _, chanacl := range iter.ACL {
+			for _, chanacl := range iter.ACL.ACLs {
 				if iter == channel || chanacl.ApplySubs {
 					mpacl := &mumbleproto.ACL_ChanACL{}
 					mpacl.Inherited = proto.Bool(iter != channel)
@@ -1085,40 +1090,43 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 		}
 
 		parent := channel.parent
-		allnames := channel.GroupNames()
+		allnames := channel.ACL.GroupNames()
 
 		// Construct the protobuf ChanGroups that we send back to the client.
 		// Also constructs a usermap that is a set user ids from the channel's groups.
 		reply.Groups = []*mumbleproto.ACL_ChanGroup{}
-		for name, _ := range allnames {
+		for _, name := range allnames {
 			var (
-				group  *Group
-				pgroup *Group
+				group     acl.Group
+				hasgroup  bool
+				pgroup    acl.Group
+				haspgroup bool
 			)
-			group = channel.Groups[name]
+
+			group, hasgroup = channel.ACL.Groups[name]
 			if parent != nil {
-				pgroup = parent.Groups[name]
+				pgroup, haspgroup = parent.ACL.Groups[name]
 			}
 
 			mpgroup := &mumbleproto.ACL_ChanGroup{}
 			mpgroup.Name = proto.String(name)
 
 			mpgroup.Inherit = proto.Bool(true)
-			if group != nil {
+			if hasgroup {
 				mpgroup.Inherit = proto.Bool(group.Inherit)
 			}
 
 			mpgroup.Inheritable = proto.Bool(true)
-			if group != nil {
+			if hasgroup {
 				mpgroup.Inheritable = proto.Bool(group.Inheritable)
 			}
 
-			mpgroup.Inherited = proto.Bool(pgroup != nil && pgroup.Inheritable)
+			mpgroup.Inherited = proto.Bool(haspgroup && pgroup.Inheritable)
 
 			// Add the set of user ids that this group affects to the user map.
 			// This is used later on in this function to send the client a QueryUsers
 			// message that maps user ids to usernames.
-			if group != nil {
+			if hasgroup {
 				toadd := map[int]bool{}
 				for uid, _ := range group.Add {
 					users[uid] = true
@@ -1132,8 +1140,8 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 					mpgroup.Add = append(mpgroup.Add, uint32(uid))
 				}
 			}
-			if pgroup != nil {
-				for uid, _ := range pgroup.Members() {
+			if haspgroup {
+				for uid, _ := range pgroup.MembersInContext(&parent.ACL) {
 					users[uid] = true
 					mpgroup.InheritedMembers = append(mpgroup.InheritedMembers, uint32(uid))
 				}
@@ -1167,18 +1175,18 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 
 		// Get old temporary members
 		oldtmp := map[string]map[int]bool{}
-		for name, grp := range channel.Groups {
+		for name, grp := range channel.ACL.Groups {
 			oldtmp[name] = grp.Temporary
 		}
 
 		// Clear current ACLs and groups
-		channel.ACL = []*ChannelACL{}
-		channel.Groups = map[string]*Group{}
+		channel.ACL.ACLs = []acl.ACL{}
+		channel.ACL.Groups = map[string]acl.Group{}
 
 		// Add the received groups to the channel.
-		channel.InheritACL = *acl.InheritAcls
-		for _, pbgrp := range acl.Groups {
-			changroup := NewGroup(channel, *pbgrp.Name)
+		channel.ACL.InheritACL = *pacl.InheritAcls
+		for _, pbgrp := range pacl.Groups {
+			changroup := acl.EmptyGroupWithName(*pbgrp.Name)
 
 			changroup.Inherit = *pbgrp.Inherit
 			changroup.Inheritable = *pbgrp.Inheritable
@@ -1192,12 +1200,11 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 				changroup.Temporary = temp
 			}
 
-			channel.Groups[changroup.Name] = changroup
+			channel.ACL.Groups[changroup.Name] = changroup
 		}
 		// Add the received ACLs to the channel.
-		for _, pbacl := range acl.Acls {
-			chanacl := NewChannelACL(channel)
-
+		for _, pbacl := range pacl.Acls {
+			chanacl := acl.ACL{}
 			chanacl.ApplyHere = *pbacl.ApplyHere
 			chanacl.ApplySubs = *pbacl.ApplySubs
 			if pbacl.UserId != nil {
@@ -1205,30 +1212,29 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 			} else {
 				chanacl.Group = *pbacl.Group
 			}
-			chanacl.Deny = Permission(*pbacl.Deny & AllPermissions)
-			chanacl.Allow = Permission(*pbacl.Grant & AllPermissions)
+			chanacl.Deny = acl.Permission(*pbacl.Deny & acl.AllPermissions)
+			chanacl.Allow = acl.Permission(*pbacl.Grant & acl.AllPermissions)
 
-			channel.ACL = append(channel.ACL, chanacl)
+			channel.ACL.ACLs = append(channel.ACL.ACLs, chanacl)
 		}
 
 		// Clear the Server's caches
 		server.ClearCaches()
 
 		// Regular user?
-		if !server.HasPermission(client, channel, WritePermission) && client.IsRegistered() || client.HasCertificate() {
-			chanacl := NewChannelACL(channel)
-
+		if !acl.HasPermission(&channel.ACL, client, acl.WritePermission) && client.IsRegistered() || client.HasCertificate() {
+			chanacl := acl.ACL{}
 			chanacl.ApplyHere = true
 			chanacl.ApplySubs = false
 			if client.IsRegistered() {
 				chanacl.UserId = client.UserId()
 			} else if client.HasCertificate() {
-				chanacl.Group = "$" + client.CertHash
+				chanacl.Group = "$" + client.CertHash()
 			}
-			chanacl.Deny = Permission(NonePermission)
-			chanacl.Allow = Permission(WritePermission | TraversePermission)
+			chanacl.Deny = acl.Permission(acl.NonePermission)
+			chanacl.Allow = acl.Permission(acl.WritePermission | acl.TraversePermission)
 
-			channel.ACL = append(channel.ACL, chanacl)
+			channel.ACL.ACLs = append(channel.ACL.ACLs, chanacl)
 
 			server.ClearCaches()
 		}
@@ -1299,14 +1305,15 @@ func (server *Server) handleUserStatsMessage(client *Client, msg *Message) {
 	}
 	// Otherwise, only send extended UserStats for people with +register permissions
 	// on the root channel.
-	if server.HasPermission(client, server.RootChannel(), RegisterPermission) {
+	rootChan := server.RootChannel()
+	if acl.HasPermission(&rootChan.ACL, client, acl.RegisterPermission) {
 		extended = true
 	}
 
 	// If the client wasn't granted extended permissions, only allow it to query
 	// users in channels it can enter.
-	if !extended && !server.HasPermission(client, target.Channel, EnterPermission) {
-		client.sendPermissionDenied(client, target.Channel, EnterPermission)
+	if !extended && !acl.HasPermission(&target.Channel.ACL, client, acl.EnterPermission) {
+		client.sendPermissionDenied(client, target.Channel, acl.EnterPermission)
 		return
 	}
 
@@ -1318,7 +1325,7 @@ func (server *Server) handleUserStatsMessage(client *Client, msg *Message) {
 	}
 
 	stats.Reset()
-	stats.Session = proto.Uint32(target.Session)
+	stats.Session = proto.Uint32(target.Session())
 
 	if details {
 		if tlsconn := target.conn.(*tls.Conn); tlsconn != nil {
@@ -1472,7 +1479,7 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 						return
 					}
 					userstate.Reset()
-					userstate.Session = proto.Uint32(uint32(target.Session))
+					userstate.Session = proto.Uint32(uint32(target.Session()))
 					userstate.Texture = buf
 					if err := client.sendMessage(userstate); err != nil {
 						client.Panic(err)
@@ -1497,7 +1504,7 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 						return
 					}
 					userstate.Reset()
-					userstate.Session = proto.Uint32(uint32(target.Session))
+					userstate.Session = proto.Uint32(uint32(target.Session()))
 					userstate.Comment = proto.String(string(buf))
 					if err := client.sendMessage(userstate); err != nil {
 						client.Panic(err)
@@ -1543,8 +1550,9 @@ func (server *Server) handleUserList(client *Client, msg *Message) {
 	}
 
 	// Only users who are allowed to register other users can access the user list.
-	if !server.HasPermission(client, server.RootChannel(), RegisterPermission) {
-		client.sendPermissionDenied(client, server.RootChannel(), RegisterPermission)
+	rootChan := server.RootChannel()
+	if !acl.HasPermission(&rootChan.ACL, client, acl.RegisterPermission) {
+		client.sendPermissionDenied(client, rootChan, acl.RegisterPermission)
 		return
 	}
 
