@@ -21,7 +21,7 @@ func TestStoreRetrieve(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	bs := OpenBlobStore(dir)
+	bs := Open(dir)
 
 	data := []byte{0xde, 0xad, 0xca, 0xfe, 0xba, 0xbe, 0xbe, 0xef}
 
@@ -49,7 +49,7 @@ func TestReadNonExistantKey(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	bs := OpenBlobStore(dir)
+	bs := Open(dir)
 
 	h := sha1.New()
 	h.Write([]byte{0x42})
@@ -68,7 +68,7 @@ func TestReadInvalidKeyLength(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	bs := OpenBlobStore(dir)
+	bs := Open(dir)
 
 	key := ""
 	for i := 0; i < 5; i++ {
@@ -90,7 +90,7 @@ func TestReadBadKeyNonHex(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	bs := OpenBlobStore(dir)
+	bs := Open(dir)
 
 	key := ""
 	for i := 0; i < 40; i++ {
