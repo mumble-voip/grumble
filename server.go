@@ -975,14 +975,14 @@ func (server *Server) udpListenLoop() {
 			}
 
 		} else {
-			server.handleUdpPacket(udpaddr, buf, nread)
+			server.handleUdpPacket(udpaddr, buf[0:nread])
 		}
 	}
 }
 
-func (server *Server) handleUdpPacket(udpaddr *net.UDPAddr, buf []byte, nread int) {
+func (server *Server) handleUdpPacket(udpaddr *net.UDPAddr, buf []byte) {
 	var match *Client
-	plain := make([]byte, nread)
+	plain := make([]byte, len(buf))
 
 	// Determine which client sent the the packet.  First, we
 	// check the map 'hpclients' in the server struct. It maps
@@ -1004,7 +1004,7 @@ func (server *Server) handleUdpPacket(udpaddr *net.UDPAddr, buf []byte, nread in
 		host := udpaddr.IP.String()
 		hostclients := server.hclients[host]
 		for _, client := range hostclients {
-			err := client.crypt.Decrypt(plain[0:], buf[0:nread])
+			err := client.crypt.Decrypt(plain[0:], buf)
 			if err != nil {
 				client.cryptResync()
 				return
