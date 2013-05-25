@@ -153,6 +153,11 @@ func NewServer(id int64) (s *Server, err error) {
 	return
 }
 
+// Debugf implements debug-level printing for Servers.
+func (server *Server) Debugf(format string, v ...interface{}) {
+	server.Printf(format, v...)
+}
+
 // Get a pointer to the root channel
 func (server *Server) RootChannel() *Channel {
 	root, exists := server.Channels[0]
@@ -996,6 +1001,7 @@ func (server *Server) handleUdpPacket(udpaddr *net.UDPAddr, buf []byte) {
 	if ok {
 		err := client.crypt.Decrypt(plain, buf)
 		if err != nil {
+			client.Debugf("unable to decrypt incoming packet, requesting resync: %v", err)
 			client.cryptResync()
 			return
 		}
@@ -1006,6 +1012,7 @@ func (server *Server) handleUdpPacket(udpaddr *net.UDPAddr, buf []byte) {
 		for _, client := range hostclients {
 			err := client.crypt.Decrypt(plain[0:], buf)
 			if err != nil {
+				client.Debugf("unable to decrypt incoming packet, requesting resync: %v", err)
 				client.cryptResync()
 				return
 			} else {

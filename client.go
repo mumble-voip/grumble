@@ -91,6 +91,11 @@ type Client struct {
 	PluginIdentity  string
 }
 
+// Debugf implements debug-level printing for Clients.
+func (client *Client) Debugf(format string, v ...interface{}) {
+	client.Printf(format, v...)
+}
+
 // Is the client a registered user?
 func (client *Client) IsRegistered() bool {
 	return client.user != nil
@@ -627,6 +632,7 @@ func (client *Client) sendChannelTree(channel *Channel) {
 
 // Try to do a crypto resync
 func (client *Client) cryptResync() {
+	client.Debugf("requesting crypt resync")
 	goodElapsed := time.Now().Unix() - client.crypt.LastGoodTime
 	if goodElapsed > 5 {
 		requestElapsed := time.Now().Unix() - client.lastResync
