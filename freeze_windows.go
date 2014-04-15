@@ -6,7 +6,7 @@ package main
 
 import (
 	"code.google.com/p/goprotobuf/proto"
-	"mumbleapp.com/grumble/pkg/replacefile"
+	"mumble.info/grumble/pkg/replacefile"
 	"io/ioutil"
 	"path/filepath"
 	"strconv"
