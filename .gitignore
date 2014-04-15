@@ -1,4 +1,4 @@
-grumble
+cmd/grumble/grumble
 .DS_Store
 *.[568ao]
 *.ao
