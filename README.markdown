@@ -8,7 +8,7 @@ Compiling Grumble from source
 
 You must have a Go 1 environment installed to build Grumble. Those are available at:
 
-http://code.google.com/p/go/downloads/list
+https://golang.org/dl/
 
 Once Go is installed, you should set up a GOPATH to avoid clobbering your Go environment's root directory with third party packages.
 
