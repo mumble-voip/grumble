@@ -7,7 +7,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"code.google.com/p/goprotobuf/proto"
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/tls"
@@ -15,6 +14,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/golang/protobuf/proto"
 	"hash"
 	"log"
 	"mumble.info/grumble/pkg/acl"

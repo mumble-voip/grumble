@@ -17,8 +17,8 @@ package freezer
 
 import (
 	"bytes"
-	"code.google.com/p/goprotobuf/proto"
 	"encoding/binary"
+	"github.com/golang/protobuf/proto"
 	"hash"
 	"hash/crc32"
 	"io"

@@ -5,8 +5,8 @@
 package main
 
 import (
-	"code.google.com/p/goprotobuf/proto"
 	"errors"
+	"github.com/golang/protobuf/proto"
 	"io"
 	"io/ioutil"
 	"log"

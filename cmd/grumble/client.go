@@ -7,10 +7,10 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"code.google.com/p/goprotobuf/proto"
 	"crypto/tls"
 	"encoding/binary"
 	"errors"
+	"github.com/golang/protobuf/proto"
 	"io"
 	"log"
 	"mumble.info/grumble/pkg/acl"

@@ -7,7 +7,7 @@
 package main
 
 import (
-	"code.google.com/p/goprotobuf/proto"
+	"github.com/golang/protobuf/proto"
 	"io/ioutil"
 	"os"
 	"path/filepath"

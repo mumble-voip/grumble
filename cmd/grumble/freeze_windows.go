@@ -5,7 +5,7 @@
 package main
 
 import (
-	"code.google.com/p/goprotobuf/proto"
+	"github.com/golang/protobuf/proto"
 	"mumble.info/grumble/pkg/replacefile"
 	"io/ioutil"
 	"path/filepath"
