@@ -61,10 +61,10 @@ func newBlobReader(rc io.ReadCloser, key string) (*blobReader, error) {
 // mismatch.
 func (r *blobReader) Read(b []byte) (int, error) {
 	n, err := r.rc.Read(b)
- 	_, werr := r.hash.Write(b[:n])
- 	if werr != nil {
- 		return 0, werr
- 	}
+	_, werr := r.hash.Write(b[:n])
+	if werr != nil {
+		return 0, werr
+	}
 	if err != io.EOF {
 		return n, err
 	}

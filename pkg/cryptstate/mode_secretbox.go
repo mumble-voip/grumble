@@ -5,8 +5,8 @@
 package cryptstate
 
 import (
-	"unsafe"
 	"golang.org/x/crypto/nacl/secretbox"
+	"unsafe"
 )
 
 // secretBoxMode implements the XSalsa20-Poly1305 CryptoMode

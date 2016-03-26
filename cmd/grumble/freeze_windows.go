@@ -6,8 +6,8 @@ package main
 
 import (
 	"github.com/golang/protobuf/proto"
-	"mumble.info/grumble/pkg/replacefile"
 	"io/ioutil"
+	"mumble.info/grumble/pkg/replacefile"
 	"path/filepath"
 	"strconv"
 )

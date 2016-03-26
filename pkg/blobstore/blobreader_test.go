@@ -12,16 +12,16 @@ import (
 )
 
 type blobReaderTest struct {
-	Key          string
-	ExpectedSum  string
-	Data         string
+	Key         string
+	ExpectedSum string
+	Data        string
 }
 
 var blobReaderTests = []blobReaderTest{
 	{
-		Key:          "a3da7877f94ad4cf58636a395fff77537cb8b919",
-		ExpectedSum:  "a3da7877f94ad4cf58636a395fff77537cb8b919",
-		Data:         "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+		Key:         "a3da7877f94ad4cf58636a395fff77537cb8b919",
+		ExpectedSum: "a3da7877f94ad4cf58636a395fff77537cb8b919",
+		Data:        "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
 	},
 }
 

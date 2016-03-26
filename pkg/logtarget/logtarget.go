@@ -14,7 +14,7 @@ import (
 // LogTarget implements the io.Writer interface, allowing
 // LogTarget to be registered with the regular Go log package.
 // LogTarget multiplexes its incoming writes to multiple optional
-// output writers, and one main output writer (the log file). 
+// output writers, and one main output writer (the log file).
 type LogTarget struct {
 	mu     sync.Mutex
 	logfn  string

@@ -7,8 +7,8 @@ package cryptstate
 import (
 	"bytes"
 	"crypto/aes"
-	"testing"
 	"encoding/hex"
+	"testing"
 )
 
 func TestOCB2AES128Encrypt(t *testing.T) {
@@ -88,9 +88,9 @@ func TestOCB2AES128Decrypt(t *testing.T) {
 func TestXSalsa20Poly1305Encrypt(t *testing.T) {
 	cs := CryptState{}
 
-	var key[32]byte
-	var eiv[24]byte
-	var div[24]byte
+	var key [32]byte
+	var eiv [24]byte
+	var div [24]byte
 	var message [64]byte
 
 	for i := range key[:] {
@@ -125,9 +125,9 @@ func TestXSalsa20Poly1305Encrypt(t *testing.T) {
 func TestXSalsa20Poly1305Decrypt(t *testing.T) {
 	cs := CryptState{}
 
-	var key[32]byte
-	var eiv[24]byte
-	var div[24]byte
+	var key [32]byte
+	var eiv [24]byte
+	var div [24]byte
 	var expected [64]byte
 
 	for i := range key[:] {

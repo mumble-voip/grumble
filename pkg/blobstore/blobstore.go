@@ -20,7 +20,7 @@ var (
 	ErrNoSuchKey = errors.New("blobstore: no such key")
 
 	// ErrBadKey signals that the given key is not well formed.
-	ErrBadKey    = errors.New("blobstore: bad key")
+	ErrBadKey = errors.New("blobstore: bad key")
 )
 
 // BlobStore represents a simple disk-persisted content addressible
@@ -161,7 +161,7 @@ func (bs BlobStore) Put(buf []byte) (key string, err error) {
 	//
 	// Once we're done, we can atomically rename the file
 	// to the correct key.
-	// 
+	//
 	// This method is racy: two callers can attempt to write
 	// the same blob at the same time. This shouldn't affect
 	// the consistency of the final blob, but worst case, we've

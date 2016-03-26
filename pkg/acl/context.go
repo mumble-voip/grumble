@@ -10,18 +10,18 @@ package acl
 type Context struct {
 	// Parent points to the context's parent.
 	// May be nil if the Context does not have a parent.
-	Parent      *Context
+	Parent *Context
 
 	// ACLs is the Context's list of ACL entries.
-	ACLs        []ACL
+	ACLs []ACL
 
 	// Groups is the Context's representation of groups.
 	// It is indexed by the Group's name.
-	Groups      map[string]Group
+	Groups map[string]Group
 
 	// InheritACL determines whether this context should
 	// inherit ACLs from its parent.
-	InheritACL  bool
+	InheritACL bool
 }
 
 // indexOf finds the index of the context ctx in the context chain contexts.

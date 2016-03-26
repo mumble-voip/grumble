@@ -676,12 +676,12 @@ func (server *Server) finishAuthenticate(client *Client) {
 func (server *Server) updateCodecVersions(connecting *Client) {
 	codecusers := map[int32]int{}
 	var (
-		winner int32
-		count int
-		users int
-		opus int
+		winner     int32
+		count      int
+		users      int
+		opus       int
 		enableOpus bool
-		txtMsg *mumbleproto.TextMessage = &mumbleproto.TextMessage{
+		txtMsg     *mumbleproto.TextMessage = &mumbleproto.TextMessage{
 			Message: proto.String("<strong>WARNING:</strong> Your client doesn't support the Opus codec the server is switching to, you won't be able to talk or hear anyone. Please upgrade to a client with Opus support."),
 		}
 	)
@@ -1357,7 +1357,7 @@ func (server *Server) CurrentPort() int {
 
 // Returns the host address the server will listen on when
 // it is started. This must be an IP address, either IPv4
-// or IPv6. 
+// or IPv6.
 func (server *Server) HostAddress() string {
 	host := server.cfg.StringValue("Address")
 	if host == "" {

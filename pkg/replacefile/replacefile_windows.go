@@ -5,27 +5,27 @@
 package replacefile
 
 import (
-	"unsafe"
 	"syscall"
+	"unsafe"
 )
 
 var (
-	modkernel32       = syscall.NewLazyDLL("kernel32.dll")
-	procReplaceFileW  = modkernel32.NewProc("ReplaceFileW")
+	modkernel32      = syscall.NewLazyDLL("kernel32.dll")
+	procReplaceFileW = modkernel32.NewProc("ReplaceFileW")
 )
 
 // Define the syscall.Errno backed-errors here in order to get a cleaner
 // godoc output.
 var (
-	win32_ERROR_UNABLE_TO_MOVE_REPLACEMENT = syscall.Errno(0x498)
+	win32_ERROR_UNABLE_TO_MOVE_REPLACEMENT   = syscall.Errno(0x498)
 	win32_ERROR_UNABLE_TO_MOVE_REPLACEMENT_2 = syscall.Errno(0x499)
-	win32_ERROR_UNABLE_TO_REMOVE_REPLACED = syscall.Errno(0x497)
+	win32_ERROR_UNABLE_TO_REMOVE_REPLACED    = syscall.Errno(0x497)
 )
 
 var (
-	ErrUnableToMoveReplacement error = win32_ERROR_UNABLE_TO_MOVE_REPLACEMENT
+	ErrUnableToMoveReplacement  error = win32_ERROR_UNABLE_TO_MOVE_REPLACEMENT
 	ErrUnableToMoveReplacement2 error = win32_ERROR_UNABLE_TO_MOVE_REPLACEMENT_2
-	ErrUnableToRemoveReplaced error = win32_ERROR_UNABLE_TO_REMOVE_REPLACED
+	ErrUnableToRemoveReplaced   error = win32_ERROR_UNABLE_TO_REMOVE_REPLACED
 )
 
 func replaceFileW(replaced *uint16, replacement *uint16, backup *uint16, flags uint32) (err error) {

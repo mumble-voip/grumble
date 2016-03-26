@@ -121,7 +121,7 @@ func (group *Group) MembersInContext(ctx *Context) map[int]bool {
 //
 // The 'current' context is the context that group
 // membership is currently being evaluated for.
-// 
+//
 // The 'acl' context is the context of the ACL that
 // that group membership is being evaluated for.
 //
@@ -337,7 +337,7 @@ func GroupMemberCheck(current *Context, acl *Context, name string, user User) (o
 }
 
 // Get the list of group names for the given ACL context.
-// 
+//
 // This function walks the through the context chain to figure
 // out all groups that affect the given context whilst considering
 // group inheritance.

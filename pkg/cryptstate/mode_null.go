@@ -5,7 +5,7 @@
 package cryptstate
 
 // nullMode implements the NULL CryptoMode
-type nullMode struct {}
+type nullMode struct{}
 
 // NonceSize returns the nonce size to be used with NULL.
 func (n *nullMode) NonceSize() int {

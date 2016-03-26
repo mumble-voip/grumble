@@ -330,7 +330,7 @@ func (client *Client) udpRecvLoop() {
 		case mumbleproto.UDPMessageVoiceCELTAlpha:
 			fallthrough
 		case mumbleproto.UDPMessageVoiceCELTBeta:
-			if (client.server.Opus) {
+			if client.server.Opus {
 				return
 			}
 			fallthrough

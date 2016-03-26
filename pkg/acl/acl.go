@@ -46,7 +46,7 @@ func (perm Permission) IsCached() bool {
 
 // Clean returns a Permission that has its cache bit cleared.
 func (perm Permission) Clean() Permission {
-	return perm ^Permission(CachedPermission)
+	return perm ^ Permission(CachedPermission)
 }
 
 // An ACL as defined in an ACL context.
@@ -88,11 +88,11 @@ func (acl *ACL) IsChannelACL() bool {
 // The permission perm must be a single permission and not a combination of permissions.
 func HasPermission(ctx *Context, user User, perm Permission) bool {
 	// We can't check permissions on a nil ctx.
-	if (ctx == nil) {
+	if ctx == nil {
 		panic("acl: HasPermission got nil context")
 	}
 
-	// SuperUser can't speak or whisper, but everything else is OK	
+	// SuperUser can't speak or whisper, but everything else is OK
 	if user.UserId() == 0 {
 		if perm == SpeakPermission || perm == WhisperPermission {
 			return false
