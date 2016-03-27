@@ -2,28 +2,77 @@
 // source: Mumble.proto
 // DO NOT EDIT!
 
+/*
+Package mumbleproto is a generated protocol buffer package.
+
+It is generated from these files:
+	Mumble.proto
+
+It has these top-level messages:
+	Version
+	UDPTunnel
+	Authenticate
+	Ping
+	Reject
+	ServerSync
+	ChannelRemove
+	ChannelState
+	UserRemove
+	UserState
+	BanList
+	TextMessage
+	PermissionDenied
+	ACL
+	QueryUsers
+	CryptSetup
+	ContextActionModify
+	ContextAction
+	UserList
+	VoiceTarget
+	PermissionQuery
+	CodecVersion
+	UserStats
+	RequestBlob
+	ServerConfig
+	SuggestConfig
+*/
 package mumbleproto
 
 import proto "github.com/golang/protobuf/proto"
-import json "encoding/json"
+import fmt "fmt"
 import math "math"
 
-// Reference proto, json, and math imports to suppress error if they are not otherwise used.
+// Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
-var _ = &json.SyntaxError{}
+var _ = fmt.Errorf
 var _ = math.Inf
+
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+const _ = proto.ProtoPackageIsVersion1
 
 type Reject_RejectType int32
 
 const (
-	Reject_None            Reject_RejectType = 0
-	Reject_WrongVersion    Reject_RejectType = 1
+	// TODO ??
+	Reject_None Reject_RejectType = 0
+	// The client attempted to connect with an incompatible version.
+	Reject_WrongVersion Reject_RejectType = 1
+	// The user name supplied by the client was invalid.
 	Reject_InvalidUsername Reject_RejectType = 2
-	Reject_WrongUserPW     Reject_RejectType = 3
-	Reject_WrongServerPW   Reject_RejectType = 4
-	Reject_UsernameInUse   Reject_RejectType = 5
-	Reject_ServerFull      Reject_RejectType = 6
-	Reject_NoCertificate   Reject_RejectType = 7
+	// The client attempted to authenticate as a user with a password but it
+	// was wrong.
+	Reject_WrongUserPW Reject_RejectType = 3
+	// The client attempted to connect to a passworded server but the password
+	// was wrong.
+	Reject_WrongServerPW Reject_RejectType = 4
+	// Supplied username is already in use.
+	Reject_UsernameInUse Reject_RejectType = 5
+	// Server is currently full and cannot accept more users.
+	Reject_ServerFull Reject_RejectType = 6
+	// The user did not provide a certificate but one is required.
+	Reject_NoCertificate     Reject_RejectType = 7
+	Reject_AuthenticatorFail Reject_RejectType = 8
 )
 
 var Reject_RejectType_name = map[int32]string{
@@ -35,16 +84,18 @@ var Reject_RejectType_name = map[int32]string{
 	5: "UsernameInUse",
 	6: "ServerFull",
 	7: "NoCertificate",
+	8: "AuthenticatorFail",
 }
 var Reject_RejectType_value = map[string]int32{
-	"None":            0,
-	"WrongVersion":    1,
-	"InvalidUsername": 2,
-	"WrongUserPW":     3,
-	"WrongServerPW":   4,
-	"UsernameInUse":   5,
-	"ServerFull":      6,
-	"NoCertificate":   7,
+	"None":              0,
+	"WrongVersion":      1,
+	"InvalidUsername":   2,
+	"WrongUserPW":       3,
+	"WrongServerPW":     4,
+	"UsernameInUse":     5,
+	"ServerFull":        6,
+	"NoCertificate":     7,
+	"AuthenticatorFail": 8,
 }
 
 func (x Reject_RejectType) Enum() *Reject_RejectType {
@@ -55,9 +106,6 @@ func (x Reject_RejectType) Enum() *Reject_RejectType {
 func (x Reject_RejectType) String() string {
 	return proto.EnumName(Reject_RejectType_name, int32(x))
 }
-func (x Reject_RejectType) MarshalJSON() ([]byte, error) {
-	return json.Marshal(x.String())
-}
 func (x *Reject_RejectType) UnmarshalJSON(data []byte) error {
 	value, err := proto.UnmarshalJSONEnum(Reject_RejectType_value, data, "Reject_RejectType")
 	if err != nil {
@@ -66,21 +114,32 @@ func (x *Reject_RejectType) UnmarshalJSON(data []byte) error {
 	*x = Reject_RejectType(value)
 	return nil
 }
+func (Reject_RejectType) EnumDescriptor() ([]byte, []int) { return fileDescriptor0, []int{4, 0} }
 
 type PermissionDenied_DenyType int32
 
 const (
-	PermissionDenied_Text               PermissionDenied_DenyType = 0
-	PermissionDenied_Permission         PermissionDenied_DenyType = 1
-	PermissionDenied_SuperUser          PermissionDenied_DenyType = 2
-	PermissionDenied_ChannelName        PermissionDenied_DenyType = 3
-	PermissionDenied_TextTooLong        PermissionDenied_DenyType = 4
-	PermissionDenied_H9K                PermissionDenied_DenyType = 5
-	PermissionDenied_TemporaryChannel   PermissionDenied_DenyType = 6
+	// Operation denied for other reason, see reason field.
+	PermissionDenied_Text PermissionDenied_DenyType = 0
+	// Permissions were denied.
+	PermissionDenied_Permission PermissionDenied_DenyType = 1
+	// Cannot modify SuperUser.
+	PermissionDenied_SuperUser PermissionDenied_DenyType = 2
+	// Invalid channel name.
+	PermissionDenied_ChannelName PermissionDenied_DenyType = 3
+	// Text message too long.
+	PermissionDenied_TextTooLong PermissionDenied_DenyType = 4
+	// The flux capacitor was spelled wrong.
+	PermissionDenied_H9K PermissionDenied_DenyType = 5
+	// Operation not permitted in temporary channel.
+	PermissionDenied_TemporaryChannel PermissionDenied_DenyType = 6
+	// Operation requires certificate.
 	PermissionDenied_MissingCertificate PermissionDenied_DenyType = 7
-	PermissionDenied_UserName           PermissionDenied_DenyType = 8
-	PermissionDenied_ChannelFull        PermissionDenied_DenyType = 9
-	PermissionDenied_NestingLimit       PermissionDenied_DenyType = 10
+	// Invalid username.
+	PermissionDenied_UserName PermissionDenied_DenyType = 8
+	// Channel is full.
+	PermissionDenied_ChannelFull  PermissionDenied_DenyType = 9
+	PermissionDenied_NestingLimit PermissionDenied_DenyType = 10
 )
 
 var PermissionDenied_DenyType_name = map[int32]string{
@@ -118,9 +177,6 @@ func (x PermissionDenied_DenyType) Enum() *PermissionDenied_DenyType {
 func (x PermissionDenied_DenyType) String() string {
 	return proto.EnumName(PermissionDenied_DenyType_name, int32(x))
 }
-func (x PermissionDenied_DenyType) MarshalJSON() ([]byte, error) {
-	return json.Marshal(x.String())
-}
 func (x *PermissionDenied_DenyType) UnmarshalJSON(data []byte) error {
 	value, err := proto.UnmarshalJSONEnum(PermissionDenied_DenyType_value, data, "PermissionDenied_DenyType")
 	if err != nil {
@@ -129,13 +185,19 @@ func (x *PermissionDenied_DenyType) UnmarshalJSON(data []byte) error {
 	*x = PermissionDenied_DenyType(value)
 	return nil
 }
+func (PermissionDenied_DenyType) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor0, []int{12, 0}
+}
 
 type ContextActionModify_Context int32
 
 const (
-	ContextActionModify_Server  ContextActionModify_Context = 1
+	// Action is applicable to the server.
+	ContextActionModify_Server ContextActionModify_Context = 1
+	// Action can target a Channel.
 	ContextActionModify_Channel ContextActionModify_Context = 2
-	ContextActionModify_User    ContextActionModify_Context = 4
+	// Action can target a User.
+	ContextActionModify_User ContextActionModify_Context = 4
 )
 
 var ContextActionModify_Context_name = map[int32]string{
@@ -157,9 +219,6 @@ func (x ContextActionModify_Context) Enum() *ContextActionModify_Context {
 func (x ContextActionModify_Context) String() string {
 	return proto.EnumName(ContextActionModify_Context_name, int32(x))
 }
-func (x ContextActionModify_Context) MarshalJSON() ([]byte, error) {
-	return json.Marshal(x.String())
-}
 func (x *ContextActionModify_Context) UnmarshalJSON(data []byte) error {
 	value, err := proto.UnmarshalJSONEnum(ContextActionModify_Context_value, data, "ContextActionModify_Context")
 	if err != nil {
@@ -167,6 +226,9 @@ func (x *ContextActionModify_Context) UnmarshalJSON(data []byte) error {
 	}
 	*x = ContextActionModify_Context(value)
 	return nil
+}
+func (ContextActionModify_Context) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor0, []int{16, 0}
 }
 
 type ContextActionModify_Operation int32
@@ -193,9 +255,6 @@ func (x ContextActionModify_Operation) Enum() *ContextActionModify_Operation {
 func (x ContextActionModify_Operation) String() string {
 	return proto.EnumName(ContextActionModify_Operation_name, int32(x))
 }
-func (x ContextActionModify_Operation) MarshalJSON() ([]byte, error) {
-	return json.Marshal(x.String())
-}
 func (x *ContextActionModify_Operation) UnmarshalJSON(data []byte) error {
 	value, err := proto.UnmarshalJSONEnum(ContextActionModify_Operation_value, data, "ContextActionModify_Operation")
 	if err != nil {
@@ -204,1433 +263,2095 @@ func (x *ContextActionModify_Operation) UnmarshalJSON(data []byte) error {
 	*x = ContextActionModify_Operation(value)
 	return nil
 }
+func (ContextActionModify_Operation) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor0, []int{16, 1}
+}
 
 type Version struct {
-	Version          *uint32  `protobuf:"varint,1,opt,name=version" json:"version,omitempty"`
-	Release          *string  `protobuf:"bytes,2,opt,name=release" json:"release,omitempty"`
-	Os               *string  `protobuf:"bytes,3,opt,name=os" json:"os,omitempty"`
-	OsVersion        *string  `protobuf:"bytes,4,opt,name=os_version" json:"os_version,omitempty"`
-	CryptoModes      []string `protobuf:"bytes,5,rep,name=crypto_modes" json:"crypto_modes,omitempty"`
+	// 2-byte Major, 1-byte Minor and 1-byte Patch version number.
+	Version *uint32 `protobuf:"varint,1,opt,name=version" json:"version,omitempty"`
+	// Client release name.
+	Release *string `protobuf:"bytes,2,opt,name=release" json:"release,omitempty"`
+	// Client OS name.
+	Os *string `protobuf:"bytes,3,opt,name=os" json:"os,omitempty"`
+	// Client OS version.
+	OsVersion        *string  `protobuf:"bytes,4,opt,name=os_version,json=osVersion" json:"os_version,omitempty"`
+	CryptoModes      []string `protobuf:"bytes,5,rep,name=crypto_modes,json=cryptoModes" json:"crypto_modes,omitempty"`
 	XXX_unrecognized []byte   `json:"-"`
 }
 
-func (this *Version) Reset()         { *this = Version{} }
-func (this *Version) String() string { return proto.CompactTextString(this) }
-func (*Version) ProtoMessage()       {}
+func (m *Version) Reset()                    { *m = Version{} }
+func (m *Version) String() string            { return proto.CompactTextString(m) }
+func (*Version) ProtoMessage()               {}
+func (*Version) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
 
-func (this *Version) GetVersion() uint32 {
-	if this != nil && this.Version != nil {
-		return *this.Version
+func (m *Version) GetVersion() uint32 {
+	if m != nil && m.Version != nil {
+		return *m.Version
 	}
 	return 0
 }
 
-func (this *Version) GetRelease() string {
-	if this != nil && this.Release != nil {
-		return *this.Release
+func (m *Version) GetRelease() string {
+	if m != nil && m.Release != nil {
+		return *m.Release
 	}
 	return ""
 }
 
-func (this *Version) GetOs() string {
-	if this != nil && this.Os != nil {
-		return *this.Os
+func (m *Version) GetOs() string {
+	if m != nil && m.Os != nil {
+		return *m.Os
 	}
 	return ""
 }
 
-func (this *Version) GetOsVersion() string {
-	if this != nil && this.OsVersion != nil {
-		return *this.OsVersion
+func (m *Version) GetOsVersion() string {
+	if m != nil && m.OsVersion != nil {
+		return *m.OsVersion
 	}
 	return ""
 }
 
+func (m *Version) GetCryptoModes() []string {
+	if m != nil {
+		return m.CryptoModes
+	}
+	return nil
+}
+
+// Not used. Not even for tunneling UDP through TCP.
 type UDPTunnel struct {
+	// Not used.
 	Packet           []byte `protobuf:"bytes,1,req,name=packet" json:"packet,omitempty"`
 	XXX_unrecognized []byte `json:"-"`
 }
 
-func (this *UDPTunnel) Reset()         { *this = UDPTunnel{} }
-func (this *UDPTunnel) String() string { return proto.CompactTextString(this) }
-func (*UDPTunnel) ProtoMessage()       {}
+func (m *UDPTunnel) Reset()                    { *m = UDPTunnel{} }
+func (m *UDPTunnel) String() string            { return proto.CompactTextString(m) }
+func (*UDPTunnel) ProtoMessage()               {}
+func (*UDPTunnel) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
 
-func (this *UDPTunnel) GetPacket() []byte {
-	if this != nil {
-		return this.Packet
+func (m *UDPTunnel) GetPacket() []byte {
+	if m != nil {
+		return m.Packet
 	}
 	return nil
 }
 
+// Used by the client to send the authentication credentials to the server.
 type Authenticate struct {
-	Username         *string  `protobuf:"bytes,1,opt,name=username" json:"username,omitempty"`
-	Password         *string  `protobuf:"bytes,2,opt,name=password" json:"password,omitempty"`
-	Tokens           []string `protobuf:"bytes,3,rep,name=tokens" json:"tokens,omitempty"`
-	CeltVersions     []int32  `protobuf:"varint,4,rep,name=celt_versions" json:"celt_versions,omitempty"`
-	Opus             *bool    `protobuf:"varint,5,opt,name=opus,def=0" json:"opus,omitempty"`
-	XXX_unrecognized []byte   `json:"-"`
+	// UTF-8 encoded username.
+	Username *string `protobuf:"bytes,1,opt,name=username" json:"username,omitempty"`
+	// Server or user password.
+	Password *string `protobuf:"bytes,2,opt,name=password" json:"password,omitempty"`
+	// Additional access tokens for server ACL groups.
+	Tokens []string `protobuf:"bytes,3,rep,name=tokens" json:"tokens,omitempty"`
+	// A list of CELT bitstream version constants supported by the client.
+	CeltVersions     []int32 `protobuf:"varint,4,rep,name=celt_versions,json=celtVersions" json:"celt_versions,omitempty"`
+	Opus             *bool   `protobuf:"varint,5,opt,name=opus,def=0" json:"opus,omitempty"`
+	XXX_unrecognized []byte  `json:"-"`
 }
 
-func (this *Authenticate) Reset()         { *this = Authenticate{} }
-func (this *Authenticate) String() string { return proto.CompactTextString(this) }
-func (*Authenticate) ProtoMessage()       {}
+func (m *Authenticate) Reset()                    { *m = Authenticate{} }
+func (m *Authenticate) String() string            { return proto.CompactTextString(m) }
+func (*Authenticate) ProtoMessage()               {}
+func (*Authenticate) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
 
 const Default_Authenticate_Opus bool = false
 
-func (this *Authenticate) GetUsername() string {
-	if this != nil && this.Username != nil {
-		return *this.Username
+func (m *Authenticate) GetUsername() string {
+	if m != nil && m.Username != nil {
+		return *m.Username
 	}
 	return ""
 }
 
-func (this *Authenticate) GetPassword() string {
-	if this != nil && this.Password != nil {
-		return *this.Password
+func (m *Authenticate) GetPassword() string {
+	if m != nil && m.Password != nil {
+		return *m.Password
 	}
 	return ""
 }
 
-func (this *Authenticate) GetOpus() bool {
-	if this != nil && this.Opus != nil {
-		return *this.Opus
+func (m *Authenticate) GetTokens() []string {
+	if m != nil {
+		return m.Tokens
+	}
+	return nil
+}
+
+func (m *Authenticate) GetCeltVersions() []int32 {
+	if m != nil {
+		return m.CeltVersions
+	}
+	return nil
+}
+
+func (m *Authenticate) GetOpus() bool {
+	if m != nil && m.Opus != nil {
+		return *m.Opus
 	}
 	return Default_Authenticate_Opus
 }
 
+// Sent by the client to notify the server that the client is still alive.
+// Server must reply to the packet with the same timestamp and its own
+// good/late/lost/resync numbers. None of the fields is strictly required.
 type Ping struct {
-	Timestamp        *uint64  `protobuf:"varint,1,opt,name=timestamp" json:"timestamp,omitempty"`
-	Good             *uint32  `protobuf:"varint,2,opt,name=good" json:"good,omitempty"`
-	Late             *uint32  `protobuf:"varint,3,opt,name=late" json:"late,omitempty"`
-	Lost             *uint32  `protobuf:"varint,4,opt,name=lost" json:"lost,omitempty"`
-	Resync           *uint32  `protobuf:"varint,5,opt,name=resync" json:"resync,omitempty"`
-	UdpPackets       *uint32  `protobuf:"varint,6,opt,name=udp_packets" json:"udp_packets,omitempty"`
-	TcpPackets       *uint32  `protobuf:"varint,7,opt,name=tcp_packets" json:"tcp_packets,omitempty"`
-	UdpPingAvg       *float32 `protobuf:"fixed32,8,opt,name=udp_ping_avg" json:"udp_ping_avg,omitempty"`
-	UdpPingVar       *float32 `protobuf:"fixed32,9,opt,name=udp_ping_var" json:"udp_ping_var,omitempty"`
-	TcpPingAvg       *float32 `protobuf:"fixed32,10,opt,name=tcp_ping_avg" json:"tcp_ping_avg,omitempty"`
-	TcpPingVar       *float32 `protobuf:"fixed32,11,opt,name=tcp_ping_var" json:"tcp_ping_var,omitempty"`
+	// Client timestamp. Server should not attempt to decode.
+	Timestamp *uint64 `protobuf:"varint,1,opt,name=timestamp" json:"timestamp,omitempty"`
+	// The amount of good packets received.
+	Good *uint32 `protobuf:"varint,2,opt,name=good" json:"good,omitempty"`
+	// The amount of late packets received.
+	Late *uint32 `protobuf:"varint,3,opt,name=late" json:"late,omitempty"`
+	// The amount of packets never received.
+	Lost *uint32 `protobuf:"varint,4,opt,name=lost" json:"lost,omitempty"`
+	// The amount of nonce resyncs.
+	Resync *uint32 `protobuf:"varint,5,opt,name=resync" json:"resync,omitempty"`
+	// The total amount of UDP packets received.
+	UdpPackets *uint32 `protobuf:"varint,6,opt,name=udp_packets,json=udpPackets" json:"udp_packets,omitempty"`
+	// The total amount of TCP packets received.
+	TcpPackets *uint32 `protobuf:"varint,7,opt,name=tcp_packets,json=tcpPackets" json:"tcp_packets,omitempty"`
+	// UDP ping average.
+	UdpPingAvg *float32 `protobuf:"fixed32,8,opt,name=udp_ping_avg,json=udpPingAvg" json:"udp_ping_avg,omitempty"`
+	// UDP ping variance.
+	UdpPingVar *float32 `protobuf:"fixed32,9,opt,name=udp_ping_var,json=udpPingVar" json:"udp_ping_var,omitempty"`
+	// TCP ping average.
+	TcpPingAvg *float32 `protobuf:"fixed32,10,opt,name=tcp_ping_avg,json=tcpPingAvg" json:"tcp_ping_avg,omitempty"`
+	// TCP ping variance.
+	TcpPingVar       *float32 `protobuf:"fixed32,11,opt,name=tcp_ping_var,json=tcpPingVar" json:"tcp_ping_var,omitempty"`
 	XXX_unrecognized []byte   `json:"-"`
 }
 
-func (this *Ping) Reset()         { *this = Ping{} }
-func (this *Ping) String() string { return proto.CompactTextString(this) }
-func (*Ping) ProtoMessage()       {}
+func (m *Ping) Reset()                    { *m = Ping{} }
+func (m *Ping) String() string            { return proto.CompactTextString(m) }
+func (*Ping) ProtoMessage()               {}
+func (*Ping) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
 
-func (this *Ping) GetTimestamp() uint64 {
-	if this != nil && this.Timestamp != nil {
-		return *this.Timestamp
+func (m *Ping) GetTimestamp() uint64 {
+	if m != nil && m.Timestamp != nil {
+		return *m.Timestamp
 	}
 	return 0
 }
 
-func (this *Ping) GetGood() uint32 {
-	if this != nil && this.Good != nil {
-		return *this.Good
+func (m *Ping) GetGood() uint32 {
+	if m != nil && m.Good != nil {
+		return *m.Good
 	}
 	return 0
 }
 
-func (this *Ping) GetLate() uint32 {
-	if this != nil && this.Late != nil {
-		return *this.Late
+func (m *Ping) GetLate() uint32 {
+	if m != nil && m.Late != nil {
+		return *m.Late
 	}
 	return 0
 }
 
-func (this *Ping) GetLost() uint32 {
-	if this != nil && this.Lost != nil {
-		return *this.Lost
+func (m *Ping) GetLost() uint32 {
+	if m != nil && m.Lost != nil {
+		return *m.Lost
 	}
 	return 0
 }
 
-func (this *Ping) GetResync() uint32 {
-	if this != nil && this.Resync != nil {
-		return *this.Resync
+func (m *Ping) GetResync() uint32 {
+	if m != nil && m.Resync != nil {
+		return *m.Resync
 	}
 	return 0
 }
 
-func (this *Ping) GetUdpPackets() uint32 {
-	if this != nil && this.UdpPackets != nil {
-		return *this.UdpPackets
+func (m *Ping) GetUdpPackets() uint32 {
+	if m != nil && m.UdpPackets != nil {
+		return *m.UdpPackets
 	}
 	return 0
 }
 
-func (this *Ping) GetTcpPackets() uint32 {
-	if this != nil && this.TcpPackets != nil {
-		return *this.TcpPackets
+func (m *Ping) GetTcpPackets() uint32 {
+	if m != nil && m.TcpPackets != nil {
+		return *m.TcpPackets
 	}
 	return 0
 }
 
-func (this *Ping) GetUdpPingAvg() float32 {
-	if this != nil && this.UdpPingAvg != nil {
-		return *this.UdpPingAvg
+func (m *Ping) GetUdpPingAvg() float32 {
+	if m != nil && m.UdpPingAvg != nil {
+		return *m.UdpPingAvg
 	}
 	return 0
 }
 
-func (this *Ping) GetUdpPingVar() float32 {
-	if this != nil && this.UdpPingVar != nil {
-		return *this.UdpPingVar
+func (m *Ping) GetUdpPingVar() float32 {
+	if m != nil && m.UdpPingVar != nil {
+		return *m.UdpPingVar
 	}
 	return 0
 }
 
-func (this *Ping) GetTcpPingAvg() float32 {
-	if this != nil && this.TcpPingAvg != nil {
-		return *this.TcpPingAvg
+func (m *Ping) GetTcpPingAvg() float32 {
+	if m != nil && m.TcpPingAvg != nil {
+		return *m.TcpPingAvg
 	}
 	return 0
 }
 
-func (this *Ping) GetTcpPingVar() float32 {
-	if this != nil && this.TcpPingVar != nil {
-		return *this.TcpPingVar
+func (m *Ping) GetTcpPingVar() float32 {
+	if m != nil && m.TcpPingVar != nil {
+		return *m.TcpPingVar
 	}
 	return 0
 }
 
+// Sent by the server when it rejects the user connection.
 type Reject struct {
-	Type             *Reject_RejectType `protobuf:"varint,1,opt,name=type,enum=mumbleproto.Reject_RejectType" json:"type,omitempty"`
-	Reason           *string            `protobuf:"bytes,2,opt,name=reason" json:"reason,omitempty"`
-	XXX_unrecognized []byte             `json:"-"`
+	// Rejection type.
+	Type *Reject_RejectType `protobuf:"varint,1,opt,name=type,enum=mumbleproto.Reject_RejectType" json:"type,omitempty"`
+	// Human readable rejection reason.
+	Reason           *string `protobuf:"bytes,2,opt,name=reason" json:"reason,omitempty"`
+	XXX_unrecognized []byte  `json:"-"`
 }
 
-func (this *Reject) Reset()         { *this = Reject{} }
-func (this *Reject) String() string { return proto.CompactTextString(this) }
-func (*Reject) ProtoMessage()       {}
+func (m *Reject) Reset()                    { *m = Reject{} }
+func (m *Reject) String() string            { return proto.CompactTextString(m) }
+func (*Reject) ProtoMessage()               {}
+func (*Reject) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
 
-func (this *Reject) GetType() Reject_RejectType {
-	if this != nil && this.Type != nil {
-		return *this.Type
+func (m *Reject) GetType() Reject_RejectType {
+	if m != nil && m.Type != nil {
+		return *m.Type
 	}
-	return 0
+	return Reject_None
 }
 
-func (this *Reject) GetReason() string {
-	if this != nil && this.Reason != nil {
-		return *this.Reason
-	}
-	return ""
-}
-
-type ServerConfig struct {
-	MaxBandwidth       *uint32 `protobuf:"varint,1,opt,name=max_bandwidth" json:"max_bandwidth,omitempty"`
-	WelcomeText        *string `protobuf:"bytes,2,opt,name=welcome_text" json:"welcome_text,omitempty"`
-	AllowHtml          *bool   `protobuf:"varint,3,opt,name=allow_html" json:"allow_html,omitempty"`
-	MessageLength      *uint32 `protobuf:"varint,4,opt,name=message_length" json:"message_length,omitempty"`
-	ImageMessageLength *uint32 `protobuf:"varint,5,opt,name=image_message_length" json:"image_message_length,omitempty"`
-	XXX_unrecognized   []byte  `json:"-"`
-}
-
-func (this *ServerConfig) Reset()         { *this = ServerConfig{} }
-func (this *ServerConfig) String() string { return proto.CompactTextString(this) }
-func (*ServerConfig) ProtoMessage()       {}
-
-func (this *ServerConfig) GetMaxBandwidth() uint32 {
-	if this != nil && this.MaxBandwidth != nil {
-		return *this.MaxBandwidth
-	}
-	return 0
-}
-
-func (this *ServerConfig) GetWelcomeText() string {
-	if this != nil && this.WelcomeText != nil {
-		return *this.WelcomeText
+func (m *Reject) GetReason() string {
+	if m != nil && m.Reason != nil {
+		return *m.Reason
 	}
 	return ""
 }
 
-func (this *ServerConfig) GetAllowHtml() bool {
-	if this != nil && this.AllowHtml != nil {
-		return *this.AllowHtml
-	}
-	return false
-}
-
-func (this *ServerConfig) GetMessageLength() uint32 {
-	if this != nil && this.MessageLength != nil {
-		return *this.MessageLength
-	}
-	return 0
-}
-
-func (this *ServerConfig) GetImageMessageLength() uint32 {
-	if this != nil && this.ImageMessageLength != nil {
-		return *this.ImageMessageLength
-	}
-	return 0
-}
-
+// ServerSync message is sent by the server when it has authenticated the user
+// and finished synchronizing the server state.
 type ServerSync struct {
-	Session          *uint32 `protobuf:"varint,1,opt,name=session" json:"session,omitempty"`
-	MaxBandwidth     *uint32 `protobuf:"varint,2,opt,name=max_bandwidth" json:"max_bandwidth,omitempty"`
-	WelcomeText      *string `protobuf:"bytes,3,opt,name=welcome_text" json:"welcome_text,omitempty"`
+	// The session of the current user.
+	Session *uint32 `protobuf:"varint,1,opt,name=session" json:"session,omitempty"`
+	// Maximum bandwidth that the user should use.
+	MaxBandwidth *uint32 `protobuf:"varint,2,opt,name=max_bandwidth,json=maxBandwidth" json:"max_bandwidth,omitempty"`
+	// Server welcome text.
+	WelcomeText *string `protobuf:"bytes,3,opt,name=welcome_text,json=welcomeText" json:"welcome_text,omitempty"`
+	// Current user permissions TODO: Confirm??
 	Permissions      *uint64 `protobuf:"varint,4,opt,name=permissions" json:"permissions,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
 
-func (this *ServerSync) Reset()         { *this = ServerSync{} }
-func (this *ServerSync) String() string { return proto.CompactTextString(this) }
-func (*ServerSync) ProtoMessage()       {}
+func (m *ServerSync) Reset()                    { *m = ServerSync{} }
+func (m *ServerSync) String() string            { return proto.CompactTextString(m) }
+func (*ServerSync) ProtoMessage()               {}
+func (*ServerSync) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
 
-func (this *ServerSync) GetSession() uint32 {
-	if this != nil && this.Session != nil {
-		return *this.Session
+func (m *ServerSync) GetSession() uint32 {
+	if m != nil && m.Session != nil {
+		return *m.Session
 	}
 	return 0
 }
 
-func (this *ServerSync) GetMaxBandwidth() uint32 {
-	if this != nil && this.MaxBandwidth != nil {
-		return *this.MaxBandwidth
+func (m *ServerSync) GetMaxBandwidth() uint32 {
+	if m != nil && m.MaxBandwidth != nil {
+		return *m.MaxBandwidth
 	}
 	return 0
 }
 
-func (this *ServerSync) GetWelcomeText() string {
-	if this != nil && this.WelcomeText != nil {
-		return *this.WelcomeText
+func (m *ServerSync) GetWelcomeText() string {
+	if m != nil && m.WelcomeText != nil {
+		return *m.WelcomeText
 	}
 	return ""
 }
 
-func (this *ServerSync) GetPermissions() uint64 {
-	if this != nil && this.Permissions != nil {
-		return *this.Permissions
+func (m *ServerSync) GetPermissions() uint64 {
+	if m != nil && m.Permissions != nil {
+		return *m.Permissions
 	}
 	return 0
 }
 
+// Sent by the client when it wants a channel removed. Sent by the server when
+// a channel has been removed and clients should be notified.
 type ChannelRemove struct {
-	ChannelId        *uint32 `protobuf:"varint,1,req,name=channel_id" json:"channel_id,omitempty"`
+	ChannelId        *uint32 `protobuf:"varint,1,req,name=channel_id,json=channelId" json:"channel_id,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
 
-func (this *ChannelRemove) Reset()         { *this = ChannelRemove{} }
-func (this *ChannelRemove) String() string { return proto.CompactTextString(this) }
-func (*ChannelRemove) ProtoMessage()       {}
+func (m *ChannelRemove) Reset()                    { *m = ChannelRemove{} }
+func (m *ChannelRemove) String() string            { return proto.CompactTextString(m) }
+func (*ChannelRemove) ProtoMessage()               {}
+func (*ChannelRemove) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
 
-func (this *ChannelRemove) GetChannelId() uint32 {
-	if this != nil && this.ChannelId != nil {
-		return *this.ChannelId
+func (m *ChannelRemove) GetChannelId() uint32 {
+	if m != nil && m.ChannelId != nil {
+		return *m.ChannelId
 	}
 	return 0
 }
 
+// Used to communicate channel properties between the client and the server.
+// Sent by the server during the login process or when channel properties are
+// updated. Client may use this message to update said channel properties.
 type ChannelState struct {
-	ChannelId        *uint32  `protobuf:"varint,1,opt,name=channel_id" json:"channel_id,omitempty"`
-	Parent           *uint32  `protobuf:"varint,2,opt,name=parent" json:"parent,omitempty"`
-	Name             *string  `protobuf:"bytes,3,opt,name=name" json:"name,omitempty"`
-	Links            []uint32 `protobuf:"varint,4,rep,name=links" json:"links,omitempty"`
-	Description      *string  `protobuf:"bytes,5,opt,name=description" json:"description,omitempty"`
-	LinksAdd         []uint32 `protobuf:"varint,6,rep,name=links_add" json:"links_add,omitempty"`
-	LinksRemove      []uint32 `protobuf:"varint,7,rep,name=links_remove" json:"links_remove,omitempty"`
-	Temporary        *bool    `protobuf:"varint,8,opt,name=temporary,def=0" json:"temporary,omitempty"`
-	Position         *int32   `protobuf:"varint,9,opt,name=position,def=0" json:"position,omitempty"`
-	DescriptionHash  []byte   `protobuf:"bytes,10,opt,name=description_hash" json:"description_hash,omitempty"`
-	XXX_unrecognized []byte   `json:"-"`
+	// Unique ID for the channel within the server.
+	ChannelId *uint32 `protobuf:"varint,1,opt,name=channel_id,json=channelId" json:"channel_id,omitempty"`
+	// channel_id of the parent channel.
+	Parent *uint32 `protobuf:"varint,2,opt,name=parent" json:"parent,omitempty"`
+	// UTF-8 encoded channel name.
+	Name *string `protobuf:"bytes,3,opt,name=name" json:"name,omitempty"`
+	// A collection of channel id values of the linked channels. Absent during
+	// the first channel listing.
+	Links []uint32 `protobuf:"varint,4,rep,name=links" json:"links,omitempty"`
+	// UTF-8 encoded channel description. Only if the description is less than
+	// 128 bytes
+	Description *string `protobuf:"bytes,5,opt,name=description" json:"description,omitempty"`
+	// A collection of channel_id values that should be added to links.
+	LinksAdd []uint32 `protobuf:"varint,6,rep,name=links_add,json=linksAdd" json:"links_add,omitempty"`
+	// A collection of channel_id values that should be removed from links.
+	LinksRemove []uint32 `protobuf:"varint,7,rep,name=links_remove,json=linksRemove" json:"links_remove,omitempty"`
+	// True if the channel is temporary.
+	Temporary *bool `protobuf:"varint,8,opt,name=temporary,def=0" json:"temporary,omitempty"`
+	// Position weight to tweak the channel position in the channel list.
+	Position *int32 `protobuf:"varint,9,opt,name=position,def=0" json:"position,omitempty"`
+	// SHA1 hash of the description if the description is 128 bytes or more.
+	DescriptionHash []byte `protobuf:"bytes,10,opt,name=description_hash,json=descriptionHash" json:"description_hash,omitempty"`
+	// Maximum number of users allowed in the channel. If this value is zero,
+	// the maximum number of users allowed in the channel is given by the
+	// server's "usersperchannel" setting.
+	MaxUsers         *uint32 `protobuf:"varint,11,opt,name=max_users,json=maxUsers" json:"max_users,omitempty"`
+	XXX_unrecognized []byte  `json:"-"`
 }
 
-func (this *ChannelState) Reset()         { *this = ChannelState{} }
-func (this *ChannelState) String() string { return proto.CompactTextString(this) }
-func (*ChannelState) ProtoMessage()       {}
+func (m *ChannelState) Reset()                    { *m = ChannelState{} }
+func (m *ChannelState) String() string            { return proto.CompactTextString(m) }
+func (*ChannelState) ProtoMessage()               {}
+func (*ChannelState) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
 
 const Default_ChannelState_Temporary bool = false
 const Default_ChannelState_Position int32 = 0
 
-func (this *ChannelState) GetChannelId() uint32 {
-	if this != nil && this.ChannelId != nil {
-		return *this.ChannelId
+func (m *ChannelState) GetChannelId() uint32 {
+	if m != nil && m.ChannelId != nil {
+		return *m.ChannelId
 	}
 	return 0
 }
 
-func (this *ChannelState) GetParent() uint32 {
-	if this != nil && this.Parent != nil {
-		return *this.Parent
+func (m *ChannelState) GetParent() uint32 {
+	if m != nil && m.Parent != nil {
+		return *m.Parent
 	}
 	return 0
 }
 
-func (this *ChannelState) GetName() string {
-	if this != nil && this.Name != nil {
-		return *this.Name
+func (m *ChannelState) GetName() string {
+	if m != nil && m.Name != nil {
+		return *m.Name
 	}
 	return ""
 }
 
-func (this *ChannelState) GetDescription() string {
-	if this != nil && this.Description != nil {
-		return *this.Description
+func (m *ChannelState) GetLinks() []uint32 {
+	if m != nil {
+		return m.Links
+	}
+	return nil
+}
+
+func (m *ChannelState) GetDescription() string {
+	if m != nil && m.Description != nil {
+		return *m.Description
 	}
 	return ""
 }
 
-func (this *ChannelState) GetTemporary() bool {
-	if this != nil && this.Temporary != nil {
-		return *this.Temporary
+func (m *ChannelState) GetLinksAdd() []uint32 {
+	if m != nil {
+		return m.LinksAdd
+	}
+	return nil
+}
+
+func (m *ChannelState) GetLinksRemove() []uint32 {
+	if m != nil {
+		return m.LinksRemove
+	}
+	return nil
+}
+
+func (m *ChannelState) GetTemporary() bool {
+	if m != nil && m.Temporary != nil {
+		return *m.Temporary
 	}
 	return Default_ChannelState_Temporary
 }
 
-func (this *ChannelState) GetPosition() int32 {
-	if this != nil && this.Position != nil {
-		return *this.Position
+func (m *ChannelState) GetPosition() int32 {
+	if m != nil && m.Position != nil {
+		return *m.Position
 	}
 	return Default_ChannelState_Position
 }
 
-func (this *ChannelState) GetDescriptionHash() []byte {
-	if this != nil {
-		return this.DescriptionHash
+func (m *ChannelState) GetDescriptionHash() []byte {
+	if m != nil {
+		return m.DescriptionHash
 	}
 	return nil
 }
 
+func (m *ChannelState) GetMaxUsers() uint32 {
+	if m != nil && m.MaxUsers != nil {
+		return *m.MaxUsers
+	}
+	return 0
+}
+
+// Used to communicate user leaving or being kicked. May be sent by the client
+// when it attempts to kick a user. Sent by the server when it informs the
+// clients that a user is not present anymore.
 type UserRemove struct {
-	Session          *uint32 `protobuf:"varint,1,req,name=session" json:"session,omitempty"`
-	Actor            *uint32 `protobuf:"varint,2,opt,name=actor" json:"actor,omitempty"`
-	Reason           *string `protobuf:"bytes,3,opt,name=reason" json:"reason,omitempty"`
-	Ban              *bool   `protobuf:"varint,4,opt,name=ban" json:"ban,omitempty"`
-	XXX_unrecognized []byte  `json:"-"`
+	// The user who is being kicked, identified by their session, not present
+	// when no one is being kicked.
+	Session *uint32 `protobuf:"varint,1,req,name=session" json:"session,omitempty"`
+	// The user who initiated the removal. Either the user who performs the kick
+	// or the user who is currently leaving.
+	Actor *uint32 `protobuf:"varint,2,opt,name=actor" json:"actor,omitempty"`
+	// Reason for the kick, stored as the ban reason if the user is banned.
+	Reason *string `protobuf:"bytes,3,opt,name=reason" json:"reason,omitempty"`
+	// True if the kick should result in a ban.
+	Ban              *bool  `protobuf:"varint,4,opt,name=ban" json:"ban,omitempty"`
+	XXX_unrecognized []byte `json:"-"`
 }
 
-func (this *UserRemove) Reset()         { *this = UserRemove{} }
-func (this *UserRemove) String() string { return proto.CompactTextString(this) }
-func (*UserRemove) ProtoMessage()       {}
+func (m *UserRemove) Reset()                    { *m = UserRemove{} }
+func (m *UserRemove) String() string            { return proto.CompactTextString(m) }
+func (*UserRemove) ProtoMessage()               {}
+func (*UserRemove) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
 
-func (this *UserRemove) GetSession() uint32 {
-	if this != nil && this.Session != nil {
-		return *this.Session
+func (m *UserRemove) GetSession() uint32 {
+	if m != nil && m.Session != nil {
+		return *m.Session
 	}
 	return 0
 }
 
-func (this *UserRemove) GetActor() uint32 {
-	if this != nil && this.Actor != nil {
-		return *this.Actor
+func (m *UserRemove) GetActor() uint32 {
+	if m != nil && m.Actor != nil {
+		return *m.Actor
 	}
 	return 0
 }
 
-func (this *UserRemove) GetReason() string {
-	if this != nil && this.Reason != nil {
-		return *this.Reason
+func (m *UserRemove) GetReason() string {
+	if m != nil && m.Reason != nil {
+		return *m.Reason
 	}
 	return ""
 }
 
-func (this *UserRemove) GetBan() bool {
-	if this != nil && this.Ban != nil {
-		return *this.Ban
+func (m *UserRemove) GetBan() bool {
+	if m != nil && m.Ban != nil {
+		return *m.Ban
 	}
 	return false
 }
 
+// Sent by the server when it communicates new and changed users to client.
+// First seen during login procedure. May be sent by the client when it wishes
+// to alter its state.
 type UserState struct {
-	Session          *uint32 `protobuf:"varint,1,opt,name=session" json:"session,omitempty"`
-	Actor            *uint32 `protobuf:"varint,2,opt,name=actor" json:"actor,omitempty"`
-	Name             *string `protobuf:"bytes,3,opt,name=name" json:"name,omitempty"`
-	UserId           *uint32 `protobuf:"varint,4,opt,name=user_id" json:"user_id,omitempty"`
-	ChannelId        *uint32 `protobuf:"varint,5,opt,name=channel_id" json:"channel_id,omitempty"`
-	Mute             *bool   `protobuf:"varint,6,opt,name=mute" json:"mute,omitempty"`
-	Deaf             *bool   `protobuf:"varint,7,opt,name=deaf" json:"deaf,omitempty"`
-	Suppress         *bool   `protobuf:"varint,8,opt,name=suppress" json:"suppress,omitempty"`
-	SelfMute         *bool   `protobuf:"varint,9,opt,name=self_mute" json:"self_mute,omitempty"`
-	SelfDeaf         *bool   `protobuf:"varint,10,opt,name=self_deaf" json:"self_deaf,omitempty"`
-	Texture          []byte  `protobuf:"bytes,11,opt,name=texture" json:"texture,omitempty"`
-	PluginContext    []byte  `protobuf:"bytes,12,opt,name=plugin_context" json:"plugin_context,omitempty"`
-	PluginIdentity   *string `protobuf:"bytes,13,opt,name=plugin_identity" json:"plugin_identity,omitempty"`
-	Comment          *string `protobuf:"bytes,14,opt,name=comment" json:"comment,omitempty"`
-	Hash             *string `protobuf:"bytes,15,opt,name=hash" json:"hash,omitempty"`
-	CommentHash      []byte  `protobuf:"bytes,16,opt,name=comment_hash" json:"comment_hash,omitempty"`
-	TextureHash      []byte  `protobuf:"bytes,17,opt,name=texture_hash" json:"texture_hash,omitempty"`
-	PrioritySpeaker  *bool   `protobuf:"varint,18,opt,name=priority_speaker" json:"priority_speaker,omitempty"`
-	Recording        *bool   `protobuf:"varint,19,opt,name=recording" json:"recording,omitempty"`
-	XXX_unrecognized []byte  `json:"-"`
+	// Unique user session ID of the user whose state this is, may change on
+	// reconnect.
+	Session *uint32 `protobuf:"varint,1,opt,name=session" json:"session,omitempty"`
+	// The session of the user who is updating this user.
+	Actor *uint32 `protobuf:"varint,2,opt,name=actor" json:"actor,omitempty"`
+	// User name, UTF-8 encoded.
+	Name *string `protobuf:"bytes,3,opt,name=name" json:"name,omitempty"`
+	// Registered user ID if the user is registered.
+	UserId *uint32 `protobuf:"varint,4,opt,name=user_id,json=userId" json:"user_id,omitempty"`
+	// Channel on which the user is.
+	ChannelId *uint32 `protobuf:"varint,5,opt,name=channel_id,json=channelId" json:"channel_id,omitempty"`
+	// True if the user is muted by admin.
+	Mute *bool `protobuf:"varint,6,opt,name=mute" json:"mute,omitempty"`
+	// True if the user is deafened by admin.
+	Deaf *bool `protobuf:"varint,7,opt,name=deaf" json:"deaf,omitempty"`
+	// True if the user has been suppressed from talking by a reason other than
+	// being muted.
+	Suppress *bool `protobuf:"varint,8,opt,name=suppress" json:"suppress,omitempty"`
+	// True if the user has muted self.
+	SelfMute *bool `protobuf:"varint,9,opt,name=self_mute,json=selfMute" json:"self_mute,omitempty"`
+	// True if the user has deafened self.
+	SelfDeaf *bool `protobuf:"varint,10,opt,name=self_deaf,json=selfDeaf" json:"self_deaf,omitempty"`
+	// User image if it is less than 128 bytes.
+	Texture []byte `protobuf:"bytes,11,opt,name=texture" json:"texture,omitempty"`
+	// TODO ??
+	PluginContext []byte `protobuf:"bytes,12,opt,name=plugin_context,json=pluginContext" json:"plugin_context,omitempty"`
+	// TODO ??
+	PluginIdentity *string `protobuf:"bytes,13,opt,name=plugin_identity,json=pluginIdentity" json:"plugin_identity,omitempty"`
+	// User comment if it is less than 128 bytes.
+	Comment *string `protobuf:"bytes,14,opt,name=comment" json:"comment,omitempty"`
+	// The hash of the user certificate.
+	Hash *string `protobuf:"bytes,15,opt,name=hash" json:"hash,omitempty"`
+	// SHA1 hash of the user comment if it 128 bytes or more.
+	CommentHash []byte `protobuf:"bytes,16,opt,name=comment_hash,json=commentHash" json:"comment_hash,omitempty"`
+	// SHA1 hash of the user picture if it 128 bytes or more.
+	TextureHash []byte `protobuf:"bytes,17,opt,name=texture_hash,json=textureHash" json:"texture_hash,omitempty"`
+	// True if the user is a priority speaker.
+	PrioritySpeaker *bool `protobuf:"varint,18,opt,name=priority_speaker,json=prioritySpeaker" json:"priority_speaker,omitempty"`
+	// True if the user is currently recording.
+	Recording        *bool  `protobuf:"varint,19,opt,name=recording" json:"recording,omitempty"`
+	XXX_unrecognized []byte `json:"-"`
 }
 
-func (this *UserState) Reset()         { *this = UserState{} }
-func (this *UserState) String() string { return proto.CompactTextString(this) }
-func (*UserState) ProtoMessage()       {}
+func (m *UserState) Reset()                    { *m = UserState{} }
+func (m *UserState) String() string            { return proto.CompactTextString(m) }
+func (*UserState) ProtoMessage()               {}
+func (*UserState) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
 
-func (this *UserState) GetSession() uint32 {
-	if this != nil && this.Session != nil {
-		return *this.Session
+func (m *UserState) GetSession() uint32 {
+	if m != nil && m.Session != nil {
+		return *m.Session
 	}
 	return 0
 }
 
-func (this *UserState) GetActor() uint32 {
-	if this != nil && this.Actor != nil {
-		return *this.Actor
+func (m *UserState) GetActor() uint32 {
+	if m != nil && m.Actor != nil {
+		return *m.Actor
 	}
 	return 0
 }
 
-func (this *UserState) GetName() string {
-	if this != nil && this.Name != nil {
-		return *this.Name
+func (m *UserState) GetName() string {
+	if m != nil && m.Name != nil {
+		return *m.Name
 	}
 	return ""
 }
 
-func (this *UserState) GetUserId() uint32 {
-	if this != nil && this.UserId != nil {
-		return *this.UserId
+func (m *UserState) GetUserId() uint32 {
+	if m != nil && m.UserId != nil {
+		return *m.UserId
 	}
 	return 0
 }
 
-func (this *UserState) GetChannelId() uint32 {
-	if this != nil && this.ChannelId != nil {
-		return *this.ChannelId
+func (m *UserState) GetChannelId() uint32 {
+	if m != nil && m.ChannelId != nil {
+		return *m.ChannelId
 	}
 	return 0
 }
 
-func (this *UserState) GetMute() bool {
-	if this != nil && this.Mute != nil {
-		return *this.Mute
+func (m *UserState) GetMute() bool {
+	if m != nil && m.Mute != nil {
+		return *m.Mute
 	}
 	return false
 }
 
-func (this *UserState) GetDeaf() bool {
-	if this != nil && this.Deaf != nil {
-		return *this.Deaf
+func (m *UserState) GetDeaf() bool {
+	if m != nil && m.Deaf != nil {
+		return *m.Deaf
 	}
 	return false
 }
 
-func (this *UserState) GetSuppress() bool {
-	if this != nil && this.Suppress != nil {
-		return *this.Suppress
+func (m *UserState) GetSuppress() bool {
+	if m != nil && m.Suppress != nil {
+		return *m.Suppress
 	}
 	return false
 }
 
-func (this *UserState) GetSelfMute() bool {
-	if this != nil && this.SelfMute != nil {
-		return *this.SelfMute
+func (m *UserState) GetSelfMute() bool {
+	if m != nil && m.SelfMute != nil {
+		return *m.SelfMute
 	}
 	return false
 }
 
-func (this *UserState) GetSelfDeaf() bool {
-	if this != nil && this.SelfDeaf != nil {
-		return *this.SelfDeaf
+func (m *UserState) GetSelfDeaf() bool {
+	if m != nil && m.SelfDeaf != nil {
+		return *m.SelfDeaf
 	}
 	return false
 }
 
-func (this *UserState) GetTexture() []byte {
-	if this != nil {
-		return this.Texture
+func (m *UserState) GetTexture() []byte {
+	if m != nil {
+		return m.Texture
 	}
 	return nil
 }
 
-func (this *UserState) GetPluginContext() []byte {
-	if this != nil {
-		return this.PluginContext
+func (m *UserState) GetPluginContext() []byte {
+	if m != nil {
+		return m.PluginContext
 	}
 	return nil
 }
 
-func (this *UserState) GetPluginIdentity() string {
-	if this != nil && this.PluginIdentity != nil {
-		return *this.PluginIdentity
+func (m *UserState) GetPluginIdentity() string {
+	if m != nil && m.PluginIdentity != nil {
+		return *m.PluginIdentity
 	}
 	return ""
 }
 
-func (this *UserState) GetComment() string {
-	if this != nil && this.Comment != nil {
-		return *this.Comment
+func (m *UserState) GetComment() string {
+	if m != nil && m.Comment != nil {
+		return *m.Comment
 	}
 	return ""
 }
 
-func (this *UserState) GetHash() string {
-	if this != nil && this.Hash != nil {
-		return *this.Hash
+func (m *UserState) GetHash() string {
+	if m != nil && m.Hash != nil {
+		return *m.Hash
 	}
 	return ""
 }
 
-func (this *UserState) GetCommentHash() []byte {
-	if this != nil {
-		return this.CommentHash
+func (m *UserState) GetCommentHash() []byte {
+	if m != nil {
+		return m.CommentHash
 	}
 	return nil
 }
 
-func (this *UserState) GetTextureHash() []byte {
-	if this != nil {
-		return this.TextureHash
+func (m *UserState) GetTextureHash() []byte {
+	if m != nil {
+		return m.TextureHash
 	}
 	return nil
 }
 
-func (this *UserState) GetPrioritySpeaker() bool {
-	if this != nil && this.PrioritySpeaker != nil {
-		return *this.PrioritySpeaker
+func (m *UserState) GetPrioritySpeaker() bool {
+	if m != nil && m.PrioritySpeaker != nil {
+		return *m.PrioritySpeaker
 	}
 	return false
 }
 
-func (this *UserState) GetRecording() bool {
-	if this != nil && this.Recording != nil {
-		return *this.Recording
+func (m *UserState) GetRecording() bool {
+	if m != nil && m.Recording != nil {
+		return *m.Recording
 	}
 	return false
 }
 
+// Relays information on the bans. The client may send the BanList message to
+// either modify the list of bans or query them from the server. The server
+// sends this list only after a client queries for it.
 type BanList struct {
-	Bans             []*BanList_BanEntry `protobuf:"bytes,1,rep,name=bans" json:"bans,omitempty"`
-	Query            *bool               `protobuf:"varint,2,opt,name=query,def=0" json:"query,omitempty"`
-	XXX_unrecognized []byte              `json:"-"`
+	// List of ban entries currently in place.
+	Bans []*BanList_BanEntry `protobuf:"bytes,1,rep,name=bans" json:"bans,omitempty"`
+	// True if the server should return the list, false if it should replace old
+	// ban list with the one provided.
+	Query            *bool  `protobuf:"varint,2,opt,name=query,def=0" json:"query,omitempty"`
+	XXX_unrecognized []byte `json:"-"`
 }
 
-func (this *BanList) Reset()         { *this = BanList{} }
-func (this *BanList) String() string { return proto.CompactTextString(this) }
-func (*BanList) ProtoMessage()       {}
+func (m *BanList) Reset()                    { *m = BanList{} }
+func (m *BanList) String() string            { return proto.CompactTextString(m) }
+func (*BanList) ProtoMessage()               {}
+func (*BanList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10} }
 
 const Default_BanList_Query bool = false
 
-func (this *BanList) GetQuery() bool {
-	if this != nil && this.Query != nil {
-		return *this.Query
+func (m *BanList) GetBans() []*BanList_BanEntry {
+	if m != nil {
+		return m.Bans
+	}
+	return nil
+}
+
+func (m *BanList) GetQuery() bool {
+	if m != nil && m.Query != nil {
+		return *m.Query
 	}
 	return Default_BanList_Query
 }
 
 type BanList_BanEntry struct {
-	Address          []byte  `protobuf:"bytes,1,req,name=address" json:"address,omitempty"`
-	Mask             *uint32 `protobuf:"varint,2,req,name=mask" json:"mask,omitempty"`
-	Name             *string `protobuf:"bytes,3,opt,name=name" json:"name,omitempty"`
-	Hash             *string `protobuf:"bytes,4,opt,name=hash" json:"hash,omitempty"`
-	Reason           *string `protobuf:"bytes,5,opt,name=reason" json:"reason,omitempty"`
-	Start            *string `protobuf:"bytes,6,opt,name=start" json:"start,omitempty"`
+	// Banned IP address.
+	Address []byte `protobuf:"bytes,1,req,name=address" json:"address,omitempty"`
+	// The length of the subnet mask for the ban.
+	Mask *uint32 `protobuf:"varint,2,req,name=mask" json:"mask,omitempty"`
+	// User name for identification purposes (does not affect the ban).
+	Name *string `protobuf:"bytes,3,opt,name=name" json:"name,omitempty"`
+	// TODO ??
+	Hash *string `protobuf:"bytes,4,opt,name=hash" json:"hash,omitempty"`
+	// Reason for the ban (does not affect the ban).
+	Reason *string `protobuf:"bytes,5,opt,name=reason" json:"reason,omitempty"`
+	// Ban start time.
+	Start *string `protobuf:"bytes,6,opt,name=start" json:"start,omitempty"`
+	// Ban duration in seconds.
 	Duration         *uint32 `protobuf:"varint,7,opt,name=duration" json:"duration,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
 
-func (this *BanList_BanEntry) Reset()         { *this = BanList_BanEntry{} }
-func (this *BanList_BanEntry) String() string { return proto.CompactTextString(this) }
-func (*BanList_BanEntry) ProtoMessage()       {}
+func (m *BanList_BanEntry) Reset()                    { *m = BanList_BanEntry{} }
+func (m *BanList_BanEntry) String() string            { return proto.CompactTextString(m) }
+func (*BanList_BanEntry) ProtoMessage()               {}
+func (*BanList_BanEntry) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10, 0} }
 
-func (this *BanList_BanEntry) GetAddress() []byte {
-	if this != nil {
-		return this.Address
+func (m *BanList_BanEntry) GetAddress() []byte {
+	if m != nil {
+		return m.Address
 	}
 	return nil
 }
 
-func (this *BanList_BanEntry) GetMask() uint32 {
-	if this != nil && this.Mask != nil {
-		return *this.Mask
+func (m *BanList_BanEntry) GetMask() uint32 {
+	if m != nil && m.Mask != nil {
+		return *m.Mask
 	}
 	return 0
 }
 
-func (this *BanList_BanEntry) GetName() string {
-	if this != nil && this.Name != nil {
-		return *this.Name
+func (m *BanList_BanEntry) GetName() string {
+	if m != nil && m.Name != nil {
+		return *m.Name
 	}
 	return ""
 }
 
-func (this *BanList_BanEntry) GetHash() string {
-	if this != nil && this.Hash != nil {
-		return *this.Hash
+func (m *BanList_BanEntry) GetHash() string {
+	if m != nil && m.Hash != nil {
+		return *m.Hash
 	}
 	return ""
 }
 
-func (this *BanList_BanEntry) GetReason() string {
-	if this != nil && this.Reason != nil {
-		return *this.Reason
+func (m *BanList_BanEntry) GetReason() string {
+	if m != nil && m.Reason != nil {
+		return *m.Reason
 	}
 	return ""
 }
 
-func (this *BanList_BanEntry) GetStart() string {
-	if this != nil && this.Start != nil {
-		return *this.Start
+func (m *BanList_BanEntry) GetStart() string {
+	if m != nil && m.Start != nil {
+		return *m.Start
 	}
 	return ""
 }
 
-func (this *BanList_BanEntry) GetDuration() uint32 {
-	if this != nil && this.Duration != nil {
-		return *this.Duration
+func (m *BanList_BanEntry) GetDuration() uint32 {
+	if m != nil && m.Duration != nil {
+		return *m.Duration
 	}
 	return 0
 }
 
+// Used to send and broadcast text messages.
 type TextMessage struct {
-	Actor            *uint32  `protobuf:"varint,1,opt,name=actor" json:"actor,omitempty"`
-	Session          []uint32 `protobuf:"varint,2,rep,name=session" json:"session,omitempty"`
-	ChannelId        []uint32 `protobuf:"varint,3,rep,name=channel_id" json:"channel_id,omitempty"`
-	TreeId           []uint32 `protobuf:"varint,4,rep,name=tree_id" json:"tree_id,omitempty"`
-	Message          *string  `protobuf:"bytes,5,req,name=message" json:"message,omitempty"`
-	XXX_unrecognized []byte   `json:"-"`
+	// The message sender, identified by its session.
+	Actor *uint32 `protobuf:"varint,1,opt,name=actor" json:"actor,omitempty"`
+	// Target users for the message, identified by their session.
+	Session []uint32 `protobuf:"varint,2,rep,name=session" json:"session,omitempty"`
+	// The channels to which the message is sent, identified by their
+	// channel_ids.
+	ChannelId []uint32 `protobuf:"varint,3,rep,name=channel_id,json=channelId" json:"channel_id,omitempty"`
+	// The root channels when sending message recursively to several channels,
+	// identified by their channel_ids.
+	TreeId []uint32 `protobuf:"varint,4,rep,name=tree_id,json=treeId" json:"tree_id,omitempty"`
+	// The UTF-8 encoded message. May be HTML if the server allows.
+	Message          *string `protobuf:"bytes,5,req,name=message" json:"message,omitempty"`
+	XXX_unrecognized []byte  `json:"-"`
 }
 
-func (this *TextMessage) Reset()         { *this = TextMessage{} }
-func (this *TextMessage) String() string { return proto.CompactTextString(this) }
-func (*TextMessage) ProtoMessage()       {}
+func (m *TextMessage) Reset()                    { *m = TextMessage{} }
+func (m *TextMessage) String() string            { return proto.CompactTextString(m) }
+func (*TextMessage) ProtoMessage()               {}
+func (*TextMessage) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{11} }
 
-func (this *TextMessage) GetActor() uint32 {
-	if this != nil && this.Actor != nil {
-		return *this.Actor
+func (m *TextMessage) GetActor() uint32 {
+	if m != nil && m.Actor != nil {
+		return *m.Actor
 	}
 	return 0
 }
 
-func (this *TextMessage) GetMessage() string {
-	if this != nil && this.Message != nil {
-		return *this.Message
+func (m *TextMessage) GetSession() []uint32 {
+	if m != nil {
+		return m.Session
+	}
+	return nil
+}
+
+func (m *TextMessage) GetChannelId() []uint32 {
+	if m != nil {
+		return m.ChannelId
+	}
+	return nil
+}
+
+func (m *TextMessage) GetTreeId() []uint32 {
+	if m != nil {
+		return m.TreeId
+	}
+	return nil
+}
+
+func (m *TextMessage) GetMessage() string {
+	if m != nil && m.Message != nil {
+		return *m.Message
 	}
 	return ""
 }
 
 type PermissionDenied struct {
-	Permission       *uint32                    `protobuf:"varint,1,opt,name=permission" json:"permission,omitempty"`
-	ChannelId        *uint32                    `protobuf:"varint,2,opt,name=channel_id" json:"channel_id,omitempty"`
-	Session          *uint32                    `protobuf:"varint,3,opt,name=session" json:"session,omitempty"`
-	Reason           *string                    `protobuf:"bytes,4,opt,name=reason" json:"reason,omitempty"`
-	Type             *PermissionDenied_DenyType `protobuf:"varint,5,opt,name=type,enum=mumbleproto.PermissionDenied_DenyType" json:"type,omitempty"`
-	Name             *string                    `protobuf:"bytes,6,opt,name=name" json:"name,omitempty"`
-	XXX_unrecognized []byte                     `json:"-"`
+	// The denied permission when type is Permission.
+	Permission *uint32 `protobuf:"varint,1,opt,name=permission" json:"permission,omitempty"`
+	// channel_id for the channel where the permission was denied when type is
+	// Permission.
+	ChannelId *uint32 `protobuf:"varint,2,opt,name=channel_id,json=channelId" json:"channel_id,omitempty"`
+	// The user who was denied permissions, identified by session.
+	Session *uint32 `protobuf:"varint,3,opt,name=session" json:"session,omitempty"`
+	// Textual reason for the denial.
+	Reason *string `protobuf:"bytes,4,opt,name=reason" json:"reason,omitempty"`
+	// Type of the denial.
+	Type *PermissionDenied_DenyType `protobuf:"varint,5,opt,name=type,enum=mumbleproto.PermissionDenied_DenyType" json:"type,omitempty"`
+	// The name that is invalid when type is UserName.
+	Name             *string `protobuf:"bytes,6,opt,name=name" json:"name,omitempty"`
+	XXX_unrecognized []byte  `json:"-"`
 }
 
-func (this *PermissionDenied) Reset()         { *this = PermissionDenied{} }
-func (this *PermissionDenied) String() string { return proto.CompactTextString(this) }
-func (*PermissionDenied) ProtoMessage()       {}
+func (m *PermissionDenied) Reset()                    { *m = PermissionDenied{} }
+func (m *PermissionDenied) String() string            { return proto.CompactTextString(m) }
+func (*PermissionDenied) ProtoMessage()               {}
+func (*PermissionDenied) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{12} }
 
-func (this *PermissionDenied) GetPermission() uint32 {
-	if this != nil && this.Permission != nil {
-		return *this.Permission
+func (m *PermissionDenied) GetPermission() uint32 {
+	if m != nil && m.Permission != nil {
+		return *m.Permission
 	}
 	return 0
 }
 
-func (this *PermissionDenied) GetChannelId() uint32 {
-	if this != nil && this.ChannelId != nil {
-		return *this.ChannelId
+func (m *PermissionDenied) GetChannelId() uint32 {
+	if m != nil && m.ChannelId != nil {
+		return *m.ChannelId
 	}
 	return 0
 }
 
-func (this *PermissionDenied) GetSession() uint32 {
-	if this != nil && this.Session != nil {
-		return *this.Session
+func (m *PermissionDenied) GetSession() uint32 {
+	if m != nil && m.Session != nil {
+		return *m.Session
 	}
 	return 0
 }
 
-func (this *PermissionDenied) GetReason() string {
-	if this != nil && this.Reason != nil {
-		return *this.Reason
+func (m *PermissionDenied) GetReason() string {
+	if m != nil && m.Reason != nil {
+		return *m.Reason
 	}
 	return ""
 }
 
-func (this *PermissionDenied) GetType() PermissionDenied_DenyType {
-	if this != nil && this.Type != nil {
-		return *this.Type
+func (m *PermissionDenied) GetType() PermissionDenied_DenyType {
+	if m != nil && m.Type != nil {
+		return *m.Type
 	}
-	return 0
+	return PermissionDenied_Text
 }
 
-func (this *PermissionDenied) GetName() string {
-	if this != nil && this.Name != nil {
-		return *this.Name
+func (m *PermissionDenied) GetName() string {
+	if m != nil && m.Name != nil {
+		return *m.Name
 	}
 	return ""
 }
 
 type ACL struct {
-	ChannelId        *uint32          `protobuf:"varint,1,req,name=channel_id" json:"channel_id,omitempty"`
-	InheritAcls      *bool            `protobuf:"varint,2,opt,name=inherit_acls,def=1" json:"inherit_acls,omitempty"`
-	Groups           []*ACL_ChanGroup `protobuf:"bytes,3,rep,name=groups" json:"groups,omitempty"`
-	Acls             []*ACL_ChanACL   `protobuf:"bytes,4,rep,name=acls" json:"acls,omitempty"`
-	Query            *bool            `protobuf:"varint,5,opt,name=query,def=0" json:"query,omitempty"`
-	XXX_unrecognized []byte           `json:"-"`
+	// Channel ID of the channel this message affects.
+	ChannelId *uint32 `protobuf:"varint,1,req,name=channel_id,json=channelId" json:"channel_id,omitempty"`
+	// True if the channel inherits its parent's ACLs.
+	InheritAcls *bool `protobuf:"varint,2,opt,name=inherit_acls,json=inheritAcls,def=1" json:"inherit_acls,omitempty"`
+	// User group specifications.
+	Groups []*ACL_ChanGroup `protobuf:"bytes,3,rep,name=groups" json:"groups,omitempty"`
+	// ACL specifications.
+	Acls []*ACL_ChanACL `protobuf:"bytes,4,rep,name=acls" json:"acls,omitempty"`
+	// True if the message is a query for ACLs instead of setting them.
+	Query            *bool  `protobuf:"varint,5,opt,name=query,def=0" json:"query,omitempty"`
+	XXX_unrecognized []byte `json:"-"`
 }
 
-func (this *ACL) Reset()         { *this = ACL{} }
-func (this *ACL) String() string { return proto.CompactTextString(this) }
-func (*ACL) ProtoMessage()       {}
+func (m *ACL) Reset()                    { *m = ACL{} }
+func (m *ACL) String() string            { return proto.CompactTextString(m) }
+func (*ACL) ProtoMessage()               {}
+func (*ACL) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13} }
 
 const Default_ACL_InheritAcls bool = true
 const Default_ACL_Query bool = false
 
-func (this *ACL) GetChannelId() uint32 {
-	if this != nil && this.ChannelId != nil {
-		return *this.ChannelId
+func (m *ACL) GetChannelId() uint32 {
+	if m != nil && m.ChannelId != nil {
+		return *m.ChannelId
 	}
 	return 0
 }
 
-func (this *ACL) GetInheritAcls() bool {
-	if this != nil && this.InheritAcls != nil {
-		return *this.InheritAcls
+func (m *ACL) GetInheritAcls() bool {
+	if m != nil && m.InheritAcls != nil {
+		return *m.InheritAcls
 	}
 	return Default_ACL_InheritAcls
 }
 
-func (this *ACL) GetQuery() bool {
-	if this != nil && this.Query != nil {
-		return *this.Query
+func (m *ACL) GetGroups() []*ACL_ChanGroup {
+	if m != nil {
+		return m.Groups
+	}
+	return nil
+}
+
+func (m *ACL) GetAcls() []*ACL_ChanACL {
+	if m != nil {
+		return m.Acls
+	}
+	return nil
+}
+
+func (m *ACL) GetQuery() bool {
+	if m != nil && m.Query != nil {
+		return *m.Query
 	}
 	return Default_ACL_Query
 }
 
 type ACL_ChanGroup struct {
-	Name             *string  `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
-	Inherited        *bool    `protobuf:"varint,2,opt,name=inherited,def=1" json:"inherited,omitempty"`
-	Inherit          *bool    `protobuf:"varint,3,opt,name=inherit,def=1" json:"inherit,omitempty"`
-	Inheritable      *bool    `protobuf:"varint,4,opt,name=inheritable,def=1" json:"inheritable,omitempty"`
-	Add              []uint32 `protobuf:"varint,5,rep,name=add" json:"add,omitempty"`
-	Remove           []uint32 `protobuf:"varint,6,rep,name=remove" json:"remove,omitempty"`
-	InheritedMembers []uint32 `protobuf:"varint,7,rep,name=inherited_members" json:"inherited_members,omitempty"`
+	// Name of the channel group, UTF-8 encoded.
+	Name *string `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
+	// True if the group has been inherited from the parent (Read only).
+	Inherited *bool `protobuf:"varint,2,opt,name=inherited,def=1" json:"inherited,omitempty"`
+	// True if the group members are inherited.
+	Inherit *bool `protobuf:"varint,3,opt,name=inherit,def=1" json:"inherit,omitempty"`
+	// True if the group can be inherited by sub channels.
+	Inheritable *bool `protobuf:"varint,4,opt,name=inheritable,def=1" json:"inheritable,omitempty"`
+	// Users explicitly included in this group, identified by user_id.
+	Add []uint32 `protobuf:"varint,5,rep,name=add" json:"add,omitempty"`
+	// Users explicitly removed from this group in this channel if the group
+	// has been inherited, identified by user_id.
+	Remove []uint32 `protobuf:"varint,6,rep,name=remove" json:"remove,omitempty"`
+	// Users inherited, identified by user_id.
+	InheritedMembers []uint32 `protobuf:"varint,7,rep,name=inherited_members,json=inheritedMembers" json:"inherited_members,omitempty"`
 	XXX_unrecognized []byte   `json:"-"`
 }
 
-func (this *ACL_ChanGroup) Reset()         { *this = ACL_ChanGroup{} }
-func (this *ACL_ChanGroup) String() string { return proto.CompactTextString(this) }
-func (*ACL_ChanGroup) ProtoMessage()       {}
+func (m *ACL_ChanGroup) Reset()                    { *m = ACL_ChanGroup{} }
+func (m *ACL_ChanGroup) String() string            { return proto.CompactTextString(m) }
+func (*ACL_ChanGroup) ProtoMessage()               {}
+func (*ACL_ChanGroup) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13, 0} }
 
 const Default_ACL_ChanGroup_Inherited bool = true
 const Default_ACL_ChanGroup_Inherit bool = true
 const Default_ACL_ChanGroup_Inheritable bool = true
 
-func (this *ACL_ChanGroup) GetName() string {
-	if this != nil && this.Name != nil {
-		return *this.Name
+func (m *ACL_ChanGroup) GetName() string {
+	if m != nil && m.Name != nil {
+		return *m.Name
 	}
 	return ""
 }
 
-func (this *ACL_ChanGroup) GetInherited() bool {
-	if this != nil && this.Inherited != nil {
-		return *this.Inherited
+func (m *ACL_ChanGroup) GetInherited() bool {
+	if m != nil && m.Inherited != nil {
+		return *m.Inherited
 	}
 	return Default_ACL_ChanGroup_Inherited
 }
 
-func (this *ACL_ChanGroup) GetInherit() bool {
-	if this != nil && this.Inherit != nil {
-		return *this.Inherit
+func (m *ACL_ChanGroup) GetInherit() bool {
+	if m != nil && m.Inherit != nil {
+		return *m.Inherit
 	}
 	return Default_ACL_ChanGroup_Inherit
 }
 
-func (this *ACL_ChanGroup) GetInheritable() bool {
-	if this != nil && this.Inheritable != nil {
-		return *this.Inheritable
+func (m *ACL_ChanGroup) GetInheritable() bool {
+	if m != nil && m.Inheritable != nil {
+		return *m.Inheritable
 	}
 	return Default_ACL_ChanGroup_Inheritable
 }
 
+func (m *ACL_ChanGroup) GetAdd() []uint32 {
+	if m != nil {
+		return m.Add
+	}
+	return nil
+}
+
+func (m *ACL_ChanGroup) GetRemove() []uint32 {
+	if m != nil {
+		return m.Remove
+	}
+	return nil
+}
+
+func (m *ACL_ChanGroup) GetInheritedMembers() []uint32 {
+	if m != nil {
+		return m.InheritedMembers
+	}
+	return nil
+}
+
 type ACL_ChanACL struct {
-	ApplyHere        *bool   `protobuf:"varint,1,opt,name=apply_here,def=1" json:"apply_here,omitempty"`
-	ApplySubs        *bool   `protobuf:"varint,2,opt,name=apply_subs,def=1" json:"apply_subs,omitempty"`
-	Inherited        *bool   `protobuf:"varint,3,opt,name=inherited,def=1" json:"inherited,omitempty"`
-	UserId           *uint32 `protobuf:"varint,4,opt,name=user_id" json:"user_id,omitempty"`
-	Group            *string `protobuf:"bytes,5,opt,name=group" json:"group,omitempty"`
-	Grant            *uint32 `protobuf:"varint,6,opt,name=grant" json:"grant,omitempty"`
+	// True if this ACL applies to the current channel.
+	ApplyHere *bool `protobuf:"varint,1,opt,name=apply_here,json=applyHere,def=1" json:"apply_here,omitempty"`
+	// True if this ACL applies to the sub channels.
+	ApplySubs *bool `protobuf:"varint,2,opt,name=apply_subs,json=applySubs,def=1" json:"apply_subs,omitempty"`
+	// True if the ACL has been inherited from the parent.
+	Inherited *bool `protobuf:"varint,3,opt,name=inherited,def=1" json:"inherited,omitempty"`
+	// ID of the user that is affected by this ACL.
+	UserId *uint32 `protobuf:"varint,4,opt,name=user_id,json=userId" json:"user_id,omitempty"`
+	// ID of the group that is affected by this ACL.
+	Group *string `protobuf:"bytes,5,opt,name=group" json:"group,omitempty"`
+	// Bit flag field of the permissions granted by this ACL.
+	Grant *uint32 `protobuf:"varint,6,opt,name=grant" json:"grant,omitempty"`
+	// Bit flag field of the permissions denied by this ACL.
 	Deny             *uint32 `protobuf:"varint,7,opt,name=deny" json:"deny,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
 
-func (this *ACL_ChanACL) Reset()         { *this = ACL_ChanACL{} }
-func (this *ACL_ChanACL) String() string { return proto.CompactTextString(this) }
-func (*ACL_ChanACL) ProtoMessage()       {}
+func (m *ACL_ChanACL) Reset()                    { *m = ACL_ChanACL{} }
+func (m *ACL_ChanACL) String() string            { return proto.CompactTextString(m) }
+func (*ACL_ChanACL) ProtoMessage()               {}
+func (*ACL_ChanACL) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13, 1} }
 
 const Default_ACL_ChanACL_ApplyHere bool = true
 const Default_ACL_ChanACL_ApplySubs bool = true
 const Default_ACL_ChanACL_Inherited bool = true
 
-func (this *ACL_ChanACL) GetApplyHere() bool {
-	if this != nil && this.ApplyHere != nil {
-		return *this.ApplyHere
+func (m *ACL_ChanACL) GetApplyHere() bool {
+	if m != nil && m.ApplyHere != nil {
+		return *m.ApplyHere
 	}
 	return Default_ACL_ChanACL_ApplyHere
 }
 
-func (this *ACL_ChanACL) GetApplySubs() bool {
-	if this != nil && this.ApplySubs != nil {
-		return *this.ApplySubs
+func (m *ACL_ChanACL) GetApplySubs() bool {
+	if m != nil && m.ApplySubs != nil {
+		return *m.ApplySubs
 	}
 	return Default_ACL_ChanACL_ApplySubs
 }
 
-func (this *ACL_ChanACL) GetInherited() bool {
-	if this != nil && this.Inherited != nil {
-		return *this.Inherited
+func (m *ACL_ChanACL) GetInherited() bool {
+	if m != nil && m.Inherited != nil {
+		return *m.Inherited
 	}
 	return Default_ACL_ChanACL_Inherited
 }
 
-func (this *ACL_ChanACL) GetUserId() uint32 {
-	if this != nil && this.UserId != nil {
-		return *this.UserId
+func (m *ACL_ChanACL) GetUserId() uint32 {
+	if m != nil && m.UserId != nil {
+		return *m.UserId
 	}
 	return 0
 }
 
-func (this *ACL_ChanACL) GetGroup() string {
-	if this != nil && this.Group != nil {
-		return *this.Group
+func (m *ACL_ChanACL) GetGroup() string {
+	if m != nil && m.Group != nil {
+		return *m.Group
 	}
 	return ""
 }
 
-func (this *ACL_ChanACL) GetGrant() uint32 {
-	if this != nil && this.Grant != nil {
-		return *this.Grant
+func (m *ACL_ChanACL) GetGrant() uint32 {
+	if m != nil && m.Grant != nil {
+		return *m.Grant
 	}
 	return 0
 }
 
-func (this *ACL_ChanACL) GetDeny() uint32 {
-	if this != nil && this.Deny != nil {
-		return *this.Deny
+func (m *ACL_ChanACL) GetDeny() uint32 {
+	if m != nil && m.Deny != nil {
+		return *m.Deny
 	}
 	return 0
 }
 
+// Client may use this message to refresh its registered user information. The
+// client should fill the IDs or Names of the users it wants to refresh. The
+// server fills the missing parts and sends the message back.
 type QueryUsers struct {
-	Ids              []uint32 `protobuf:"varint,1,rep,name=ids" json:"ids,omitempty"`
+	// user_ids.
+	Ids []uint32 `protobuf:"varint,1,rep,name=ids" json:"ids,omitempty"`
+	// User names in the same order as ids.
 	Names            []string `protobuf:"bytes,2,rep,name=names" json:"names,omitempty"`
 	XXX_unrecognized []byte   `json:"-"`
 }
 
-func (this *QueryUsers) Reset()         { *this = QueryUsers{} }
-func (this *QueryUsers) String() string { return proto.CompactTextString(this) }
-func (*QueryUsers) ProtoMessage()       {}
+func (m *QueryUsers) Reset()                    { *m = QueryUsers{} }
+func (m *QueryUsers) String() string            { return proto.CompactTextString(m) }
+func (*QueryUsers) ProtoMessage()               {}
+func (*QueryUsers) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{14} }
 
+func (m *QueryUsers) GetIds() []uint32 {
+	if m != nil {
+		return m.Ids
+	}
+	return nil
+}
+
+func (m *QueryUsers) GetNames() []string {
+	if m != nil {
+		return m.Names
+	}
+	return nil
+}
+
+// Used to initialize and resync the UDP encryption. Either side may request a
+// resync by sending the message without any values filled. The resync is
+// performed by sending the message with only the client or server nonce
+// filled.
 type CryptSetup struct {
-	Key              []byte `protobuf:"bytes,1,opt,name=key" json:"key,omitempty"`
-	ClientNonce      []byte `protobuf:"bytes,2,opt,name=client_nonce" json:"client_nonce,omitempty"`
-	ServerNonce      []byte `protobuf:"bytes,3,opt,name=server_nonce" json:"server_nonce,omitempty"`
+	// Encryption key.
+	Key []byte `protobuf:"bytes,1,opt,name=key" json:"key,omitempty"`
+	// Client nonce.
+	ClientNonce []byte `protobuf:"bytes,2,opt,name=client_nonce,json=clientNonce" json:"client_nonce,omitempty"`
+	// Server nonce.
+	ServerNonce      []byte `protobuf:"bytes,3,opt,name=server_nonce,json=serverNonce" json:"server_nonce,omitempty"`
 	XXX_unrecognized []byte `json:"-"`
 }
 
-func (this *CryptSetup) Reset()         { *this = CryptSetup{} }
-func (this *CryptSetup) String() string { return proto.CompactTextString(this) }
-func (*CryptSetup) ProtoMessage()       {}
+func (m *CryptSetup) Reset()                    { *m = CryptSetup{} }
+func (m *CryptSetup) String() string            { return proto.CompactTextString(m) }
+func (*CryptSetup) ProtoMessage()               {}
+func (*CryptSetup) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{15} }
 
-func (this *CryptSetup) GetKey() []byte {
-	if this != nil {
-		return this.Key
+func (m *CryptSetup) GetKey() []byte {
+	if m != nil {
+		return m.Key
 	}
 	return nil
 }
 
-func (this *CryptSetup) GetClientNonce() []byte {
-	if this != nil {
-		return this.ClientNonce
+func (m *CryptSetup) GetClientNonce() []byte {
+	if m != nil {
+		return m.ClientNonce
 	}
 	return nil
 }
 
-func (this *CryptSetup) GetServerNonce() []byte {
-	if this != nil {
-		return this.ServerNonce
+func (m *CryptSetup) GetServerNonce() []byte {
+	if m != nil {
+		return m.ServerNonce
 	}
 	return nil
 }
 
 type ContextActionModify struct {
-	Action           *string                        `protobuf:"bytes,1,req,name=action" json:"action,omitempty"`
-	Text             *string                        `protobuf:"bytes,2,opt,name=text" json:"text,omitempty"`
+	// The action name.
+	Action *string `protobuf:"bytes,1,req,name=action" json:"action,omitempty"`
+	// The display name of the action.
+	Text *string `protobuf:"bytes,2,opt,name=text" json:"text,omitempty"`
+	// Context bit flags defining where the action should be displayed.
 	Context          *uint32                        `protobuf:"varint,3,opt,name=context" json:"context,omitempty"`
 	Operation        *ContextActionModify_Operation `protobuf:"varint,4,opt,name=operation,enum=mumbleproto.ContextActionModify_Operation" json:"operation,omitempty"`
 	XXX_unrecognized []byte                         `json:"-"`
 }
 
-func (this *ContextActionModify) Reset()         { *this = ContextActionModify{} }
-func (this *ContextActionModify) String() string { return proto.CompactTextString(this) }
-func (*ContextActionModify) ProtoMessage()       {}
+func (m *ContextActionModify) Reset()                    { *m = ContextActionModify{} }
+func (m *ContextActionModify) String() string            { return proto.CompactTextString(m) }
+func (*ContextActionModify) ProtoMessage()               {}
+func (*ContextActionModify) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{16} }
 
-func (this *ContextActionModify) GetAction() string {
-	if this != nil && this.Action != nil {
-		return *this.Action
+func (m *ContextActionModify) GetAction() string {
+	if m != nil && m.Action != nil {
+		return *m.Action
 	}
 	return ""
 }
 
-func (this *ContextActionModify) GetText() string {
-	if this != nil && this.Text != nil {
-		return *this.Text
+func (m *ContextActionModify) GetText() string {
+	if m != nil && m.Text != nil {
+		return *m.Text
 	}
 	return ""
 }
 
-func (this *ContextActionModify) GetContext() uint32 {
-	if this != nil && this.Context != nil {
-		return *this.Context
+func (m *ContextActionModify) GetContext() uint32 {
+	if m != nil && m.Context != nil {
+		return *m.Context
 	}
 	return 0
 }
 
-func (this *ContextActionModify) GetOperation() ContextActionModify_Operation {
-	if this != nil && this.Operation != nil {
-		return *this.Operation
+func (m *ContextActionModify) GetOperation() ContextActionModify_Operation {
+	if m != nil && m.Operation != nil {
+		return *m.Operation
 	}
-	return 0
+	return ContextActionModify_Add
 }
 
+// Sent by the client when it wants to initiate a Context action.
 type ContextAction struct {
-	Session          *uint32 `protobuf:"varint,1,opt,name=session" json:"session,omitempty"`
-	ChannelId        *uint32 `protobuf:"varint,2,opt,name=channel_id" json:"channel_id,omitempty"`
+	// The target User for the action, identified by session.
+	Session *uint32 `protobuf:"varint,1,opt,name=session" json:"session,omitempty"`
+	// The target Channel for the action, identified by channel_id.
+	ChannelId *uint32 `protobuf:"varint,2,opt,name=channel_id,json=channelId" json:"channel_id,omitempty"`
+	// The action that should be executed.
 	Action           *string `protobuf:"bytes,3,req,name=action" json:"action,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
 
-func (this *ContextAction) Reset()         { *this = ContextAction{} }
-func (this *ContextAction) String() string { return proto.CompactTextString(this) }
-func (*ContextAction) ProtoMessage()       {}
+func (m *ContextAction) Reset()                    { *m = ContextAction{} }
+func (m *ContextAction) String() string            { return proto.CompactTextString(m) }
+func (*ContextAction) ProtoMessage()               {}
+func (*ContextAction) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{17} }
 
-func (this *ContextAction) GetSession() uint32 {
-	if this != nil && this.Session != nil {
-		return *this.Session
+func (m *ContextAction) GetSession() uint32 {
+	if m != nil && m.Session != nil {
+		return *m.Session
 	}
 	return 0
 }
 
-func (this *ContextAction) GetChannelId() uint32 {
-	if this != nil && this.ChannelId != nil {
-		return *this.ChannelId
+func (m *ContextAction) GetChannelId() uint32 {
+	if m != nil && m.ChannelId != nil {
+		return *m.ChannelId
 	}
 	return 0
 }
 
-func (this *ContextAction) GetAction() string {
-	if this != nil && this.Action != nil {
-		return *this.Action
+func (m *ContextAction) GetAction() string {
+	if m != nil && m.Action != nil {
+		return *m.Action
 	}
 	return ""
 }
 
+// Lists the registered users.
 type UserList struct {
+	// A list of registered users.
 	Users            []*UserList_User `protobuf:"bytes,1,rep,name=users" json:"users,omitempty"`
 	XXX_unrecognized []byte           `json:"-"`
 }
 
-func (this *UserList) Reset()         { *this = UserList{} }
-func (this *UserList) String() string { return proto.CompactTextString(this) }
-func (*UserList) ProtoMessage()       {}
+func (m *UserList) Reset()                    { *m = UserList{} }
+func (m *UserList) String() string            { return proto.CompactTextString(m) }
+func (*UserList) ProtoMessage()               {}
+func (*UserList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{18} }
+
+func (m *UserList) GetUsers() []*UserList_User {
+	if m != nil {
+		return m.Users
+	}
+	return nil
+}
 
 type UserList_User struct {
-	UserId           *uint32 `protobuf:"varint,1,req,name=user_id" json:"user_id,omitempty"`
+	// Registered user ID.
+	UserId *uint32 `protobuf:"varint,1,req,name=user_id,json=userId" json:"user_id,omitempty"`
+	// Registered user name.
 	Name             *string `protobuf:"bytes,2,opt,name=name" json:"name,omitempty"`
+	LastSeen         *string `protobuf:"bytes,3,opt,name=last_seen,json=lastSeen" json:"last_seen,omitempty"`
+	LastChannel      *uint32 `protobuf:"varint,4,opt,name=last_channel,json=lastChannel" json:"last_channel,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
 
-func (this *UserList_User) Reset()         { *this = UserList_User{} }
-func (this *UserList_User) String() string { return proto.CompactTextString(this) }
-func (*UserList_User) ProtoMessage()       {}
+func (m *UserList_User) Reset()                    { *m = UserList_User{} }
+func (m *UserList_User) String() string            { return proto.CompactTextString(m) }
+func (*UserList_User) ProtoMessage()               {}
+func (*UserList_User) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{18, 0} }
 
-func (this *UserList_User) GetUserId() uint32 {
-	if this != nil && this.UserId != nil {
-		return *this.UserId
+func (m *UserList_User) GetUserId() uint32 {
+	if m != nil && m.UserId != nil {
+		return *m.UserId
 	}
 	return 0
 }
 
-func (this *UserList_User) GetName() string {
-	if this != nil && this.Name != nil {
-		return *this.Name
+func (m *UserList_User) GetName() string {
+	if m != nil && m.Name != nil {
+		return *m.Name
 	}
 	return ""
 }
 
+func (m *UserList_User) GetLastSeen() string {
+	if m != nil && m.LastSeen != nil {
+		return *m.LastSeen
+	}
+	return ""
+}
+
+func (m *UserList_User) GetLastChannel() uint32 {
+	if m != nil && m.LastChannel != nil {
+		return *m.LastChannel
+	}
+	return 0
+}
+
+// Sent by the client when it wants to register or clear whisper targets.
+//
+// Note: The first available target ID is 1 as 0 is reserved for normal
+// talking. Maximum target ID is 30.
 type VoiceTarget struct {
-	Id               *uint32               `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
+	// Voice target ID.
+	Id *uint32 `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
+	// The receivers that this voice target includes.
 	Targets          []*VoiceTarget_Target `protobuf:"bytes,2,rep,name=targets" json:"targets,omitempty"`
 	XXX_unrecognized []byte                `json:"-"`
 }
 
-func (this *VoiceTarget) Reset()         { *this = VoiceTarget{} }
-func (this *VoiceTarget) String() string { return proto.CompactTextString(this) }
-func (*VoiceTarget) ProtoMessage()       {}
+func (m *VoiceTarget) Reset()                    { *m = VoiceTarget{} }
+func (m *VoiceTarget) String() string            { return proto.CompactTextString(m) }
+func (*VoiceTarget) ProtoMessage()               {}
+func (*VoiceTarget) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{19} }
 
-func (this *VoiceTarget) GetId() uint32 {
-	if this != nil && this.Id != nil {
-		return *this.Id
+func (m *VoiceTarget) GetId() uint32 {
+	if m != nil && m.Id != nil {
+		return *m.Id
 	}
 	return 0
 }
 
-type VoiceTarget_Target struct {
-	Session          []uint32 `protobuf:"varint,1,rep,name=session" json:"session,omitempty"`
-	ChannelId        *uint32  `protobuf:"varint,2,opt,name=channel_id" json:"channel_id,omitempty"`
-	Group            *string  `protobuf:"bytes,3,opt,name=group" json:"group,omitempty"`
-	Links            *bool    `protobuf:"varint,4,opt,name=links,def=0" json:"links,omitempty"`
-	Children         *bool    `protobuf:"varint,5,opt,name=children,def=0" json:"children,omitempty"`
-	XXX_unrecognized []byte   `json:"-"`
+func (m *VoiceTarget) GetTargets() []*VoiceTarget_Target {
+	if m != nil {
+		return m.Targets
+	}
+	return nil
 }
 
-func (this *VoiceTarget_Target) Reset()         { *this = VoiceTarget_Target{} }
-func (this *VoiceTarget_Target) String() string { return proto.CompactTextString(this) }
-func (*VoiceTarget_Target) ProtoMessage()       {}
+type VoiceTarget_Target struct {
+	// Users that are included as targets.
+	Session []uint32 `protobuf:"varint,1,rep,name=session" json:"session,omitempty"`
+	// Channels that are included as targets.
+	ChannelId *uint32 `protobuf:"varint,2,opt,name=channel_id,json=channelId" json:"channel_id,omitempty"`
+	// TODO ??
+	Group *string `protobuf:"bytes,3,opt,name=group" json:"group,omitempty"`
+	// True if the voice should follow links from the specified channel.
+	Links *bool `protobuf:"varint,4,opt,name=links,def=0" json:"links,omitempty"`
+	// True if the voice should also be sent to children of the specific
+	// channel.
+	Children         *bool  `protobuf:"varint,5,opt,name=children,def=0" json:"children,omitempty"`
+	XXX_unrecognized []byte `json:"-"`
+}
+
+func (m *VoiceTarget_Target) Reset()                    { *m = VoiceTarget_Target{} }
+func (m *VoiceTarget_Target) String() string            { return proto.CompactTextString(m) }
+func (*VoiceTarget_Target) ProtoMessage()               {}
+func (*VoiceTarget_Target) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{19, 0} }
 
 const Default_VoiceTarget_Target_Links bool = false
 const Default_VoiceTarget_Target_Children bool = false
 
-func (this *VoiceTarget_Target) GetChannelId() uint32 {
-	if this != nil && this.ChannelId != nil {
-		return *this.ChannelId
+func (m *VoiceTarget_Target) GetSession() []uint32 {
+	if m != nil {
+		return m.Session
+	}
+	return nil
+}
+
+func (m *VoiceTarget_Target) GetChannelId() uint32 {
+	if m != nil && m.ChannelId != nil {
+		return *m.ChannelId
 	}
 	return 0
 }
 
-func (this *VoiceTarget_Target) GetGroup() string {
-	if this != nil && this.Group != nil {
-		return *this.Group
+func (m *VoiceTarget_Target) GetGroup() string {
+	if m != nil && m.Group != nil {
+		return *m.Group
 	}
 	return ""
 }
 
-func (this *VoiceTarget_Target) GetLinks() bool {
-	if this != nil && this.Links != nil {
-		return *this.Links
+func (m *VoiceTarget_Target) GetLinks() bool {
+	if m != nil && m.Links != nil {
+		return *m.Links
 	}
 	return Default_VoiceTarget_Target_Links
 }
 
-func (this *VoiceTarget_Target) GetChildren() bool {
-	if this != nil && this.Children != nil {
-		return *this.Children
+func (m *VoiceTarget_Target) GetChildren() bool {
+	if m != nil && m.Children != nil {
+		return *m.Children
 	}
 	return Default_VoiceTarget_Target_Children
 }
 
+// Sent by the client when it wants permissions for a certain channel. Sent by
+// the server when it replies to the query or wants the user to resync all
+// channel permissions.
 type PermissionQuery struct {
-	ChannelId        *uint32 `protobuf:"varint,1,opt,name=channel_id" json:"channel_id,omitempty"`
-	Permissions      *uint32 `protobuf:"varint,2,opt,name=permissions" json:"permissions,omitempty"`
-	Flush            *bool   `protobuf:"varint,3,opt,name=flush,def=0" json:"flush,omitempty"`
-	XXX_unrecognized []byte  `json:"-"`
+	// channel_id of the channel for which the permissions are queried.
+	ChannelId *uint32 `protobuf:"varint,1,opt,name=channel_id,json=channelId" json:"channel_id,omitempty"`
+	// Channel permissions.
+	Permissions *uint32 `protobuf:"varint,2,opt,name=permissions" json:"permissions,omitempty"`
+	// True if the client should drop its current permission information for all
+	// channels.
+	Flush            *bool  `protobuf:"varint,3,opt,name=flush,def=0" json:"flush,omitempty"`
+	XXX_unrecognized []byte `json:"-"`
 }
 
-func (this *PermissionQuery) Reset()         { *this = PermissionQuery{} }
-func (this *PermissionQuery) String() string { return proto.CompactTextString(this) }
-func (*PermissionQuery) ProtoMessage()       {}
+func (m *PermissionQuery) Reset()                    { *m = PermissionQuery{} }
+func (m *PermissionQuery) String() string            { return proto.CompactTextString(m) }
+func (*PermissionQuery) ProtoMessage()               {}
+func (*PermissionQuery) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{20} }
 
 const Default_PermissionQuery_Flush bool = false
 
-func (this *PermissionQuery) GetChannelId() uint32 {
-	if this != nil && this.ChannelId != nil {
-		return *this.ChannelId
+func (m *PermissionQuery) GetChannelId() uint32 {
+	if m != nil && m.ChannelId != nil {
+		return *m.ChannelId
 	}
 	return 0
 }
 
-func (this *PermissionQuery) GetPermissions() uint32 {
-	if this != nil && this.Permissions != nil {
-		return *this.Permissions
+func (m *PermissionQuery) GetPermissions() uint32 {
+	if m != nil && m.Permissions != nil {
+		return *m.Permissions
 	}
 	return 0
 }
 
-func (this *PermissionQuery) GetFlush() bool {
-	if this != nil && this.Flush != nil {
-		return *this.Flush
+func (m *PermissionQuery) GetFlush() bool {
+	if m != nil && m.Flush != nil {
+		return *m.Flush
 	}
 	return Default_PermissionQuery_Flush
 }
 
+// Sent by the server to notify the users of the version of the CELT codec they
+// should use. This may change during the connection when new users join.
 type CodecVersion struct {
-	Alpha            *int32 `protobuf:"varint,1,req,name=alpha" json:"alpha,omitempty"`
-	Beta             *int32 `protobuf:"varint,2,req,name=beta" json:"beta,omitempty"`
-	PreferAlpha      *bool  `protobuf:"varint,3,req,name=prefer_alpha,def=1" json:"prefer_alpha,omitempty"`
+	// The version of the CELT Alpha codec.
+	Alpha *int32 `protobuf:"varint,1,req,name=alpha" json:"alpha,omitempty"`
+	// The version of the CELT Beta codec.
+	Beta *int32 `protobuf:"varint,2,req,name=beta" json:"beta,omitempty"`
+	// True if the user should prefer Alpha over Beta.
+	PreferAlpha      *bool  `protobuf:"varint,3,req,name=prefer_alpha,json=preferAlpha,def=1" json:"prefer_alpha,omitempty"`
 	Opus             *bool  `protobuf:"varint,4,opt,name=opus,def=0" json:"opus,omitempty"`
 	XXX_unrecognized []byte `json:"-"`
 }
 
-func (this *CodecVersion) Reset()         { *this = CodecVersion{} }
-func (this *CodecVersion) String() string { return proto.CompactTextString(this) }
-func (*CodecVersion) ProtoMessage()       {}
+func (m *CodecVersion) Reset()                    { *m = CodecVersion{} }
+func (m *CodecVersion) String() string            { return proto.CompactTextString(m) }
+func (*CodecVersion) ProtoMessage()               {}
+func (*CodecVersion) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{21} }
 
 const Default_CodecVersion_PreferAlpha bool = true
 const Default_CodecVersion_Opus bool = false
 
-func (this *CodecVersion) GetAlpha() int32 {
-	if this != nil && this.Alpha != nil {
-		return *this.Alpha
+func (m *CodecVersion) GetAlpha() int32 {
+	if m != nil && m.Alpha != nil {
+		return *m.Alpha
 	}
 	return 0
 }
 
-func (this *CodecVersion) GetBeta() int32 {
-	if this != nil && this.Beta != nil {
-		return *this.Beta
+func (m *CodecVersion) GetBeta() int32 {
+	if m != nil && m.Beta != nil {
+		return *m.Beta
 	}
 	return 0
 }
 
-func (this *CodecVersion) GetPreferAlpha() bool {
-	if this != nil && this.PreferAlpha != nil {
-		return *this.PreferAlpha
+func (m *CodecVersion) GetPreferAlpha() bool {
+	if m != nil && m.PreferAlpha != nil {
+		return *m.PreferAlpha
 	}
 	return Default_CodecVersion_PreferAlpha
 }
 
-func (this *CodecVersion) GetOpus() bool {
-	if this != nil && this.Opus != nil {
-		return *this.Opus
+func (m *CodecVersion) GetOpus() bool {
+	if m != nil && m.Opus != nil {
+		return *m.Opus
 	}
 	return Default_CodecVersion_Opus
 }
 
+// Used to communicate user stats between the server and clients.
 type UserStats struct {
-	Session           *uint32          `protobuf:"varint,1,opt,name=session" json:"session,omitempty"`
-	StatsOnly         *bool            `protobuf:"varint,2,opt,name=stats_only,def=0" json:"stats_only,omitempty"`
-	Certificates      [][]byte         `protobuf:"bytes,3,rep,name=certificates" json:"certificates,omitempty"`
-	FromClient        *UserStats_Stats `protobuf:"bytes,4,opt,name=from_client" json:"from_client,omitempty"`
-	FromServer        *UserStats_Stats `protobuf:"bytes,5,opt,name=from_server" json:"from_server,omitempty"`
-	UdpPackets        *uint32          `protobuf:"varint,6,opt,name=udp_packets" json:"udp_packets,omitempty"`
-	TcpPackets        *uint32          `protobuf:"varint,7,opt,name=tcp_packets" json:"tcp_packets,omitempty"`
-	UdpPingAvg        *float32         `protobuf:"fixed32,8,opt,name=udp_ping_avg" json:"udp_ping_avg,omitempty"`
-	UdpPingVar        *float32         `protobuf:"fixed32,9,opt,name=udp_ping_var" json:"udp_ping_var,omitempty"`
-	TcpPingAvg        *float32         `protobuf:"fixed32,10,opt,name=tcp_ping_avg" json:"tcp_ping_avg,omitempty"`
-	TcpPingVar        *float32         `protobuf:"fixed32,11,opt,name=tcp_ping_var" json:"tcp_ping_var,omitempty"`
-	Version           *Version         `protobuf:"bytes,12,opt,name=version" json:"version,omitempty"`
-	CeltVersions      []int32          `protobuf:"varint,13,rep,name=celt_versions" json:"celt_versions,omitempty"`
-	Address           []byte           `protobuf:"bytes,14,opt,name=address" json:"address,omitempty"`
-	Bandwidth         *uint32          `protobuf:"varint,15,opt,name=bandwidth" json:"bandwidth,omitempty"`
-	Onlinesecs        *uint32          `protobuf:"varint,16,opt,name=onlinesecs" json:"onlinesecs,omitempty"`
-	Idlesecs          *uint32          `protobuf:"varint,17,opt,name=idlesecs" json:"idlesecs,omitempty"`
-	StrongCertificate *bool            `protobuf:"varint,18,opt,name=strong_certificate,def=0" json:"strong_certificate,omitempty"`
-	Opus              *bool            `protobuf:"varint,19,opt,name=opus,def=0" json:"opus,omitempty"`
-	XXX_unrecognized  []byte           `json:"-"`
+	// User whose stats these are.
+	Session *uint32 `protobuf:"varint,1,opt,name=session" json:"session,omitempty"`
+	// True if the message contains only mutable stats (packets, ping).
+	StatsOnly *bool `protobuf:"varint,2,opt,name=stats_only,json=statsOnly,def=0" json:"stats_only,omitempty"`
+	// Full user certificate chain of the user certificate in DER format.
+	Certificates [][]byte `protobuf:"bytes,3,rep,name=certificates" json:"certificates,omitempty"`
+	// Packet statistics for packets received from the client.
+	FromClient *UserStats_Stats `protobuf:"bytes,4,opt,name=from_client,json=fromClient" json:"from_client,omitempty"`
+	// Packet statistics for packets sent by the server.
+	FromServer *UserStats_Stats `protobuf:"bytes,5,opt,name=from_server,json=fromServer" json:"from_server,omitempty"`
+	// Amount of UDP packets sent.
+	UdpPackets *uint32 `protobuf:"varint,6,opt,name=udp_packets,json=udpPackets" json:"udp_packets,omitempty"`
+	// Amount of TCP packets sent.
+	TcpPackets *uint32 `protobuf:"varint,7,opt,name=tcp_packets,json=tcpPackets" json:"tcp_packets,omitempty"`
+	// UDP ping average.
+	UdpPingAvg *float32 `protobuf:"fixed32,8,opt,name=udp_ping_avg,json=udpPingAvg" json:"udp_ping_avg,omitempty"`
+	// UDP ping variance.
+	UdpPingVar *float32 `protobuf:"fixed32,9,opt,name=udp_ping_var,json=udpPingVar" json:"udp_ping_var,omitempty"`
+	// TCP ping average.
+	TcpPingAvg *float32 `protobuf:"fixed32,10,opt,name=tcp_ping_avg,json=tcpPingAvg" json:"tcp_ping_avg,omitempty"`
+	// TCP ping variance.
+	TcpPingVar *float32 `protobuf:"fixed32,11,opt,name=tcp_ping_var,json=tcpPingVar" json:"tcp_ping_var,omitempty"`
+	// Client version.
+	Version *Version `protobuf:"bytes,12,opt,name=version" json:"version,omitempty"`
+	// A list of CELT bitstream version constants supported by the client of this
+	// user.
+	CeltVersions []int32 `protobuf:"varint,13,rep,name=celt_versions,json=celtVersions" json:"celt_versions,omitempty"`
+	// Client IP address.
+	Address []byte `protobuf:"bytes,14,opt,name=address" json:"address,omitempty"`
+	// Bandwith used by this client.
+	Bandwidth *uint32 `protobuf:"varint,15,opt,name=bandwidth" json:"bandwidth,omitempty"`
+	// Connection duration.
+	Onlinesecs *uint32 `protobuf:"varint,16,opt,name=onlinesecs" json:"onlinesecs,omitempty"`
+	// Duration since last activity.
+	Idlesecs *uint32 `protobuf:"varint,17,opt,name=idlesecs" json:"idlesecs,omitempty"`
+	// True if the user has a strong certificate.
+	StrongCertificate *bool  `protobuf:"varint,18,opt,name=strong_certificate,json=strongCertificate,def=0" json:"strong_certificate,omitempty"`
+	Opus              *bool  `protobuf:"varint,19,opt,name=opus,def=0" json:"opus,omitempty"`
+	XXX_unrecognized  []byte `json:"-"`
 }
 
-func (this *UserStats) Reset()         { *this = UserStats{} }
-func (this *UserStats) String() string { return proto.CompactTextString(this) }
-func (*UserStats) ProtoMessage()       {}
+func (m *UserStats) Reset()                    { *m = UserStats{} }
+func (m *UserStats) String() string            { return proto.CompactTextString(m) }
+func (*UserStats) ProtoMessage()               {}
+func (*UserStats) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{22} }
 
 const Default_UserStats_StatsOnly bool = false
 const Default_UserStats_StrongCertificate bool = false
 const Default_UserStats_Opus bool = false
 
-func (this *UserStats) GetSession() uint32 {
-	if this != nil && this.Session != nil {
-		return *this.Session
+func (m *UserStats) GetSession() uint32 {
+	if m != nil && m.Session != nil {
+		return *m.Session
 	}
 	return 0
 }
 
-func (this *UserStats) GetStatsOnly() bool {
-	if this != nil && this.StatsOnly != nil {
-		return *this.StatsOnly
+func (m *UserStats) GetStatsOnly() bool {
+	if m != nil && m.StatsOnly != nil {
+		return *m.StatsOnly
 	}
 	return Default_UserStats_StatsOnly
 }
 
-func (this *UserStats) GetFromClient() *UserStats_Stats {
-	if this != nil {
-		return this.FromClient
+func (m *UserStats) GetCertificates() [][]byte {
+	if m != nil {
+		return m.Certificates
 	}
 	return nil
 }
 
-func (this *UserStats) GetFromServer() *UserStats_Stats {
-	if this != nil {
-		return this.FromServer
+func (m *UserStats) GetFromClient() *UserStats_Stats {
+	if m != nil {
+		return m.FromClient
 	}
 	return nil
 }
 
-func (this *UserStats) GetUdpPackets() uint32 {
-	if this != nil && this.UdpPackets != nil {
-		return *this.UdpPackets
-	}
-	return 0
-}
-
-func (this *UserStats) GetTcpPackets() uint32 {
-	if this != nil && this.TcpPackets != nil {
-		return *this.TcpPackets
-	}
-	return 0
-}
-
-func (this *UserStats) GetUdpPingAvg() float32 {
-	if this != nil && this.UdpPingAvg != nil {
-		return *this.UdpPingAvg
-	}
-	return 0
-}
-
-func (this *UserStats) GetUdpPingVar() float32 {
-	if this != nil && this.UdpPingVar != nil {
-		return *this.UdpPingVar
-	}
-	return 0
-}
-
-func (this *UserStats) GetTcpPingAvg() float32 {
-	if this != nil && this.TcpPingAvg != nil {
-		return *this.TcpPingAvg
-	}
-	return 0
-}
-
-func (this *UserStats) GetTcpPingVar() float32 {
-	if this != nil && this.TcpPingVar != nil {
-		return *this.TcpPingVar
-	}
-	return 0
-}
-
-func (this *UserStats) GetVersion() *Version {
-	if this != nil {
-		return this.Version
+func (m *UserStats) GetFromServer() *UserStats_Stats {
+	if m != nil {
+		return m.FromServer
 	}
 	return nil
 }
 
-func (this *UserStats) GetAddress() []byte {
-	if this != nil {
-		return this.Address
+func (m *UserStats) GetUdpPackets() uint32 {
+	if m != nil && m.UdpPackets != nil {
+		return *m.UdpPackets
+	}
+	return 0
+}
+
+func (m *UserStats) GetTcpPackets() uint32 {
+	if m != nil && m.TcpPackets != nil {
+		return *m.TcpPackets
+	}
+	return 0
+}
+
+func (m *UserStats) GetUdpPingAvg() float32 {
+	if m != nil && m.UdpPingAvg != nil {
+		return *m.UdpPingAvg
+	}
+	return 0
+}
+
+func (m *UserStats) GetUdpPingVar() float32 {
+	if m != nil && m.UdpPingVar != nil {
+		return *m.UdpPingVar
+	}
+	return 0
+}
+
+func (m *UserStats) GetTcpPingAvg() float32 {
+	if m != nil && m.TcpPingAvg != nil {
+		return *m.TcpPingAvg
+	}
+	return 0
+}
+
+func (m *UserStats) GetTcpPingVar() float32 {
+	if m != nil && m.TcpPingVar != nil {
+		return *m.TcpPingVar
+	}
+	return 0
+}
+
+func (m *UserStats) GetVersion() *Version {
+	if m != nil {
+		return m.Version
 	}
 	return nil
 }
 
-func (this *UserStats) GetBandwidth() uint32 {
-	if this != nil && this.Bandwidth != nil {
-		return *this.Bandwidth
+func (m *UserStats) GetCeltVersions() []int32 {
+	if m != nil {
+		return m.CeltVersions
+	}
+	return nil
+}
+
+func (m *UserStats) GetAddress() []byte {
+	if m != nil {
+		return m.Address
+	}
+	return nil
+}
+
+func (m *UserStats) GetBandwidth() uint32 {
+	if m != nil && m.Bandwidth != nil {
+		return *m.Bandwidth
 	}
 	return 0
 }
 
-func (this *UserStats) GetOnlinesecs() uint32 {
-	if this != nil && this.Onlinesecs != nil {
-		return *this.Onlinesecs
+func (m *UserStats) GetOnlinesecs() uint32 {
+	if m != nil && m.Onlinesecs != nil {
+		return *m.Onlinesecs
 	}
 	return 0
 }
 
-func (this *UserStats) GetIdlesecs() uint32 {
-	if this != nil && this.Idlesecs != nil {
-		return *this.Idlesecs
+func (m *UserStats) GetIdlesecs() uint32 {
+	if m != nil && m.Idlesecs != nil {
+		return *m.Idlesecs
 	}
 	return 0
 }
 
-func (this *UserStats) GetStrongCertificate() bool {
-	if this != nil && this.StrongCertificate != nil {
-		return *this.StrongCertificate
+func (m *UserStats) GetStrongCertificate() bool {
+	if m != nil && m.StrongCertificate != nil {
+		return *m.StrongCertificate
 	}
 	return Default_UserStats_StrongCertificate
 }
 
-func (this *UserStats) GetOpus() bool {
-	if this != nil && this.Opus != nil {
-		return *this.Opus
+func (m *UserStats) GetOpus() bool {
+	if m != nil && m.Opus != nil {
+		return *m.Opus
 	}
 	return Default_UserStats_Opus
 }
 
 type UserStats_Stats struct {
-	Good             *uint32 `protobuf:"varint,1,opt,name=good" json:"good,omitempty"`
-	Late             *uint32 `protobuf:"varint,2,opt,name=late" json:"late,omitempty"`
-	Lost             *uint32 `protobuf:"varint,3,opt,name=lost" json:"lost,omitempty"`
+	// The amount of good packets received.
+	Good *uint32 `protobuf:"varint,1,opt,name=good" json:"good,omitempty"`
+	// The amount of late packets received.
+	Late *uint32 `protobuf:"varint,2,opt,name=late" json:"late,omitempty"`
+	// The amount of packets never received.
+	Lost *uint32 `protobuf:"varint,3,opt,name=lost" json:"lost,omitempty"`
+	// The amount of nonce resyncs.
 	Resync           *uint32 `protobuf:"varint,4,opt,name=resync" json:"resync,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
 
-func (this *UserStats_Stats) Reset()         { *this = UserStats_Stats{} }
-func (this *UserStats_Stats) String() string { return proto.CompactTextString(this) }
-func (*UserStats_Stats) ProtoMessage()       {}
+func (m *UserStats_Stats) Reset()                    { *m = UserStats_Stats{} }
+func (m *UserStats_Stats) String() string            { return proto.CompactTextString(m) }
+func (*UserStats_Stats) ProtoMessage()               {}
+func (*UserStats_Stats) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{22, 0} }
 
-func (this *UserStats_Stats) GetGood() uint32 {
-	if this != nil && this.Good != nil {
-		return *this.Good
+func (m *UserStats_Stats) GetGood() uint32 {
+	if m != nil && m.Good != nil {
+		return *m.Good
 	}
 	return 0
 }
 
-func (this *UserStats_Stats) GetLate() uint32 {
-	if this != nil && this.Late != nil {
-		return *this.Late
+func (m *UserStats_Stats) GetLate() uint32 {
+	if m != nil && m.Late != nil {
+		return *m.Late
 	}
 	return 0
 }
 
-func (this *UserStats_Stats) GetLost() uint32 {
-	if this != nil && this.Lost != nil {
-		return *this.Lost
+func (m *UserStats_Stats) GetLost() uint32 {
+	if m != nil && m.Lost != nil {
+		return *m.Lost
 	}
 	return 0
 }
 
-func (this *UserStats_Stats) GetResync() uint32 {
-	if this != nil && this.Resync != nil {
-		return *this.Resync
+func (m *UserStats_Stats) GetResync() uint32 {
+	if m != nil && m.Resync != nil {
+		return *m.Resync
 	}
 	return 0
 }
 
-type SuggestConfig struct {
-	Version          *uint32 `protobuf:"varint,1,opt,name=version" json:"version,omitempty"`
-	Positional       *bool   `protobuf:"varint,2,opt,name=positional" json:"positional,omitempty"`
-	PushToTalk       *bool   `protobuf:"varint,3,opt,name=push_to_talk" json:"push_to_talk,omitempty"`
-	XXX_unrecognized []byte  `json:"-"`
-}
-
-func (this *SuggestConfig) Reset()         { *this = SuggestConfig{} }
-func (this *SuggestConfig) String() string { return proto.CompactTextString(this) }
-func (*SuggestConfig) ProtoMessage()       {}
-
-func (this *SuggestConfig) GetVersion() uint32 {
-	if this != nil && this.Version != nil {
-		return *this.Version
-	}
-	return 0
-}
-
-func (this *SuggestConfig) GetPositional() bool {
-	if this != nil && this.Positional != nil {
-		return *this.Positional
-	}
-	return false
-}
-
-func (this *SuggestConfig) GetPushToTalk() bool {
-	if this != nil && this.PushToTalk != nil {
-		return *this.PushToTalk
-	}
-	return false
-}
-
+// Used by the client to request binary data from the server. By default large
+// comments or textures are not sent within standard messages but instead the
+// hash is. If the client does not recognize the hash it may request the
+// resource when it needs it. The client does so by sending a RequestBlob
+// message with the correct fields filled with the user sessions or channel_ids
+// it wants to receive. The server replies to this by sending a new
+// UserState/ChannelState message with the resources filled even if they would
+// normally be transmitted as hashes.
 type RequestBlob struct {
-	SessionTexture     []uint32 `protobuf:"varint,1,rep,name=session_texture" json:"session_texture,omitempty"`
-	SessionComment     []uint32 `protobuf:"varint,2,rep,name=session_comment" json:"session_comment,omitempty"`
-	ChannelDescription []uint32 `protobuf:"varint,3,rep,name=channel_description" json:"channel_description,omitempty"`
+	// sessions of the requested UserState textures.
+	SessionTexture []uint32 `protobuf:"varint,1,rep,name=session_texture,json=sessionTexture" json:"session_texture,omitempty"`
+	// sessions of the requested UserState comments.
+	SessionComment []uint32 `protobuf:"varint,2,rep,name=session_comment,json=sessionComment" json:"session_comment,omitempty"`
+	// channel_ids of the requested ChannelState descriptions.
+	ChannelDescription []uint32 `protobuf:"varint,3,rep,name=channel_description,json=channelDescription" json:"channel_description,omitempty"`
 	XXX_unrecognized   []byte   `json:"-"`
 }
 
-func (this *RequestBlob) Reset()         { *this = RequestBlob{} }
-func (this *RequestBlob) String() string { return proto.CompactTextString(this) }
-func (*RequestBlob) ProtoMessage()       {}
+func (m *RequestBlob) Reset()                    { *m = RequestBlob{} }
+func (m *RequestBlob) String() string            { return proto.CompactTextString(m) }
+func (*RequestBlob) ProtoMessage()               {}
+func (*RequestBlob) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{23} }
+
+func (m *RequestBlob) GetSessionTexture() []uint32 {
+	if m != nil {
+		return m.SessionTexture
+	}
+	return nil
+}
+
+func (m *RequestBlob) GetSessionComment() []uint32 {
+	if m != nil {
+		return m.SessionComment
+	}
+	return nil
+}
+
+func (m *RequestBlob) GetChannelDescription() []uint32 {
+	if m != nil {
+		return m.ChannelDescription
+	}
+	return nil
+}
+
+// Sent by the server when it informs the clients on server configuration
+// details.
+type ServerConfig struct {
+	// The maximum bandwidth the clients should use.
+	MaxBandwidth *uint32 `protobuf:"varint,1,opt,name=max_bandwidth,json=maxBandwidth" json:"max_bandwidth,omitempty"`
+	// Server welcome text.
+	WelcomeText *string `protobuf:"bytes,2,opt,name=welcome_text,json=welcomeText" json:"welcome_text,omitempty"`
+	// True if the server allows HTML.
+	AllowHtml *bool `protobuf:"varint,3,opt,name=allow_html,json=allowHtml" json:"allow_html,omitempty"`
+	// Maximum text message length.
+	MessageLength *uint32 `protobuf:"varint,4,opt,name=message_length,json=messageLength" json:"message_length,omitempty"`
+	// Maximum image message length.
+	ImageMessageLength *uint32 `protobuf:"varint,5,opt,name=image_message_length,json=imageMessageLength" json:"image_message_length,omitempty"`
+	// The maximum number of users allowed on the server.
+	MaxUsers         *uint32 `protobuf:"varint,6,opt,name=max_users,json=maxUsers" json:"max_users,omitempty"`
+	XXX_unrecognized []byte  `json:"-"`
+}
+
+func (m *ServerConfig) Reset()                    { *m = ServerConfig{} }
+func (m *ServerConfig) String() string            { return proto.CompactTextString(m) }
+func (*ServerConfig) ProtoMessage()               {}
+func (*ServerConfig) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{24} }
+
+func (m *ServerConfig) GetMaxBandwidth() uint32 {
+	if m != nil && m.MaxBandwidth != nil {
+		return *m.MaxBandwidth
+	}
+	return 0
+}
+
+func (m *ServerConfig) GetWelcomeText() string {
+	if m != nil && m.WelcomeText != nil {
+		return *m.WelcomeText
+	}
+	return ""
+}
+
+func (m *ServerConfig) GetAllowHtml() bool {
+	if m != nil && m.AllowHtml != nil {
+		return *m.AllowHtml
+	}
+	return false
+}
+
+func (m *ServerConfig) GetMessageLength() uint32 {
+	if m != nil && m.MessageLength != nil {
+		return *m.MessageLength
+	}
+	return 0
+}
+
+func (m *ServerConfig) GetImageMessageLength() uint32 {
+	if m != nil && m.ImageMessageLength != nil {
+		return *m.ImageMessageLength
+	}
+	return 0
+}
+
+func (m *ServerConfig) GetMaxUsers() uint32 {
+	if m != nil && m.MaxUsers != nil {
+		return *m.MaxUsers
+	}
+	return 0
+}
+
+// Sent by the server to inform the clients of suggested client configuration
+// specified by the server administrator.
+type SuggestConfig struct {
+	// Suggested client version.
+	Version *uint32 `protobuf:"varint,1,opt,name=version" json:"version,omitempty"`
+	// True if the administrator suggests positional audio to be used on this
+	// server.
+	Positional *bool `protobuf:"varint,2,opt,name=positional" json:"positional,omitempty"`
+	// True if the administrator suggests push to talk to be used on this server.
+	PushToTalk       *bool  `protobuf:"varint,3,opt,name=push_to_talk,json=pushToTalk" json:"push_to_talk,omitempty"`
+	XXX_unrecognized []byte `json:"-"`
+}
+
+func (m *SuggestConfig) Reset()                    { *m = SuggestConfig{} }
+func (m *SuggestConfig) String() string            { return proto.CompactTextString(m) }
+func (*SuggestConfig) ProtoMessage()               {}
+func (*SuggestConfig) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{25} }
+
+func (m *SuggestConfig) GetVersion() uint32 {
+	if m != nil && m.Version != nil {
+		return *m.Version
+	}
+	return 0
+}
+
+func (m *SuggestConfig) GetPositional() bool {
+	if m != nil && m.Positional != nil {
+		return *m.Positional
+	}
+	return false
+}
+
+func (m *SuggestConfig) GetPushToTalk() bool {
+	if m != nil && m.PushToTalk != nil {
+		return *m.PushToTalk
+	}
+	return false
+}
 
 func init() {
+	proto.RegisterType((*Version)(nil), "mumbleproto.Version")
+	proto.RegisterType((*UDPTunnel)(nil), "mumbleproto.UDPTunnel")
+	proto.RegisterType((*Authenticate)(nil), "mumbleproto.Authenticate")
+	proto.RegisterType((*Ping)(nil), "mumbleproto.Ping")
+	proto.RegisterType((*Reject)(nil), "mumbleproto.Reject")
+	proto.RegisterType((*ServerSync)(nil), "mumbleproto.ServerSync")
+	proto.RegisterType((*ChannelRemove)(nil), "mumbleproto.ChannelRemove")
+	proto.RegisterType((*ChannelState)(nil), "mumbleproto.ChannelState")
+	proto.RegisterType((*UserRemove)(nil), "mumbleproto.UserRemove")
+	proto.RegisterType((*UserState)(nil), "mumbleproto.UserState")
+	proto.RegisterType((*BanList)(nil), "mumbleproto.BanList")
+	proto.RegisterType((*BanList_BanEntry)(nil), "mumbleproto.BanList.BanEntry")
+	proto.RegisterType((*TextMessage)(nil), "mumbleproto.TextMessage")
+	proto.RegisterType((*PermissionDenied)(nil), "mumbleproto.PermissionDenied")
+	proto.RegisterType((*ACL)(nil), "mumbleproto.ACL")
+	proto.RegisterType((*ACL_ChanGroup)(nil), "mumbleproto.ACL.ChanGroup")
+	proto.RegisterType((*ACL_ChanACL)(nil), "mumbleproto.ACL.ChanACL")
+	proto.RegisterType((*QueryUsers)(nil), "mumbleproto.QueryUsers")
+	proto.RegisterType((*CryptSetup)(nil), "mumbleproto.CryptSetup")
+	proto.RegisterType((*ContextActionModify)(nil), "mumbleproto.ContextActionModify")
+	proto.RegisterType((*ContextAction)(nil), "mumbleproto.ContextAction")
+	proto.RegisterType((*UserList)(nil), "mumbleproto.UserList")
+	proto.RegisterType((*UserList_User)(nil), "mumbleproto.UserList.User")
+	proto.RegisterType((*VoiceTarget)(nil), "mumbleproto.VoiceTarget")
+	proto.RegisterType((*VoiceTarget_Target)(nil), "mumbleproto.VoiceTarget.Target")
+	proto.RegisterType((*PermissionQuery)(nil), "mumbleproto.PermissionQuery")
+	proto.RegisterType((*CodecVersion)(nil), "mumbleproto.CodecVersion")
+	proto.RegisterType((*UserStats)(nil), "mumbleproto.UserStats")
+	proto.RegisterType((*UserStats_Stats)(nil), "mumbleproto.UserStats.Stats")
+	proto.RegisterType((*RequestBlob)(nil), "mumbleproto.RequestBlob")
+	proto.RegisterType((*ServerConfig)(nil), "mumbleproto.ServerConfig")
+	proto.RegisterType((*SuggestConfig)(nil), "mumbleproto.SuggestConfig")
 	proto.RegisterEnum("mumbleproto.Reject_RejectType", Reject_RejectType_name, Reject_RejectType_value)
 	proto.RegisterEnum("mumbleproto.PermissionDenied_DenyType", PermissionDenied_DenyType_name, PermissionDenied_DenyType_value)
 	proto.RegisterEnum("mumbleproto.ContextActionModify_Context", ContextActionModify_Context_name, ContextActionModify_Context_value)
 	proto.RegisterEnum("mumbleproto.ContextActionModify_Operation", ContextActionModify_Operation_name, ContextActionModify_Operation_value)
+}
+
+var fileDescriptor0 = []byte{
+	// 2439 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xdc, 0x58, 0x4b, 0x73, 0x24, 0x47,
+	0x11, 0xa6, 0xe7, 0xa5, 0x99, 0x9c, 0x19, 0x69, 0xd4, 0xbb, 0x98, 0x41, 0x7e, 0xad, 0xdb, 0x60,
+	0x16, 0x70, 0x08, 0xa3, 0xf0, 0xc5, 0x8e, 0xe0, 0xa0, 0xd5, 0x62, 0xb4, 0xc1, 0x6a, 0xbd, 0xb4,
+	0xe4, 0xf5, 0x81, 0x43, 0xd3, 0xea, 0x2e, 0x8d, 0x1a, 0xf5, 0x74, 0x37, 0x5d, 0x3d, 0x5a, 0x4f,
+	0x04, 0x47, 0xe0, 0x0a, 0x11, 0x1c, 0xb8, 0xf1, 0x03, 0x08, 0xc2, 0x11, 0xfc, 0x00, 0x2e, 0xfc,
+	0x02, 0xfe, 0x00, 0x17, 0xae, 0xdc, 0x88, 0xe0, 0x4e, 0x3e, 0xaa, 0x5f, 0xd2, 0xac, 0xd7, 0x5c,
+	0xb9, 0xcc, 0x54, 0x7e, 0x95, 0x5d, 0x8f, 0xac, 0xfc, 0x32, 0xb3, 0x0a, 0x26, 0x27, 0xab, 0xe5,
+	0x79, 0xac, 0xf6, 0xb3, 0x3c, 0x2d, 0x52, 0x7b, 0xbc, 0x64, 0x89, 0x05, 0xe7, 0xb7, 0x16, 0x6c,
+	0x3d, 0x53, 0xb9, 0x8e, 0xd2, 0xc4, 0x9e, 0xc3, 0xd6, 0xb5, 0x34, 0xe7, 0xd6, 0x3d, 0xeb, 0xfe,
+	0xd4, 0x2d, 0x45, 0xea, 0xc9, 0x55, 0xac, 0x7c, 0xad, 0xe6, 0x1d, 0xec, 0x19, 0xb9, 0xa5, 0x68,
+	0x6f, 0x43, 0x27, 0xd5, 0xf3, 0x2e, 0x83, 0xd8, 0xb2, 0x5f, 0x07, 0x48, 0xb5, 0x57, 0x0e, 0xd3,
+	0x63, 0x7c, 0x94, 0xea, 0x72, 0x8a, 0xb7, 0x60, 0x12, 0xe4, 0xeb, 0xac, 0x48, 0xbd, 0x65, 0x1a,
+	0x2a, 0x3d, 0xef, 0xdf, 0xeb, 0xa2, 0xc2, 0x58, 0xb0, 0x13, 0x82, 0x9c, 0xb7, 0x61, 0xf4, 0xc9,
+	0xc3, 0xa7, 0x67, 0xab, 0x24, 0x51, 0xb1, 0xfd, 0x0a, 0x0c, 0x32, 0x3f, 0xb8, 0x52, 0x05, 0xae,
+	0xa8, 0x73, 0x7f, 0xe2, 0x1a, 0xc9, 0xf9, 0xa3, 0x05, 0x93, 0xc3, 0x55, 0x71, 0xa9, 0x92, 0x22,
+	0x0a, 0xfc, 0x42, 0xd9, 0x7b, 0x30, 0x5c, 0x69, 0x95, 0x27, 0xfe, 0x52, 0xf1, 0xe2, 0x47, 0x6e,
+	0x25, 0x53, 0x5f, 0xe6, 0x6b, 0xfd, 0x3c, 0xcd, 0x43, 0xb3, 0xfc, 0x4a, 0xa6, 0x09, 0x8a, 0xf4,
+	0x4a, 0x25, 0xb4, 0x07, 0x5a, 0x8a, 0x91, 0xec, 0xb7, 0x61, 0x1a, 0xa8, 0xb8, 0x28, 0x77, 0xa2,
+	0x71, 0x2b, 0xdd, 0xfb, 0x7d, 0x77, 0x42, 0xa0, 0xd9, 0x8c, 0xb6, 0xbf, 0x0e, 0xbd, 0x34, 0x5b,
+	0xd1, 0x2e, 0xac, 0xfb, 0xc3, 0x0f, 0xfb, 0x17, 0x7e, 0xac, 0x95, 0xcb, 0x90, 0xf3, 0xb7, 0x0e,
+	0xf4, 0x9e, 0x46, 0xc9, 0xc2, 0x7e, 0x0d, 0x46, 0x45, 0xb4, 0x54, 0xba, 0xf0, 0x97, 0x19, 0xaf,
+	0xac, 0xe7, 0xd6, 0x80, 0x6d, 0x43, 0x6f, 0x91, 0xa6, 0xb2, 0xac, 0xa9, 0xcb, 0x6d, 0xc2, 0x62,
+	0xdc, 0x12, 0x1b, 0x15, 0x31, 0x6a, 0x33, 0x96, 0xea, 0x82, 0x0d, 0x4a, 0x18, 0xb6, 0x69, 0xe9,
+	0xb9, 0xd2, 0xeb, 0x24, 0xe0, 0xf9, 0xa7, 0xae, 0x91, 0xec, 0x37, 0x61, 0xbc, 0x0a, 0x33, 0x4f,
+	0x2c, 0xa5, 0xe7, 0x03, 0xee, 0x04, 0x84, 0x9e, 0x0a, 0x42, 0x0a, 0x45, 0x50, 0x2b, 0x6c, 0x89,
+	0x02, 0x42, 0xa5, 0xc2, 0x3d, 0x98, 0xf0, 0x08, 0xb8, 0x7e, 0xcf, 0xbf, 0x5e, 0xcc, 0x87, 0xa8,
+	0xd1, 0x91, 0x21, 0x10, 0x3a, 0xbc, 0x5e, 0xb4, 0x34, 0xae, 0xfd, 0x7c, 0x3e, 0x6a, 0x69, 0x3c,
+	0xf3, 0x73, 0xd2, 0xe0, 0x49, 0xca, 0x31, 0x40, 0x34, 0x68, 0x96, 0x7a, 0x8c, 0x4a, 0x83, 0xc6,
+	0x18, 0xb7, 0x34, 0x70, 0x0c, 0xe7, 0xd7, 0x1d, 0x18, 0xb8, 0xea, 0xe7, 0x2a, 0x28, 0xec, 0x03,
+	0xe8, 0x15, 0xeb, 0x4c, 0xce, 0x76, 0xfb, 0xe0, 0x8d, 0xfd, 0x86, 0x0f, 0xef, 0x8b, 0x8a, 0xf9,
+	0x3b, 0x43, 0x2d, 0x97, 0x75, 0xc5, 0x40, 0xbe, 0x46, 0x3f, 0x94, 0x53, 0x37, 0x92, 0xf3, 0xb9,
+	0x05, 0x50, 0x2b, 0xdb, 0x43, 0xe8, 0x3d, 0x49, 0x13, 0x35, 0xfb, 0x8a, 0x3d, 0x83, 0xc9, 0xa7,
+	0x79, 0x8a, 0x73, 0xcb, 0x01, 0xcf, 0x2c, 0xfb, 0x0e, 0xec, 0x3c, 0x4a, 0xae, 0xfd, 0x38, 0x0a,
+	0x3f, 0x31, 0xde, 0x34, 0xeb, 0xd8, 0x3b, 0x30, 0x66, 0x35, 0x82, 0x9e, 0x7e, 0x3a, 0xeb, 0xda,
+	0xbb, 0x30, 0x65, 0xe0, 0x54, 0xe5, 0xd7, 0x0c, 0xf5, 0x08, 0x2a, 0xbf, 0x78, 0x94, 0x60, 0x6b,
+	0xd6, 0x47, 0xaa, 0x80, 0x28, 0x7c, 0xb4, 0x8a, 0xe3, 0xd9, 0x80, 0x54, 0x9e, 0xa4, 0x47, 0x2a,
+	0x2f, 0xa2, 0x0b, 0xf6, 0xe1, 0xd9, 0x96, 0xfd, 0x55, 0xd8, 0x6d, 0x78, 0x75, 0x9a, 0x7f, 0xe4,
+	0x47, 0xf1, 0x6c, 0xe8, 0xfc, 0xce, 0x2a, 0x3f, 0x3d, 0xa5, 0x03, 0x46, 0x36, 0x6a, 0xa5, 0x9b,
+	0x3c, 0x35, 0x22, 0x79, 0xed, 0xd2, 0xff, 0xcc, 0x3b, 0xf7, 0x93, 0xf0, 0x79, 0x14, 0x16, 0x97,
+	0xc6, 0xaf, 0x26, 0x08, 0x3e, 0x28, 0x31, 0xe2, 0xe0, 0x73, 0x15, 0x07, 0xe9, 0x52, 0x79, 0x85,
+	0xfa, 0xac, 0x30, 0xe4, 0x1d, 0x1b, 0xec, 0x0c, 0x21, 0x3c, 0x9a, 0x71, 0xa6, 0xf2, 0x65, 0xa4,
+	0x4b, 0xdf, 0x27, 0xb7, 0x6d, 0x42, 0xce, 0x3e, 0x4c, 0x8f, 0x2e, 0x7d, 0xe2, 0xa8, 0xab, 0x96,
+	0xe9, 0xb5, 0x22, 0xe2, 0x07, 0x02, 0x78, 0x51, 0xc8, 0x6c, 0x9d, 0xba, 0x23, 0x83, 0x3c, 0x0a,
+	0x9d, 0x7f, 0x74, 0x60, 0x62, 0x3e, 0x38, 0x2d, 0xc8, 0xa3, 0x6f, 0xea, 0x5b, 0x2d, 0x7d, 0x21,
+	0x7e, 0x8e, 0x86, 0x30, 0x5b, 0x30, 0x12, 0x11, 0x81, 0x39, 0x2e, 0x8b, 0xe6, 0xb6, 0x7d, 0x17,
+	0xfa, 0x71, 0x94, 0x5c, 0x09, 0x47, 0xa7, 0xae, 0x08, 0xb4, 0x07, 0x0c, 0x27, 0x41, 0x1e, 0x65,
+	0x05, 0x59, 0xaa, 0x2f, 0xbb, 0x6c, 0x40, 0xf6, 0xab, 0x30, 0x62, 0x55, 0xcf, 0x0f, 0x43, 0xa4,
+	0x09, 0x7d, 0x3b, 0x64, 0xe0, 0x30, 0x0c, 0xc9, 0x4a, 0xd2, 0x99, 0xf3, 0xfe, 0x90, 0x25, 0xd4,
+	0x3f, 0x66, 0xcc, 0x6c, 0x19, 0x23, 0x55, 0xa1, 0x96, 0x59, 0x9a, 0xfb, 0xf9, 0x9a, 0x39, 0x52,
+	0xc5, 0x80, 0x1a, 0xc7, 0x7d, 0x0e, 0xb3, 0x54, 0x47, 0xbc, 0x06, 0x62, 0x49, 0xff, 0x43, 0xeb,
+	0x3d, 0xb7, 0x82, 0xec, 0x6f, 0xc3, 0xac, 0xb1, 0x24, 0xef, 0xd2, 0xd7, 0x97, 0x4c, 0x95, 0x89,
+	0xbb, 0xd3, 0xc0, 0x8f, 0x11, 0xa6, 0xe5, 0xd2, 0xe1, 0x52, 0x58, 0xd3, 0x4c, 0x16, 0x5c, 0x2e,
+	0x02, 0xe4, 0x66, 0xda, 0xb9, 0x00, 0xa0, 0x86, 0x59, 0x59, 0xcb, 0x43, 0x3a, 0x4d, 0x0f, 0x41,
+	0x5b, 0xf9, 0x01, 0x7a, 0x96, 0x31, 0xab, 0x08, 0x0d, 0xa6, 0x74, 0x9b, 0x4c, 0x41, 0x42, 0x74,
+	0xd1, 0x97, 0xf8, 0xfc, 0x87, 0x2e, 0x35, 0x9d, 0x3f, 0xf7, 0x30, 0x3c, 0xe3, 0x44, 0x72, 0x88,
+	0x2f, 0xf6, 0xc4, 0xcd, 0xf3, 0x6c, 0x3a, 0xbd, 0xaf, 0xc1, 0x16, 0x6d, 0x89, 0xbc, 0x40, 0xa2,
+	0xdb, 0x80, 0x44, 0x74, 0x81, 0xb6, 0x87, 0xf4, 0x6f, 0x7a, 0x08, 0x8e, 0xb5, 0x5c, 0x61, 0x98,
+	0x1c, 0xf0, 0xe2, 0xb8, 0x4d, 0x58, 0xa8, 0xfc, 0x0b, 0x0e, 0x69, 0x88, 0x51, 0x9b, 0xa2, 0xbf,
+	0x5e, 0x65, 0x19, 0x06, 0x47, 0x2d, 0x87, 0xe4, 0x56, 0x32, 0x99, 0x54, 0xab, 0xf8, 0xc2, 0xe3,
+	0x81, 0x46, 0xa6, 0x13, 0x81, 0x13, 0x1a, 0xac, 0xec, 0xe4, 0x11, 0xa1, 0xee, 0x7c, 0x48, 0xa3,
+	0xe2, 0xce, 0x89, 0x3c, 0xab, 0x5c, 0xf1, 0x51, 0x4c, 0xdc, 0x52, 0xb4, 0xbf, 0x09, 0xdb, 0x59,
+	0xbc, 0x5a, 0x44, 0x89, 0x17, 0xa4, 0x09, 0x13, 0x6c, 0xc2, 0x0a, 0x53, 0x41, 0x8f, 0x04, 0xb4,
+	0xbf, 0x05, 0x3b, 0x46, 0x2d, 0x0a, 0x89, 0xef, 0xc5, 0x7a, 0x3e, 0x65, 0xab, 0x98, 0xaf, 0x1f,
+	0x19, 0x94, 0x66, 0x42, 0x5e, 0x2e, 0x89, 0x0a, 0xdb, 0x92, 0x7b, 0x8d, 0x48, 0xbb, 0x65, 0x7f,
+	0xd9, 0x11, 0x6b, 0x52, 0x9b, 0x13, 0xac, 0x74, 0x8b, 0x2f, 0xcd, 0x78, 0xee, 0xb1, 0xc1, 0x8e,
+	0x8d, 0x8a, 0x59, 0xab, 0xa8, 0xec, 0x8a, 0x8a, 0xc1, 0x58, 0x05, 0xbd, 0x32, 0xcb, 0xa3, 0x34,
+	0xc7, 0xf9, 0x3d, 0x9d, 0x29, 0xff, 0x4a, 0xe5, 0x73, 0x9b, 0x2d, 0xb0, 0x53, 0xe2, 0xa7, 0x02,
+	0x53, 0x7e, 0xcb, 0x55, 0x80, 0xa9, 0x14, 0x63, 0xf6, 0xfc, 0x0e, 0xeb, 0xd4, 0x80, 0xf3, 0x9b,
+	0x0e, 0x6c, 0x61, 0xe4, 0x79, 0x1c, 0x61, 0xbe, 0xfa, 0x3e, 0xf4, 0xd0, 0x83, 0x34, 0x7a, 0x4a,
+	0xf7, 0xfe, 0xf8, 0xe0, 0xf5, 0x56, 0x08, 0x37, 0x3a, 0xf4, 0xff, 0xc3, 0xa4, 0xc8, 0xd7, 0x2e,
+	0xab, 0xe2, 0x11, 0xf4, 0x7f, 0xb1, 0x52, 0xc8, 0xae, 0x4e, 0x93, 0x5d, 0x82, 0xed, 0xfd, 0xc9,
+	0x82, 0x61, 0xa9, 0x4f, 0x56, 0x42, 0x16, 0xf3, 0x21, 0x4b, 0xa5, 0x50, 0x8a, 0xec, 0x27, 0xbe,
+	0xbe, 0xc2, 0x21, 0x88, 0x08, 0xdc, 0xde, 0xe8, 0x87, 0xa5, 0x35, 0x7b, 0x0d, 0x6b, 0xd6, 0xbc,
+	0xe8, 0xb7, 0x78, 0x81, 0xde, 0x8d, 0xf9, 0x3b, 0x2f, 0xd8, 0xf9, 0x46, 0xae, 0x08, 0xe4, 0x69,
+	0xe1, 0x2a, 0xf7, 0x99, 0xea, 0x92, 0x54, 0x2b, 0x99, 0xea, 0xac, 0x31, 0x85, 0xd6, 0x13, 0x5c,
+	0x92, 0xbf, 0x50, 0x35, 0x3f, 0xac, 0x26, 0x3f, 0x1a, 0x7c, 0xea, 0x70, 0xbc, 0xa9, 0xf8, 0xd4,
+	0x26, 0x43, 0x97, 0x3b, 0x1b, 0x64, 0x40, 0x12, 0x15, 0xb9, 0x52, 0x42, 0x22, 0xea, 0x1b, 0x90,
+	0x88, 0x1d, 0x38, 0xe2, 0x52, 0xa6, 0xc4, 0x2d, 0x74, 0xc8, 0x7b, 0x8c, 0xe8, 0xfc, 0xbe, 0x0b,
+	0xb3, 0xa7, 0x55, 0x44, 0x7f, 0xa8, 0x92, 0x48, 0x85, 0xf6, 0x1b, 0x00, 0x75, 0x94, 0x37, 0x6b,
+	0x6b, 0x20, 0x37, 0x96, 0xd1, 0xb9, 0xc9, 0xc9, 0xc6, 0xfa, 0xbb, 0xed, 0x78, 0x50, 0x5b, 0xb2,
+	0xd7, 0xb2, 0xe4, 0x87, 0x26, 0xaf, 0xf7, 0x39, 0xaf, 0xbf, 0xd3, 0x72, 0x8a, 0x9b, 0xab, 0xdb,
+	0xc7, 0xbf, 0x75, 0x23, 0xbf, 0x97, 0xa7, 0x38, 0xa8, 0x4f, 0xd1, 0xf9, 0x2b, 0x3a, 0x45, 0xa9,
+	0x46, 0x99, 0x9d, 0x6c, 0x8e, 0x99, 0x1d, 0x73, 0x6f, 0x3d, 0x1a, 0xe6, 0xf5, 0x29, 0x8c, 0x4e,
+	0x57, 0xb8, 0x2f, 0x0a, 0x65, 0x92, 0xd1, 0x4d, 0x72, 0x7a, 0x42, 0x29, 0xbe, 0x4b, 0x00, 0x7d,
+	0x79, 0x96, 0xa6, 0x8f, 0x31, 0xaf, 0x63, 0x3e, 0xdf, 0x82, 0xee, 0xf1, 0x07, 0x3f, 0xc6, 0x2c,
+	0x7e, 0x17, 0x66, 0x67, 0x65, 0x70, 0x37, 0xdf, 0x60, 0x2e, 0x7f, 0x05, 0xec, 0x13, 0x1a, 0x3c,
+	0x59, 0xb4, 0x13, 0xfa, 0x04, 0x86, 0x34, 0x05, 0x8f, 0x3a, 0x6c, 0x4c, 0xc3, 0x25, 0xc0, 0x88,
+	0x0a, 0x8e, 0x27, 0x58, 0x09, 0xe2, 0x67, 0x8f, 0xa3, 0x65, 0x54, 0xcc, 0xc0, 0xf9, 0x55, 0x1f,
+	0xba, 0x87, 0x47, 0x8f, 0x5f, 0x92, 0x4e, 0x31, 0x7a, 0x4c, 0xa2, 0xe4, 0x52, 0x21, 0x11, 0x3d,
+	0x3f, 0x88, 0xb5, 0xe1, 0x47, 0xaf, 0xc8, 0x57, 0xca, 0x1d, 0x9b, 0x9e, 0x43, 0xec, 0xc0, 0xba,
+	0x69, 0xb0, 0xc8, 0xd3, 0x55, 0x26, 0xf5, 0xed, 0xf8, 0x60, 0xaf, 0x65, 0x61, 0x9c, 0x69, 0x9f,
+	0x56, 0xf4, 0x23, 0x52, 0x71, 0x8d, 0xa6, 0xfd, 0x2e, 0xf4, 0x78, 0xd0, 0x1e, 0x7f, 0x31, 0xdf,
+	0xf8, 0x05, 0xfe, 0xbb, 0xac, 0x55, 0x73, 0xb4, 0xbf, 0x81, 0xa3, 0xff, 0xb4, 0x60, 0x54, 0x4d,
+	0x50, 0x1d, 0x98, 0xc5, 0x9e, 0x28, 0xb4, 0x73, 0x60, 0x64, 0xd6, 0xab, 0xc2, 0xd6, 0x36, 0x6a,
+	0x18, 0xbd, 0x72, 0xcb, 0x08, 0xec, 0x56, 0xa5, 0x46, 0x09, 0xda, 0xef, 0x40, 0xb9, 0x67, 0x1f,
+	0x17, 0x2a, 0xe9, 0xea, 0x86, 0x31, 0xa8, 0x83, 0xd2, 0x19, 0xa5, 0xfa, 0x3e, 0x33, 0x84, 0x9a,
+	0xe2, 0x96, 0x9c, 0xdf, 0x25, 0xff, 0x1b, 0xc9, 0xfe, 0x2e, 0xec, 0x56, 0xd3, 0x7b, 0x4b, 0xb5,
+	0x3c, 0xa7, 0x9c, 0x2b, 0x25, 0xc0, 0xac, 0xea, 0x38, 0x11, 0x7c, 0xef, 0xef, 0x78, 0x87, 0x32,
+	0x36, 0xc1, 0x9a, 0x00, 0xfc, 0x2c, 0x8b, 0xd7, 0x1e, 0xea, 0x48, 0xb5, 0x5a, 0xed, 0x87, 0xf1,
+	0x63, 0x84, 0x6b, 0x25, 0xbd, 0x3a, 0x6f, 0x9f, 0x9d, 0x28, 0x9d, 0x22, 0xdc, 0x36, 0x4c, 0x77,
+	0xb3, 0x61, 0x5e, 0x98, 0x3b, 0x31, 0xbc, 0xf0, 0x61, 0x9a, 0xb8, 0x25, 0x82, 0xa0, 0x7e, 0x52,
+	0x98, 0x3b, 0x81, 0x08, 0x92, 0x34, 0x93, 0xb5, 0x09, 0x59, 0xdc, 0x76, 0xde, 0x07, 0xf8, 0x09,
+	0x1d, 0x20, 0x17, 0x17, 0x64, 0xb7, 0x28, 0x94, 0xc0, 0x8d, 0x76, 0xc3, 0x26, 0x8d, 0x44, 0xa7,
+	0xa7, 0x39, 0x4c, 0xe1, 0xf8, 0x2c, 0x38, 0x21, 0xc0, 0x11, 0xdd, 0xe4, 0x4e, 0x55, 0x81, 0xb3,
+	0xe1, 0x57, 0x57, 0x6a, 0xcd, 0x36, 0x98, 0xb8, 0xd4, 0xe4, 0xe4, 0x14, 0x47, 0x94, 0x9b, 0x92,
+	0x34, 0x09, 0xe4, 0x2e, 0x49, 0xc9, 0x89, 0xb1, 0x27, 0x04, 0x91, 0x8a, 0xe6, 0x4a, 0xd7, 0xa8,
+	0x74, 0x45, 0x45, 0x30, 0x56, 0x71, 0xfe, 0x63, 0xc1, 0x1d, 0x93, 0x45, 0x0f, 0x03, 0x0a, 0xae,
+	0x78, 0x6f, 0x8c, 0x2e, 0xd6, 0x74, 0x96, 0x3e, 0xcb, 0xc6, 0xbf, 0x8c, 0x44, 0xfb, 0xe3, 0x34,
+	0x2c, 0x97, 0x00, 0x6e, 0x4b, 0x52, 0x4d, 0xaa, 0xf2, 0x77, 0xea, 0x96, 0xa2, 0x7d, 0x0c, 0xa3,
+	0x14, 0x03, 0x83, 0x44, 0xf1, 0x1e, 0x47, 0xa5, 0xef, 0xb4, 0x18, 0xb0, 0x61, 0xea, 0xfd, 0x8f,
+	0xcb, 0x2f, 0xdc, 0xfa, 0x63, 0xe7, 0x5d, 0xf4, 0x0a, 0x33, 0x28, 0xc0, 0x40, 0xea, 0x77, 0x0c,
+	0x3d, 0x63, 0x71, 0x16, 0x8a, 0x1b, 0x1d, 0x8a, 0x50, 0x1c, 0x82, 0x7a, 0xce, 0x3d, 0x18, 0x55,
+	0xa3, 0x50, 0xb4, 0xc1, 0x1a, 0x14, 0xe3, 0x16, 0xd0, 0x05, 0x88, 0x3c, 0x72, 0x66, 0x39, 0x3f,
+	0xc3, 0x92, 0xbb, 0x39, 0xf7, 0x17, 0x54, 0x5f, 0x2f, 0x09, 0xd3, 0xb5, 0xa5, 0xba, 0x4d, 0x4b,
+	0x39, 0x7f, 0xb1, 0x24, 0x5c, 0x71, 0xba, 0x7e, 0x0f, 0xfa, 0x52, 0x6a, 0x5a, 0x1b, 0x02, 0x47,
+	0xa9, 0xc5, 0x0d, 0x57, 0x14, 0xf7, 0xb4, 0x6c, 0xa6, 0xe9, 0x95, 0x12, 0xb8, 0x4a, 0xaf, 0x2c,
+	0xf9, 0xdf, 0x69, 0xa4, 0x5d, 0x2a, 0xc2, 0x7d, 0x5d, 0x78, 0x5a, 0xa9, 0xb2, 0xfa, 0x1c, 0x12,
+	0x70, 0x8a, 0x32, 0x17, 0xe1, 0xd4, 0x69, 0x96, 0x6e, 0x9c, 0x7c, 0x4c, 0x98, 0xb1, 0xa1, 0xf3,
+	0x6f, 0x4c, 0xac, 0xcf, 0xd2, 0x28, 0x50, 0x67, 0x7e, 0xbe, 0x50, 0x05, 0x3d, 0x48, 0x54, 0xf7,
+	0x09, 0x6c, 0xd9, 0x1f, 0x60, 0x66, 0xe4, 0x1e, 0xf1, 0xd5, 0xf1, 0xc1, 0x9b, 0xad, 0x8d, 0x34,
+	0x3e, 0xdd, 0x97, 0x3f, 0xb7, 0xd4, 0xdf, 0xfb, 0x83, 0x05, 0x03, 0x33, 0x6a, 0xcb, 0xd4, 0xdd,
+	0xff, 0xc1, 0xd4, 0x15, 0x11, 0xbb, 0x4d, 0x22, 0xbe, 0x5a, 0xdf, 0x58, 0x9a, 0x31, 0x53, 0x2e,
+	0x2e, 0x6f, 0xc1, 0x30, 0xb8, 0x8c, 0x62, 0xac, 0x5e, 0x92, 0x76, 0x4c, 0xad, 0x60, 0x27, 0x85,
+	0x9d, 0x3a, 0x9d, 0x31, 0x51, 0x5f, 0x76, 0x9f, 0xba, 0x71, 0xa3, 0x93, 0x75, 0x36, 0x21, 0x5a,
+	0xd3, 0x45, 0xbc, 0xc2, 0x02, 0xa8, 0xdb, 0x5a, 0x13, 0x63, 0xce, 0x2f, 0xf1, 0xf6, 0x96, 0x86,
+	0x2a, 0x28, 0xdf, 0x71, 0xa8, 0x7c, 0x89, 0xb3, 0x4b, 0x9f, 0x0f, 0xb8, 0xef, 0x8a, 0x40, 0xe7,
+	0x7b, 0xae, 0x0a, 0x9f, 0x4b, 0xad, 0xbe, 0xcb, 0x6d, 0xca, 0x54, 0x58, 0x6b, 0x5f, 0xa0, 0x3b,
+	0xc8, 0x07, 0xe4, 0x71, 0x55, 0x70, 0x96, 0x9e, 0x43, 0xfe, 0xb8, 0x7c, 0x4c, 0xe9, 0xdd, 0x7e,
+	0x4c, 0xf9, 0x7c, 0x50, 0x5f, 0x3a, 0xf4, 0x17, 0xb8, 0xfd, 0x37, 0x00, 0x34, 0xa9, 0x78, 0x69,
+	0x12, 0xdf, 0xa8, 0x19, 0x47, 0xdc, 0xf1, 0x31, 0xe2, 0x18, 0x58, 0x27, 0x41, 0x9d, 0xa4, 0x25,
+	0x31, 0x4e, 0xdc, 0x16, 0x66, 0xff, 0x00, 0xc6, 0x17, 0x79, 0xba, 0xf4, 0x24, 0x34, 0xf1, 0x9a,
+	0xc6, 0x07, 0xaf, 0xdd, 0xa2, 0x00, 0x2f, 0x68, 0x9f, 0x7f, 0x5d, 0xa0, 0x0f, 0x8e, 0x58, 0xbf,
+	0xfa, 0x5c, 0xc2, 0x16, 0x9f, 0xe2, 0x97, 0xfa, 0x5c, 0x82, 0xc4, 0xff, 0xcf, 0x0b, 0x8e, 0xbd,
+	0x5f, 0x3f, 0x29, 0x4e, 0xd8, 0x08, 0x77, 0xdb, 0xec, 0x93, 0xbe, 0xfa, 0xa1, 0xf1, 0xd6, 0xb3,
+	0xdb, 0x74, 0xc3, 0xb3, 0x5b, 0xa3, 0xd6, 0xdf, 0x96, 0xbb, 0x57, 0x59, 0xeb, 0xe3, 0x65, 0xa4,
+	0x7e, 0xfb, 0xd8, 0x11, 0x0e, 0x54, 0x00, 0x15, 0xb7, 0xe8, 0x18, 0x51, 0xa2, 0xb4, 0x0a, 0x34,
+	0xdf, 0x8c, 0xd0, 0x68, 0x35, 0x42, 0xf5, 0x7b, 0x14, 0xc6, 0xd2, 0xbb, 0x2b, 0xf5, 0x7b, 0x29,
+	0xdb, 0xef, 0x83, 0xad, 0x0b, 0x7a, 0xe3, 0xf1, 0x1a, 0x7e, 0x22, 0x77, 0xa2, 0xd2, 0xc5, 0x76,
+	0x45, 0xa1, 0x51, 0x00, 0x56, 0x3e, 0x7d, 0xe7, 0x96, 0x4f, 0xef, 0xfd, 0x14, 0xfa, 0xe2, 0xce,
+	0xe5, 0x13, 0xa0, 0xb5, 0xe1, 0x09, 0xb0, 0xb3, 0xe1, 0x09, 0xb0, 0xbb, 0xf1, 0x09, 0xb0, 0xd7,
+	0x7c, 0x02, 0xa4, 0x07, 0xa3, 0xb1, 0xab, 0xb0, 0x04, 0xd3, 0xc5, 0x83, 0x38, 0x3d, 0xa7, 0xcb,
+	0xa6, 0xe1, 0x88, 0x57, 0xde, 0x5a, 0x25, 0x8c, 0x6d, 0x1b, 0xf8, 0xcc, 0x5c, 0x5e, 0x1b, 0x8a,
+	0xe5, 0xa5, 0xb3, 0xd3, 0x52, 0x3c, 0x32, 0x77, 0xcf, 0xef, 0xc1, 0x9d, 0x32, 0xdc, 0x34, 0x5f,
+	0x59, 0xe4, 0x62, 0x62, 0x9b, 0xae, 0x87, 0x75, 0x8f, 0xf3, 0x2f, 0x0b, 0x26, 0xe2, 0xde, 0x98,
+	0xc4, 0x2e, 0xa2, 0xc5, 0xed, 0xb7, 0x2a, 0xeb, 0x4b, 0xbc, 0x55, 0x75, 0x6e, 0xbf, 0x55, 0x61,
+	0xe0, 0xf3, 0xe3, 0x38, 0x7d, 0xee, 0x5d, 0x16, 0xcb, 0x58, 0x82, 0x17, 0x96, 0x51, 0x84, 0x1c,
+	0x23, 0x40, 0xd7, 0x71, 0x73, 0xe3, 0xf1, 0x62, 0x95, 0x2c, 0x8a, 0x4b, 0x63, 0xaa, 0xa9, 0x41,
+	0x1f, 0x33, 0x88, 0xd9, 0xee, 0x6e, 0xb4, 0x24, 0xa5, 0x1b, 0xca, 0xf2, 0xec, 0x60, 0x73, 0xdf,
+	0x49, 0xeb, 0x8b, 0xd6, 0x73, 0xcc, 0xe0, 0xc6, 0x73, 0xcc, 0x15, 0x4c, 0x4f, 0x57, 0x8b, 0x05,
+	0xda, 0xdf, 0xec, 0xf6, 0xc5, 0x6f, 0xeb, 0x74, 0xe5, 0x32, 0xaf, 0x41, 0x7e, 0x2c, 0x41, 0xcb,
+	0x6d, 0x20, 0x44, 0x32, 0xf4, 0x97, 0x4b, 0xaf, 0x48, 0xbd, 0xc2, 0x8f, 0xaf, 0xcc, 0x0e, 0x81,
+	0xb0, 0xb3, 0xf4, 0x0c, 0x91, 0x07, 0x9d, 0x63, 0xeb, 0xbf, 0x01, 0x00, 0x00, 0xff, 0xff, 0xd2,
+	0x28, 0x7a, 0x6e, 0xe3, 0x17, 0x00, 0x00,
 }
