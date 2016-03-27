@@ -7,9 +7,9 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/mumble-voip/grumble/pkg/blobstore"
+	"github.com/mumble-voip/grumble/pkg/logtarget"
 	"log"
-	"mumble.info/grumble/pkg/blobstore"
-	"mumble.info/grumble/pkg/logtarget"
 	"os"
 	"path/filepath"
 	"regexp"
