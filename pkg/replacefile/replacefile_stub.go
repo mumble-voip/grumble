@@ -13,7 +13,7 @@ import (
 var (
 	errOnlyWindows                    = errors.New("replacefile: only implemented on Windows")
 	ErrUnableToMoveReplacement  error = errOnlyWindows
-	ErrUnableToMoveReplacement2 error = errOnlyOnWindows
+	ErrUnableToMoveReplacement2 error = errOnlyWindows
 	ErrUnableToRemoveReplaced   error = errOnlyWindows
 )
 
