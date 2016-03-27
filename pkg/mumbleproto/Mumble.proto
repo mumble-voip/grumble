@@ -3,6 +3,8 @@ package mumbleproto;
 option optimize_for = SPEED;
 
 message Version {
+	repeated string crypto_modes = 5;
+
 	// 2-byte Major, 1-byte Minor and 1-byte Patch version number.
 	optional uint32 version = 1;
 	// Client release name.
@@ -11,7 +13,6 @@ message Version {
 	optional string os = 3;
 	// Client OS version.
 	optional string os_version = 4;
-	repeated string crypto_modes = 5;
 }
 
 // Not used. Not even for tunneling UDP through TCP.
