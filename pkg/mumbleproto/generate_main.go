@@ -12,6 +12,9 @@ import (
 
 var replacements = []string{
 	`(?m)^package MumbleProto;$`, `package mumbleproto;`,
+
+	// Add crypto_modes to Version message.
+	// It is only present in Grumble, not in upstream Murmur.
 	`(?m)^(message Version {)$`, "$1\n\trepeated string crypto_modes = 5;\n",
 }
 
