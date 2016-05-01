@@ -24,6 +24,6 @@ and on Windows, do something like this (for cmd.exe):
 
 Then, it's time to install Grumble. The following line should do the trick:
 
-    $ go get mumble.info/grumble/cmd/grumble
+    $ go get github.com/mumble-voip/grumble/cmd/grumble
 
 And that should be it. Grumble has been built, and is available in $GOPATH/bin as 'grumble'.
