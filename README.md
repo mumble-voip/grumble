@@ -27,3 +27,20 @@ Then, it's time to install Grumble. The following line should do the trick:
     $ go get mumble.info/grumble/cmd/grumble
 
 And that should be it. Grumble has been built, and is available in $GOPATH/bin as 'grumble'.
+
+Project status
+==============
+
+Grumble is pretty much feature complete, except for a few "minor" things.
+
+There is no bandwidth limiting, and there is no API to remote control it.
+
+Grumble's persistence layer is very ad-hoc. It uses an append-only file to store delta updates to each server's internal data, and periodically, it syncs a server's full data to disk.
+
+Grumble is currently architected to have all data in memory. That means it's not ideal for use with very very large servers. (And large servers in this context are servers with many registered users, ACLs, etc.).
+
+It is architected this way because it allowed me to write a pure-Go program with very few external dependencies, back 4-5 years ago.
+
+The current thinking is that if registered users are taking up too much of your memory, you should use an external authenticator. But that code isn't written yet. The concept would be equivalent to Murmur's authenticator API via RPC. But a Grumble authenticator would probably be set up more akin to a webhook -- so just a URL in the config file.
+
+Then there's the API problem. You can't currently remote control Grumble. Which can make it hard to use in production. I imagine Grumble will grow an API that it makes available via HTTP. Murmur's API is already quite stateless in many regards, so it shouldn't be too much of a stretch to put a RESTful API in Grumble to do the same job.
