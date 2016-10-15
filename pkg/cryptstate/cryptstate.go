@@ -58,8 +58,6 @@ func createMode(mode string) (CryptoMode, error) {
 		return &ocb2Mode{}, nil
 	case "XSalsa20-Poly1305":
 		return &secretBoxMode{}, nil
-	case "NULL":
-		return &nullMode{}, nil
 	}
 	return nil, errors.New("cryptstate: no such CryptoMode")
 }
