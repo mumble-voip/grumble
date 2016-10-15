@@ -160,29 +160,3 @@ func TestXSalsa20Poly1305Decrypt(t *testing.T) {
 		t.Fatalf("mismatch! got\n%x\n, expected\n%x", dst, expected)
 	}
 }
-
-func TestNullEncrypt(t *testing.T) {
-	cs := CryptState{}
-	cs.SetKey("NULL", []byte{}, []byte{1}, []byte{1})
-	msg := []byte("HelloWorld")
-	dst := make([]byte, len(msg)+cs.Overhead())
-	cs.Encrypt(dst, msg)
-	if !bytes.Equal(dst[1:], msg) {
-		t.Fatalf("mismatch! got\n%x\n, expected\n%x", dst, msg)
-	}
-}
-
-func TestNullDecrypt(t *testing.T) {
-	cs := CryptState{}
-	cs.SetKey("NULL", []byte{}, []byte{1}, []byte{1})
-	msg := []byte{2}
-	msg = append(msg, []byte("HelloWorld")...)
-	dst := make([]byte, len(msg)-cs.Overhead())
-	err := cs.Decrypt(dst, msg)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	if !bytes.Equal(dst, msg[1:]) {
-		t.Fatalf("mismatch! got\n%x\n, expected\n%x", dst, msg)
-	}
-}
