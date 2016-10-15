@@ -1,3 +1,13 @@
+
+Linux CI (Travis CI):
+
+[![Build Status](https://travis-ci.org/mumble-voip/grumble.svg?branch=master)](https://travis-ci.org/mumble-voip/grumble)
+
+Windows CI (AppVeyor):
+
+[![Build status](https://ci.appveyor.com/api/projects/status/yfvg0eagpuy9kgg9/branch/master?svg=true)](https://ci.appveyor.com/project/mumble-voip/grumble/branch/master)
+
+
 What is Grumble?
 ================
 
