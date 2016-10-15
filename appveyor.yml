@@ -1,0 +1,13 @@
+os: Windows Server 2012 R2
+
+clone_folder: c:\gopath\src\mumble.info\grumble
+
+environment:
+  GOPATH: c:\gopath
+
+install:
+  - go get -v -t ./...
+
+build_script:
+  - go build mumble.info/grumble/cmd/grumble
+  - go test -v ./...
