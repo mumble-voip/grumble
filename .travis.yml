@@ -1,0 +1,8 @@
+language: go
+
+go:
+  - 1.7
+
+go_import_path: mumble.info/grumble
+
+script: go test -v ./...
