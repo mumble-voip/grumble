@@ -194,7 +194,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) error {
 			return errors.New("cryptstate: no matching ivbyte")
 		}
 
-		if cs.decryptHistory[cs.DecryptIV[0]] == cs.DecryptIV[0] {
+		if cs.decryptHistory[cs.DecryptIV[0]] == cs.DecryptIV[1] {
 			cs.DecryptIV = saveiv
 		}
 	}
@@ -205,7 +205,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) error {
 		return errors.New("cryptstate: tag mismatch")
 	}
 
-	cs.decryptHistory[cs.DecryptIV[0]] = cs.DecryptIV[0]
+	cs.decryptHistory[cs.DecryptIV[0]] = cs.DecryptIV[1]
 
 	if restore {
 		cs.DecryptIV = saveiv
