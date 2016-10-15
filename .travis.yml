@@ -5,4 +5,6 @@ go:
 
 go_import_path: mumble.info/grumble
 
-script: go test -v ./...
+script:
+  - go build mumble.info/grumble/cmd/grumble
+  - go test -v ./...
