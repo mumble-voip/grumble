@@ -31,7 +31,7 @@ type Register struct {
 	Location string   `xml:"location"`
 }
 
-const registerUrl = "https://mumble.hive.no/register.cgi"
+const registerUrl = "https://mumble.info/register.cgi"
 
 // Determines whether a server is public by checking whether the
 // config values required for public registration are set.
