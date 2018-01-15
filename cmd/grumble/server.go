@@ -1090,7 +1090,7 @@ func (s *Server) RegisterClient(client *Client) (uid uint32, err error) {
 	}
 
 	// Grumble can only register users with certificates.
-	if client.HasCertificate() {
+	if !client.HasCertificate() {
 		return 0, errors.New("no cert hash")
 	}
 
