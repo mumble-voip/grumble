@@ -1,7 +1,7 @@
 language: go
 
 go:
-  - 1.7
+  - 1.9
 
 go_import_path: mumble.info/grumble
 
