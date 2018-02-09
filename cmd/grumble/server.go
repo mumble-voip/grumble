@@ -7,6 +7,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/tls"
@@ -25,7 +26,9 @@ import (
 	"mumble.info/grumble/pkg/mumbleproto"
 	"mumble.info/grumble/pkg/serverconf"
 	"mumble.info/grumble/pkg/sessionpool"
+	"mumble.info/grumble/pkg/web"
 	"net"
+	"net/http"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -34,6 +37,7 @@ import (
 
 // The default port a Murmur server listens on
 const DefaultPort = 64738
+const DefaultWebPort = 443
 const UDPPacketSize = 1024
 
 const LogOpsBeforeSync = 100
@@ -57,13 +61,16 @@ type KeyValuePair struct {
 type Server struct {
 	Id int64
 
-	tcpl    *net.TCPListener
-	tlsl    net.Listener
-	udpconn *net.UDPConn
-	tlscfg  *tls.Config
-	bye     chan bool
-	netwg   sync.WaitGroup
-	running bool
+	tcpl      *net.TCPListener
+	tlsl      net.Listener
+	udpconn   *net.UDPConn
+	tlscfg    *tls.Config
+	webwsl    *web.Listener
+	webtlscfg *tls.Config
+	webhttp   *http.Server
+	bye       chan bool
+	netwg     sync.WaitGroup
+	running   bool
 
 	incoming       chan *Message
 	voicebroadcast chan *VoiceBroadcast
@@ -256,27 +263,30 @@ func (server *Server) handleIncomingClient(conn net.Conn) (err error) {
 	client.user = nil
 
 	// Extract user's cert hash
-	tlsconn := client.conn.(*tls.Conn)
-	err = tlsconn.Handshake()
-	if err != nil {
-		client.Printf("TLS handshake failed: %v", err)
-		client.Disconnect()
-		return
-	}
+	// Only consider client certificates for direct connections, not WebSocket connections.
+	// We do not support TLS-level client certificates for WebSocket client.
+	if tlsconn, ok := client.conn.(*tls.Conn); ok {
+		err = tlsconn.Handshake()
+		if err != nil {
+			client.Printf("TLS handshake failed: %v", err)
+			client.Disconnect()
+			return
+		}
 
-	state := tlsconn.ConnectionState()
-	if len(state.PeerCertificates) > 0 {
-		hash := sha1.New()
-		hash.Write(state.PeerCertificates[0].Raw)
-		sum := hash.Sum(nil)
-		client.certHash = hex.EncodeToString(sum)
-	}
+		state := tlsconn.ConnectionState()
+		if len(state.PeerCertificates) > 0 {
+			hash := sha1.New()
+			hash.Write(state.PeerCertificates[0].Raw)
+			sum := hash.Sum(nil)
+			client.certHash = hex.EncodeToString(sum)
+		}
 
-	// Check whether the client's cert hash is banned
-	if server.IsCertHashBanned(client.CertHash()) {
-		client.Printf("Certificate hash is banned")
-		client.Disconnect()
-		return
+		// Check whether the client's cert hash is banned
+		if server.IsCertHashBanned(client.CertHash()) {
+			client.Printf("Certificate hash is banned")
+			client.Disconnect()
+			return
+		}
 	}
 
 	// Launch network readers
@@ -1090,7 +1100,7 @@ func (s *Server) RegisterClient(client *Client) (uid uint32, err error) {
 	}
 
 	// Grumble can only register users with certificates.
-	if client.HasCertificate() {
+	if !client.HasCertificate() {
 		return 0, errors.New("no cert hash")
 	}
 
@@ -1258,12 +1268,12 @@ func (server *Server) FilterText(text string) (filtered string, err error) {
 }
 
 // The accept loop of the server.
-func (server *Server) acceptLoop() {
+func (server *Server) acceptLoop(listener net.Listener) {
 	defer server.netwg.Done()
 
 	for {
 		// New client connected
-		conn, err := server.tlsl.Accept()
+		conn, err := listener.Accept()
 		if err != nil {
 			if isTimeout(err) {
 				continue
@@ -1334,8 +1344,8 @@ func (server *Server) cleanPerLaunchData() {
 	server.clientAuthenticated = nil
 }
 
-// Returns the port the server will listen on when it is
-// started. Returns 0 on failure.
+// Returns the port the native server will listen on when it is
+// started.
 func (server *Server) Port() int {
 	port := server.cfg.IntValue("Port")
 	if port == 0 {
@@ -1344,7 +1354,17 @@ func (server *Server) Port() int {
 	return port
 }
 
-// Returns the port the server is currently listning
+// Returns the port the web server will listen on when it is
+// started.
+func (server *Server) WebPort() int {
+	port := server.cfg.IntValue("WebPort")
+	if port == 0 {
+		return DefaultWebPort + int(server.Id) - 1
+	}
+	return port
+}
+
+// Returns the port the native server is currently listening
 // on.  If called when the server is not running,
 // this function returns -1.
 func (server *Server) CurrentPort() int {
@@ -1374,6 +1394,7 @@ func (server *Server) Start() (err error) {
 
 	host := server.HostAddress()
 	port := server.Port()
+	webport := server.WebPort()
 
 	// Setup our UDP listener
 	server.udpconn, err = net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP(host), Port: port})
@@ -1412,7 +1433,37 @@ func (server *Server) Start() (err error) {
 	}
 	server.tlsl = tls.NewListener(server.tcpl, server.tlscfg)
 
-	server.Printf("Started: listening on %v", server.tcpl.Addr())
+	// Create HTTP server and WebSocket "listener"
+	webaddr := &net.TCPAddr{IP: net.ParseIP(host), Port: webport}
+	server.webtlscfg = &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		ClientAuth:   tls.NoClientCert,
+		NextProtos:   []string{"http/1.1"},
+	}
+	server.webwsl = web.NewListener(webaddr, server.Logger)
+	mux := http.NewServeMux()
+	mux.Handle("/", server.webwsl)
+	server.webhttp = &http.Server{
+		Addr:      webaddr.String(),
+		Handler:   mux,
+		TLSConfig: server.webtlscfg,
+		ErrorLog:  server.Logger,
+
+		// Set sensible timeouts, in case no reverse proxy is in front of Grumble.
+		// Non-conforming (or malicious) clients may otherwise block indefinitely and cause
+		// file descriptors (or handles, depending on your OS) to leak and/or be exhausted
+		ReadTimeout: 5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout: 2 * time.Minute,
+	}
+	go func() {
+		err := server.webhttp.ListenAndServeTLS("", "")
+		if err != http.ErrServerClosed {
+			server.Fatalf("Fatal HTTP server error: %v", err)
+		}
+	}()
+
+	server.Printf("Started: listening on %v and %v", server.tcpl.Addr(), server.webwsl.Addr())
 	server.running = true
 
 	// Open a fresh freezer log
@@ -1428,16 +1479,17 @@ func (server *Server) Start() (err error) {
 	// Launch the event handler goroutine
 	go server.handlerLoop()
 
-	// Add the two network receiver goroutines to the net waitgroup
+	// Add the three network receiver goroutines to the net waitgroup
 	// and launch them.
 	//
 	// We use the waitgroup to provide a blocking Stop() method
 	// for the servers. Each network goroutine defers a call to
 	// netwg.Done(). In the Stop() we close all the connections
 	// and call netwg.Wait() to wait for the goroutines to end.
-	server.netwg.Add(2)
+	server.netwg.Add(3)
 	go server.udpListenLoop()
-	go server.acceptLoop()
+	go server.acceptLoop(server.tlsl)
+	go server.acceptLoop(server.webwsl)
 
 	// Schedule a server registration update (if needed)
 	go func() {
@@ -1461,12 +1513,30 @@ func (server *Server) Stop() (err error) {
 		client.Disconnect()
 	}
 
-	// Close the TLS listener and the TCP listener
+	// Wait for the HTTP server to shutdown gracefully
+	// A client could theoretically block the server from ever stopping by
+	// never letting the HTTP connection go idle, so we give 15 seconds of grace time.
+	// This does not apply to opened WebSockets, which were forcibly closed when
+	// all clients were disconnected.
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
+	err = server.webhttp.Shutdown(ctx)
+	cancel()
+	if err == context.DeadlineExceeded {
+		server.Println("Forcibly shutdown HTTP server while stopping")
+	} else if err != nil {
+		return err
+	}
+
+	// Close the listeners
 	err = server.tlsl.Close()
 	if err != nil {
 		return err
 	}
 	err = server.tcpl.Close()
+	if err != nil {
+		return err
+	}
+	err = server.webwsl.Close()
 	if err != nil {
 		return err
 	}
@@ -1485,7 +1555,7 @@ func (server *Server) Stop() (err error) {
 		server.Fatal(err)
 	}
 
-	// Wait for the two network receiver
+	// Wait for the three network receiver
 	// goroutines end.
 	server.netwg.Wait()
 

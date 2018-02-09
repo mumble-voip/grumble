@@ -1328,7 +1328,9 @@ func (server *Server) handleUserStatsMessage(client *Client, msg *Message) {
 	stats.Session = proto.Uint32(target.Session())
 
 	if details {
-		if tlsconn := target.conn.(*tls.Conn); tlsconn != nil {
+		// Only consider client certificates for direct connections, not WebSocket connections.
+		// We do not support TLS-level client certificates for WebSocket client.
+		if tlsconn, ok := target.conn.(*tls.Conn); ok {
 			state := tlsconn.ConnectionState()
 			for i := len(state.PeerCertificates) - 1; i >= 0; i-- {
 				stats.Certificates = append(stats.Certificates, state.PeerCertificates[i].Raw)
