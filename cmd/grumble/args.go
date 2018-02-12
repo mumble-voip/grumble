@@ -30,6 +30,9 @@ var usageTmpl = `usage: grumble [options]
  --log <log-path> (default: $DATADIR/grumble.log)
      Log file path.
 
+ --ini <config-path> (default: $DATADIR/grumble.ini)
+     Config file path.
+
  --regen-keys
      Force grumble to regenerate its global RSA
      keypair (and certificate).
@@ -46,12 +49,13 @@ var usageTmpl = `usage: grumble [options]
 `
 
 type args struct {
-	ShowHelp  bool
-	DataDir   string
-	LogPath   string
-	RegenKeys bool
-	SQLiteDB  string
-	CleanUp   bool
+	ShowHelp   bool
+	DataDir    string
+	LogPath    string
+	ConfigPath string
+	RegenKeys  bool
+	SQLiteDB   string
+	CleanUp    bool
 }
 
 func defaultDataDir() string {
@@ -61,10 +65,6 @@ func defaultDataDir() string {
 		homedir = os.Getenv("USERPROFILE")
 	}
 	return filepath.Join(homedir, dirname)
-}
-
-func defaultLogPath() string {
-	return filepath.Join(defaultDataDir(), "grumble.log")
 }
 
 func Usage() {
@@ -92,7 +92,9 @@ func init() {
 
 	flag.BoolVar(&Args.ShowHelp, "help", false, "")
 	flag.StringVar(&Args.DataDir, "datadir", defaultDataDir(), "")
-	flag.StringVar(&Args.LogPath, "log", defaultLogPath(), "")
+	flag.StringVar(&Args.LogPath, "log", "", "")
+	flag.StringVar(&Args.ConfigPath, "ini", "", "")
+
 	flag.BoolVar(&Args.RegenKeys, "regen-keys", false, "")
 
 	flag.StringVar(&Args.SQLiteDB, "import-murmurdb", "", "")

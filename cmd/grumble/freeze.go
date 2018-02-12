@@ -19,7 +19,6 @@ import (
 	"mumble.info/grumble/pkg/ban"
 	"mumble.info/grumble/pkg/freezer"
 	"mumble.info/grumble/pkg/mumbleproto"
-	"mumble.info/grumble/pkg/serverconf"
 )
 
 // Freeze a server to disk and closes the log file.
@@ -74,7 +73,7 @@ func (server *Server) Freeze() (fs *freezer.Server, err error) {
 	fs = new(freezer.Server)
 
 	// Freeze all config kv-pairs
-	allCfg := server.cfg.GetAll()
+	allCfg := server.cfg.GetAllPersistent()
 	for k, v := range allCfg {
 		fs.Config = append(fs.Config, &freezer.ConfigKeyValuePair{
 			Key:   proto.String(k),
@@ -420,11 +419,10 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 		}
 	}
 
-	s, err = NewServer(id)
+	s, err = NewServer(id, configFile.ServerConfig(id, cfgMap))
 	if err != nil {
 		return nil, err
 	}
-	s.cfg = serverconf.New(cfgMap)
 
 	// Unfreeze the server's frozen bans.
 	s.UnfreezeBanList(fs.BanList)
@@ -830,32 +828,6 @@ func (server *Server) UpdateFrozenBans(bans []ban.Ban) {
 		fbl.Bans = append(fbl.Bans, FreezeBan(ban))
 	}
 	err := server.freezelog.Put(fbl)
-	if err != nil {
-		server.Fatal(err)
-	}
-	server.numLogOps += 1
-}
-
-// UpdateConfig writes an updated config value to the datastore.
-func (server *Server) UpdateConfig(key, value string) {
-	fcfg := &freezer.ConfigKeyValuePair{
-		Key:   proto.String(key),
-		Value: proto.String(value),
-	}
-	err := server.freezelog.Put(fcfg)
-	if err != nil {
-		server.Fatal(err)
-	}
-	server.numLogOps += 1
-}
-
-// ResetConfig writes to the freezelog that the config with key
-// has been reset to its default value.
-func (server *Server) ResetConfig(key string) {
-	fcfg := &freezer.ConfigKeyValuePair{
-		Key: proto.String(key),
-	}
-	err := server.freezelog.Put(fcfg)
 	if err != nil {
 		server.Fatal(err)
 	}

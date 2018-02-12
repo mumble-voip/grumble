@@ -19,7 +19,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -138,12 +137,16 @@ func (lf clientLogForwarder) Write(incoming []byte) (int, error) {
 }
 
 // Allocate a new Murmur instance
-func NewServer(id int64) (s *Server, err error) {
+func NewServer(id int64, config *serverconf.Config) (s *Server, err error) {
 	s = new(Server)
 
 	s.Id = id
 
-	s.cfg = serverconf.New(nil)
+	if config == nil {
+		s.cfg = serverconf.New(nil, nil)
+	} else {
+		s.cfg = config
+	}
 
 	s.Users = make(map[uint32]*User)
 	s.UserCertMap = make(map[string]*User)
@@ -191,10 +194,6 @@ func (server *Server) setConfigPassword(key, password string) {
 	// Could be racy, but shouldn't really matter...
 	val := "sha1$" + salt + "$" + digest
 	server.cfg.Set(key, val)
-
-	if server.cfgUpdate != nil {
-		server.cfgUpdate <- &KeyValuePair{Key: key, Value: val}
-	}
 }
 
 // SetSuperUserPassword sets password as the new SuperUser password
@@ -435,14 +434,6 @@ func (server *Server) handlerLoop() {
 		// server info.
 		case client := <-server.clientAuthenticated:
 			server.finishAuthenticate(client)
-
-		// Disk freeze config update
-		case kvp := <-server.cfgUpdate:
-			if !kvp.Reset {
-				server.UpdateConfig(kvp.Key, kvp.Value)
-			} else {
-				server.ResetConfig(kvp.Key)
-			}
 
 		// Server registration update
 		// Tick every hour + a minute offset based on the server id.
@@ -1356,7 +1347,6 @@ func (server *Server) initPerLaunchData() {
 	server.bye = make(chan bool)
 	server.incoming = make(chan *Message)
 	server.voicebroadcast = make(chan *VoiceBroadcast)
-	server.cfgUpdate = make(chan *KeyValuePair)
 	server.tempRemove = make(chan *Channel, 1)
 	server.clientAuthenticated = make(chan *Client)
 }
@@ -1371,7 +1361,6 @@ func (server *Server) cleanPerLaunchData() {
 	server.bye = nil
 	server.incoming = nil
 	server.voicebroadcast = nil
-	server.cfgUpdate = nil
 	server.tempRemove = nil
 	server.clientAuthenticated = nil
 }
@@ -1460,8 +1449,8 @@ func (server *Server) Start() (err error) {
 	*/
 
 	// Wrap a TLS listener around the TCP connection
-	certFn := filepath.Join(Args.DataDir, "cert.pem")
-	keyFn := filepath.Join(Args.DataDir, "key.pem")
+	certFn := server.cfg.PathValue("CertPath", Args.DataDir)
+	keyFn := server.cfg.PathValue("KeyPath", Args.DataDir)
 	cert, err := tls.LoadX509KeyPair(certFn, keyFn)
 	if err != nil {
 		return err
