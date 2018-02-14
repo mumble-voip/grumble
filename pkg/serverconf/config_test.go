@@ -26,7 +26,7 @@ func TestFloatAsInt(t *testing.T) {
 
 func TestDefaultValue(t *testing.T) {
 	cfg := New(nil, nil)
-	if cfg.IntValue("MaxBandwidth") != 72000 {
+	if cfg.IntValue("bandwidth") != 72000 {
 		t.Errorf("Expected 72000")
 	}
 }

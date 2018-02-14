@@ -37,16 +37,16 @@ func (c *ConfigFile) ServerConfig(id int64, persistentMap map[string]string) *Co
 
 	// Some server specific values from the global config must be offset.
 	// These are read differently by the server as well.
-	if v, ok := m["Port"]; ok {
+	if v, ok := m["port"]; ok {
 		i, err := strconv.ParseInt(v, 10, 64)
 		if err == nil {
-			m["Port"] = strconv.FormatInt(i+id-1, 10)
+			m["port"] = strconv.FormatInt(i+id-1, 10)
 		}
 	}
-	if v, ok := m["WebPort"]; ok {
+	if v, ok := m["webport"]; ok {
 		i, err := strconv.ParseInt(v, 10, 64)
 		if err == nil {
-			m["WebPort"] = strconv.FormatInt(i+id-1, 10)
+			m["webport"] = strconv.FormatInt(i+id-1, 10)
 		}
 	}
 

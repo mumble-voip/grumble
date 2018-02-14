@@ -11,19 +11,20 @@ import (
 )
 
 var defaultCfg = map[string]string{
-	"MaxBandwidth":          "72000",
-	"MaxUsers":              "1000",
-	"MaxUsersPerChannel":    "0",
-	"MaxTextMessageLength":  "5000",
-	"MaxImageMessageLength": "131072",
-	"AllowHTML":             "true",
-	"DefaultChannel":        "0",
-	"RememberChannel":       "true",
-	"WelcomeText":           "Welcome to this server running <b>Grumble</b>.",
-	"SendVersion":           "true",
-	"LogPath":               "grumble.log",
-	"CertPath":              "cert.pem",
-	"KeyPath":               "key.pem",
+	"bandwidth":          "72000",
+	"users":              "1000",
+	"usersperchannel":    "0",
+	"textmessagelength":  "5000",
+	"imagemessagelength": "131072",
+	"allowhtml":          "true",
+	"defaultchannel":     "0",
+	"rememberchannel":    "true",
+	"welcometext":        "Welcome to this server running <b>Grumble</b>.",
+	"sendversion":        "true",
+	"allowping":          "true",
+	"logfile":            "grumble.log",
+	"sslCert":            "cert.pem",
+	"sslKey":             "key.pem",
 }
 
 type Config struct {

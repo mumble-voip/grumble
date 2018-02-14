@@ -21,7 +21,6 @@ func (f *inicfg) GlobalMap() map[string]string {
 	return f.file.Section("").KeysHash()
 }
 
-// todo(rubenseyer): not all of these even work.. make sure to implement them
 var DefaultConfigFile = `# Grumble configuration file.
 #
 # The commented out settings represent the defaults.
@@ -29,55 +28,63 @@ var DefaultConfigFile = `# Grumble configuration file.
 # Make sure to enclose values containing # or ; in double quotes or backticks.
 
 # Address to bind the listeners to.
-#Address = 0.0.0.0
+#host = 0.0.0.0
 
-# Port is the port to bind the native Mumble protocol to.
-# WebPort is the port to bind the WebSocket Mumble protocol to.
-# They are incremented for each virtual server.
-#Port = 64738
-#WebPort = 443
+# port is the port to bind the native Mumble protocol to.
+# webport is the port to bind the WebSocket Mumble protocol to.
+# They are incremented for each virtual server (if set globally).
+#port = 64738
+#webport = 443
+
+# Whether to disable web server.
+#nowebserver
 
 # "Message of the day" HTML string sent to connecting clients.
-#WelcomeText = "Welcome to this server running <b>Grumble</b>."
+#welcometext = "Welcome to this server running <b>Grumble</b>."
+
+# Password to join the server.
+#serverpassword =
 
 # Maximum bandwidth (in bits per second) per client for voice.
 # Grumble does not yet enforce this limit, but some clients nicely follow it.
-#MaxBandwidth = 72000
+#bandwidth = 72000
 
 # Maximum number of concurrent clients.
-#MaxUsers = 1000
-#MaxUsersPerChannel = 0
+#users = 1000
+#usersperchannel = 0
 
-#MaxTextMessageLength = 5000
-#MaxImageMessageLength = 131072
-#AllowHTML
+#textmessagelength = 5000
+#imagemessagelength = 131072
+#allowhtml
 
-# DefaultChannel is the channel (by ID) new users join.
-# The root channel is the default.
-#DefaultChannel = 0 
+# The default channel is the channel (by ID) new users join.
+# The root channel (ID = 0) is the default.
+#defaultchannel = 0 
 
 # Whether users will rejoin the last channel they were in.
-#RememberChannel
+#rememberchannel
 
-# Whether to include server version and server os in ping response.
-#SendVersion
-#SendOSInfo
+# Whether to include server OS info in ping response.
+#sendversion
+
+# Whether to respond to pings from the Connect dialog.
+#allowping
 
 # Path to the log file (relative to the data directory).
-#LogPath = grumble.log
+#logfile = grumble.log
 
 # Path to TLS certificate and key (relative to the data directory).
-# The certificate needs to have the entire chain concatenated to be validate.
+# The certificate needs to have the entire chain concatenated to be valid.
 # If these paths do not exist, Grumble will autogenerate a certificate.
-#CertPath = cert.pem
-#KeyPath = key.pem
+#sslCert = cert.pem
+#sslKey = key.pem
 
 # Options for public server registration.
 # All of these have to be set to make the server public.
-# RegisterName additionally sets the name of the root channel.
-# RegisterPassword is a simple, arbitrary secret to guard your registration. Don't lose it.
-#RegisterName = 
-#RegisterHost =
-#RegisterPassword =
-#RegisterWebUrl =
+# registerName additionally sets the name of the root channel.
+# registerPassword is a simple, arbitrary secret to guard your registration. Don't lose it.
+#registerName = 
+#registerHostname =
+#registerPassword =
+#registerUrl =
 `

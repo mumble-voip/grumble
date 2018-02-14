@@ -178,6 +178,16 @@ func (server *Server) RootChannel() *Channel {
 	return root
 }
 
+// Get a pointer to the default channel
+func (server *Server) DefaultChannel() *Channel {
+	channel, exists := server.Channels[server.cfg.IntValue("defaultchannel")]
+	if !exists {
+		return server.RootChannel()
+	}
+	return channel
+}
+
+// Set password as the new SuperUser password
 func (server *Server) setConfigPassword(key, password string) {
 	saltBytes := make([]byte, 24)
 	_, err := rand.Read(saltBytes)
@@ -271,7 +281,14 @@ func (server *Server) handleIncomingClient(conn net.Conn) (err error) {
 	client.lf = &clientLogForwarder{client, server.Logger}
 	client.Logger = log.New(client.lf, "", 0)
 
-	client.session = server.pool.Get()
+	client.session, err = server.pool.Get()
+	if err != nil {
+		// Server is full. Murmur just closes the connection here anyway,
+		// so don't bother sending a Reject_ServerFull
+		client.Printf("Server is full, rejecting %v", conn.RemoteAddr())
+		conn.Close()
+		return nil
+	}
 	client.Printf("New connection: %v (%v)", conn.RemoteAddr(), client.Session())
 
 	client.tcpaddr = addr.(*net.TCPAddr)
@@ -528,12 +545,13 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 				client.user = user
 			}
 		}
-	}
 
-	if client.user == nil && server.hasServerPassword() {
-		if auth.Password == nil || !server.CheckServerPassword(*auth.Password) {
-			client.RejectAuth(mumbleproto.Reject_WrongServerPW, "Invalid server password")
-			return
+		// Otherwise, the user is unregistered. If there is a server-wide password, they now need it.
+		if client.user == nil && server.hasServerPassword() {
+			if auth.Password == nil || !server.CheckServerPassword(*auth.Password) {
+				client.RejectAuth(mumbleproto.Reject_WrongServerPW, "Invalid server password")
+				return
+			}
 		}
 	}
 
@@ -618,8 +636,8 @@ func (server *Server) finishAuthenticate(client *Client) {
 	server.hclients[host] = append(server.hclients[host], client)
 	server.hmutex.Unlock()
 
-	channel := server.RootChannel()
-	if client.IsRegistered() {
+	channel := server.DefaultChannel()
+	if server.cfg.BoolValue("rememberchannel") && client.IsRegistered() {
 		lastChannel := server.Channels[client.user.LastChannelId]
 		if lastChannel != nil {
 			channel = lastChannel
@@ -675,8 +693,8 @@ func (server *Server) finishAuthenticate(client *Client) {
 
 	sync := &mumbleproto.ServerSync{}
 	sync.Session = proto.Uint32(client.Session())
-	sync.MaxBandwidth = proto.Uint32(server.cfg.Uint32Value("MaxBandwidth"))
-	sync.WelcomeText = proto.String(server.cfg.StringValue("WelcomeText"))
+	sync.MaxBandwidth = proto.Uint32(server.cfg.Uint32Value("bandwidth"))
+	sync.WelcomeText = proto.String(server.cfg.StringValue("welcometext"))
 	if client.IsSuperUser() {
 		sync.Permissions = proto.Uint64(uint64(acl.AllPermissions))
 	} else {
@@ -693,9 +711,9 @@ func (server *Server) finishAuthenticate(client *Client) {
 	}
 
 	err := client.sendMessage(&mumbleproto.ServerConfig{
-		AllowHtml:          proto.Bool(server.cfg.BoolValue("AllowHTML")),
-		MessageLength:      proto.Uint32(server.cfg.Uint32Value("MaxTextMessageLength")),
-		ImageMessageLength: proto.Uint32(server.cfg.Uint32Value("MaxImageMessageLength")),
+		AllowHtml:          proto.Bool(server.cfg.BoolValue("allowhtml")),
+		MessageLength:      proto.Uint32(server.cfg.Uint32Value("textmessagelength")),
+		ImageMessageLength: proto.Uint32(server.cfg.Uint32Value("imagemessagelength")),
 	})
 	if err != nil {
 		client.Panicf("%v", err)
@@ -992,6 +1010,9 @@ func (server *Server) udpListenLoop() {
 
 		// Length 12 is for ping datagrams from the ConnectDialog.
 		if nread == 12 {
+			if !server.cfg.BoolValue("allowping") {
+				return
+			}
 			readbuf := bytes.NewBuffer(buf)
 			var (
 				tmp32 uint32
@@ -1001,11 +1022,11 @@ func (server *Server) udpListenLoop() {
 			_ = binary.Read(readbuf, binary.BigEndian, &rand)
 
 			buffer := bytes.NewBuffer(make([]byte, 0, 24))
-			_ = binary.Write(buffer, binary.BigEndian, uint32((1<<16)|(2<<8)|2))
+			_ = binary.Write(buffer, binary.BigEndian, uint32((1<<16)|(2<<8)|4))
 			_ = binary.Write(buffer, binary.BigEndian, rand)
 			_ = binary.Write(buffer, binary.BigEndian, uint32(len(server.clients)))
-			_ = binary.Write(buffer, binary.BigEndian, server.cfg.Uint32Value("MaxUsers"))
-			_ = binary.Write(buffer, binary.BigEndian, server.cfg.Uint32Value("MaxBandwidth"))
+			_ = binary.Write(buffer, binary.BigEndian, server.cfg.Uint32Value("users"))
+			_ = binary.Write(buffer, binary.BigEndian, server.cfg.Uint32Value("bandwidth"))
 
 			err = server.SendUDP(buffer.Bytes(), udpaddr)
 			if err != nil {
@@ -1283,9 +1304,9 @@ func (server *Server) IsCertHashBanned(hash string) bool {
 // Filter incoming text according to the server's current rules.
 func (server *Server) FilterText(text string) (filtered string, err error) {
 	options := &htmlfilter.Options{
-		StripHTML:             !server.cfg.BoolValue("AllowHTML"),
-		MaxTextMessageLength:  server.cfg.IntValue("MaxTextMessageLength"),
-		MaxImageMessageLength: server.cfg.IntValue("MaxImageMessageLength"),
+		StripHTML:             !server.cfg.BoolValue("allowhtml"),
+		MaxTextMessageLength:  server.cfg.IntValue("textmessagelength"),
+		MaxImageMessageLength: server.cfg.IntValue("imagemessagelength"),
 	}
 	return htmlfilter.Filter(text, options)
 }
@@ -1339,7 +1360,7 @@ func isTimeout(err error) bool {
 
 // Initialize the per-launch data
 func (server *Server) initPerLaunchData() {
-	server.pool = sessionpool.New()
+	server.pool = sessionpool.New(server.cfg.Uint32Value("users"))
 	server.clients = make(map[uint32]*Client)
 	server.hclients = make(map[string][]*Client)
 	server.hpclients = make(map[string]*Client)
@@ -1368,7 +1389,7 @@ func (server *Server) cleanPerLaunchData() {
 // Port returns the port the native server will listen on when it is
 // started.
 func (server *Server) Port() int {
-	port := server.cfg.IntValue("Port")
+	port := server.cfg.IntValue("port")
 	if port == 0 {
 		return DefaultPort + int(server.Id) - 1
 	}
@@ -1378,13 +1399,13 @@ func (server *Server) Port() int {
 // ListenWebPort returns true if we should listen to the
 // web port, otherwise false
 func (server *Server) ListenWebPort() bool {
-	return !server.cfg.BoolValue("NoWebServer")
+	return !server.cfg.BoolValue("nowebserver")
 }
 
 // WebPort returns the port the web server will listen on when it is
 // started.
 func (server *Server) WebPort() int {
-	port := server.cfg.IntValue("WebPort")
+	port := server.cfg.IntValue("webport")
 	if port == 0 {
 		return DefaultWebPort + int(server.Id) - 1
 	}
@@ -1406,7 +1427,7 @@ func (server *Server) CurrentPort() int {
 // it is started. This must be an IP address, either IPv4
 // or IPv6.
 func (server *Server) HostAddress() string {
-	host := server.cfg.StringValue("Address")
+	host := server.cfg.StringValue("host")
 	if host == "" {
 		return "0.0.0.0"
 	}
@@ -1449,8 +1470,8 @@ func (server *Server) Start() (err error) {
 	*/
 
 	// Wrap a TLS listener around the TCP connection
-	certFn := server.cfg.PathValue("CertPath", Args.DataDir)
-	keyFn := server.cfg.PathValue("KeyPath", Args.DataDir)
+	certFn := server.cfg.PathValue("sslCert", Args.DataDir)
+	keyFn := server.cfg.PathValue("sslKey", Args.DataDir)
 	cert, err := tls.LoadX509KeyPair(certFn, keyFn)
 	if err != nil {
 		return err
@@ -1458,6 +1479,15 @@ func (server *Server) Start() (err error) {
 	server.tlscfg = &tls.Config{
 		Certificates: []tls.Certificate{cert},
 		ClientAuth:   tls.RequestClientCert,
+	}
+	ciphersstr := server.cfg.StringValue("sslCiphers")
+	if ciphersstr != "" {
+		var invalid []string
+		server.tlscfg.CipherSuites, invalid = serverconf.ParseCipherlist(ciphersstr)
+		for _, cipher := range invalid {
+			log.Printf("Ignoring invalid or unsupported cipher \"%v\"", cipher)
+		}
+		server.tlscfg.PreferServerCipherSuites = true
 	}
 	server.tlsl = tls.NewListener(server.tcpl, server.tlscfg)
 
