@@ -74,8 +74,8 @@ type Server struct {
 
 	incoming       chan *Message
 	voicebroadcast chan *VoiceBroadcast
-	cfgUpdate      chan *KeyValuePair
 	tempRemove     chan *Channel
+	//cfgUpdate      chan *KeyValuePair
 
 	// Signals to the server that a client has been successfully
 	// authenticated.

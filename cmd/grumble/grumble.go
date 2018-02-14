@@ -7,10 +7,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 
 	"mumble.info/grumble/pkg/blobstore"
 	"mumble.info/grumble/pkg/logtarget"
@@ -28,6 +30,20 @@ func main() {
 	if Args.ShowHelp == true {
 		Usage()
 		return
+	}
+	if Args.ReadPass {
+		data, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			log.Fatalf("Failed to read password from stdin: %v", err)
+		}
+		Args.SuperUserPW = string(data)
+	}
+	if flag.NArg() > 0 && (Args.SuperUserPW != "" || Args.DisablePass) {
+		Args.ServerId, err = strconv.ParseInt(flag.Arg(0), 10, 64)
+		if err != nil {
+			log.Fatalf("Failed to parse server id %v: %v", flag.Arg(0), err)
+			return
+		}
 	}
 
 	// Open the data dir to check whether it exists.
@@ -114,9 +130,7 @@ func main() {
 
 	// Check whether we should regenerate the default global keypair
 	// and corresponding certificate.
-	// These are used as the default certificate of all virtual servers
-	// and the SSH admin console, but can be overridden using the "key"
-	// and "cert" arguments to Grumble. todo(rubenseyer) implement override by cli
+	// These are used as the default certificate of all virtual servers.
 	certFn := config.PathValue("CertPath", Args.DataDir)
 	keyFn := config.PathValue("KeyPath", Args.DataDir)
 	shouldRegen := false
@@ -232,12 +246,32 @@ func main() {
 			if err != nil {
 				log.Fatalf("Unable to load server: %v", err.Error())
 			}
+
+			// Check if SuperUser password should be updated.
+			if Args.ServerId == 0 || Args.ServerId == s.Id {
+				if Args.DisablePass {
+					s.cfg.Reset("SuperUserPassword")
+					log.Printf("Disabled SuperUser for server %v", name)
+				} else if Args.SuperUserPW != "" {
+					s.SetSuperUserPassword(Args.SuperUserPW)
+					log.Printf("Set SuperUser password for server %v", name)
+				}
+			}
+
 			err = s.FreezeToFile()
 			if err != nil {
 				log.Fatalf("Unable to freeze server to disk: %v", err.Error())
 			}
 			servers[s.Id] = s
 		}
+	}
+
+	// If SuperUser password flags were passed, the servers should not start.
+	if Args.SuperUserPW != "" || Args.DisablePass {
+		if len(servers) == 0 {
+			log.Fatalf("No servers found to set password for")
+		}
+		return
 	}
 
 	// If no servers were found, create the default virtual server.
