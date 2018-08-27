@@ -8,11 +8,13 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"mumble.info/grumble/pkg/blobstore"
-	"mumble.info/grumble/pkg/logtarget"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
+
+	"mumble.info/grumble/pkg/blobstore"
+	"mumble.info/grumble/pkg/logtarget"
 )
 
 var servers map[int64]*Server
@@ -34,6 +36,13 @@ func main() {
 		return
 	}
 	dataDir.Close()
+
+	// check that LogPath isn't using default data dir
+	// where DataDir itself is not using the default
+	if !strings.HasPrefix(Args.DataDir, defaultDataDir()) &&
+		strings.HasPrefix(Args.LogPath, defaultDataDir()) {
+		Args.LogPath = filepath.Join(Args.DataDir, "grumble.log")
+	}
 
 	// Set up logging
 	err = logtarget.Target.OpenFile(Args.LogPath)
