@@ -13,12 +13,14 @@ import (
 	"database/sql"
 	"errors"
 	"log"
-	"mumble.info/grumble/pkg/acl"
-	"mumble.info/grumble/pkg/ban"
 	"net"
 	"os"
 	"path/filepath"
 	"strconv"
+
+	_ "github.com/mattn/go-sqlite3"
+	"mumble.info/grumble/pkg/acl"
+	"mumble.info/grumble/pkg/ban"
 )
 
 const (
@@ -39,7 +41,7 @@ const SQLiteSupport = true
 
 // Import the structure of an existing Murmur SQLite database.
 func MurmurImport(filename string) (err error) {
-	db, err := sql.Open("sqlite", filename)
+	db, err := sql.Open("sqlite3", filename)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -67,7 +69,7 @@ func MurmurImport(filename string) (err error) {
 			return err
 		}
 
-		err = os.Mkdir(filepath.Join(Args.DataDir, strconv.FormatInt(sid, 10)), 0750)
+		err = os.MkdirAll(filepath.Join(Args.DataDir, "servers", strconv.FormatInt(sid, 10)), 0750)
 		if err != nil {
 			return err
 		}
@@ -187,33 +189,34 @@ func populateChannelACLFromDatabase(server *Server, c *Channel, db *sql.DB) erro
 
 	for rows.Next() {
 		var (
-			UserId    string
-			Group     string
-			ApplyHere bool
-			ApplySub  bool
-			Allow     int64
-			Deny      int64
+			UserId    sql.NullString
+			Group     sql.NullString
+			ApplyHere sql.NullBool
+			ApplySub  sql.NullBool
+			Allow     sql.NullInt64
+			Deny      sql.NullInt64
 		)
+
 		if err := rows.Scan(&UserId, &Group, &ApplyHere, &ApplySub, &Allow, &Deny); err != nil {
 			return err
 		}
 
 		aclEntry := acl.ACL{}
-		aclEntry.ApplyHere = ApplyHere
-		aclEntry.ApplySubs = ApplySub
-		if len(UserId) > 0 {
-			aclEntry.UserId, err = strconv.Atoi(UserId)
+		aclEntry.ApplyHere = ApplyHere.Bool
+		aclEntry.ApplySubs = ApplySub.Bool
+		if UserId.Valid {
+			aclEntry.UserId, err = strconv.Atoi(UserId.String)
 			if err != nil {
 				return err
 			}
-		} else if len(Group) > 0 {
-			aclEntry.Group = Group
+		} else if Group.Valid {
+			aclEntry.Group = Group.String
 		} else {
 			return errors.New("Invalid ACL: Neither Group or UserId specified")
 		}
 
-		aclEntry.Deny = acl.Permission(Deny)
-		aclEntry.Allow = acl.Permission(Allow)
+		aclEntry.Deny = acl.Permission(Deny.Int64)
+		aclEntry.Allow = acl.Permission(Allow.Int64)
 		c.ACL.ACLs = append(c.ACL.ACLs, aclEntry)
 	}
 

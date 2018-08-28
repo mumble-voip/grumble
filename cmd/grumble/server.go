@@ -1452,9 +1452,9 @@ func (server *Server) Start() (err error) {
 		// Set sensible timeouts, in case no reverse proxy is in front of Grumble.
 		// Non-conforming (or malicious) clients may otherwise block indefinitely and cause
 		// file descriptors (or handles, depending on your OS) to leak and/or be exhausted
-		ReadTimeout: 5 * time.Second,
+		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
-		IdleTimeout: 2 * time.Minute,
+		IdleTimeout:  2 * time.Minute,
 	}
 	go func() {
 		err := server.webhttp.ListenAndServeTLS("", "")
