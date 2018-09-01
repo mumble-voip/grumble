@@ -56,7 +56,7 @@ func TestReadNonExistantKey(t *testing.T) {
 	key := hex.EncodeToString(h.Sum(nil))
 	buf, err := bs.Get(key)
 	if err != ErrNoSuchKey {
-		t.Error("Expected no such key %v, found it anyway. (buf=%v, err=%v)", key, buf, err)
+		t.Errorf("Expected no such key %v, found it anyway. (buf=%v, err=%v)", key, buf, err)
 		return
 	}
 }
@@ -77,7 +77,7 @@ func TestReadInvalidKeyLength(t *testing.T) {
 
 	_, err = bs.Get(key)
 	if err != ErrBadKey {
-		t.Error("Expected invalid key for %v, got %v", key, err)
+		t.Errorf("Expected invalid key for %v, got %v", key, err)
 		return
 	}
 }
