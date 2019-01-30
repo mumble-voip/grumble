@@ -54,3 +54,36 @@ It is architected this way because it allowed me to write a pure-Go program with
 The current thinking is that if registered users are taking up too much of your memory, you should use an external authenticator. But that code isn't written yet. The concept would be equivalent to Murmur's authenticator API via RPC. But a Grumble authenticator would probably be set up more akin to a webhook -- so just a URL in the config file.
 
 Then there's the API problem. You can't currently remote control Grumble. Which can make it hard to use in production. I imagine Grumble will grow an API that it makes available via HTTP. Murmur's API is already quite stateless in many regards, so it shouldn't be too much of a stretch to put a RESTful API in Grumble to do the same job.
+
+Docker
+==============
+
+## Getting the image
+
+### Building
+
+    $ git clone https://github.com/mumble-voip/grumble.git
+    $ cd grumble/
+    $ docker build -t mumble-voip/grumble .
+
+## Running
+
+### Command line
+
+    $ docker run \
+      -v $HOME/.grumble:/data \
+      -p 64738:64738 \
+      -p 64738:64738/udp \
+      mumble-voip/grumble
+
+### Compose
+
+    version: '3'
+    services:
+      grumble:
+        image: mumble-voip/grumble
+        ports:
+          - 64738:64738
+          - 64738:64738/udp
+        volumes:
+          - $HOME/.grumble:/data
