@@ -68,12 +68,12 @@ Docker
 
 ## Running
 
-### Docker CLI
+### Command line
 
     $ docker run \
       -v $HOME/.grumble:/data \
-      -p 64738:64738
-      -p 64738:64738/udp
+      -p 64738:64738 \
+      -p 64738:64738/udp \
       mumble-voip/grumble
 
 ### Compose
