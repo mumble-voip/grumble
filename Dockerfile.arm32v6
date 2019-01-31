@@ -9,9 +9,9 @@ RUN apk add --no-cache git \
   && go build mumble.info/grumble/cmd/grumble \
   && go test -v ./...
 
-FROM arm32v6/golang:1.9-alpine
+FROM arm32v6/alpine:edge
 
-COPY --from=builder /go/bin /go/bin
+COPY --from=builder /go/bin/grumble /usr/bin/grumble
 
 ENV DATADIR /data
 
@@ -21,4 +21,4 @@ WORKDIR /data
 
 VOLUME /data
 
-ENTRYPOINT [ "/go/bin/grumble", "--datadir", "/data", "--log", "/data/grumble.log" ]
+ENTRYPOINT [ "/usr/bin/grumble", "--datadir", "/data", "--log", "/data/grumble.log" ]
