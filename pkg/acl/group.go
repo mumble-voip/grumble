@@ -336,7 +336,7 @@ func GroupMemberCheck(current *Context, acl *Context, name string, user User) (o
 	return false
 }
 
-// Get the list of group names for the given ACL context.
+// GroupNames gets the list of group names for the given ACL context.
 //
 // This function walks the through the context chain to figure
 // out all groups that affect the given context whilst considering

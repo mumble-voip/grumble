@@ -41,7 +41,7 @@ func (ban Ban) IPMask() (mask net.IPMask) {
 	return
 }
 
-// Check whether an IP matches a Ban
+// Match checks whether an IP matches a Ban
 func (ban Ban) Match(ip net.IP) bool {
 	banned := ban.IP.Mask(ban.IPMask())
 	masked := ip.Mask(ban.IPMask())
@@ -58,14 +58,14 @@ func (ban *Ban) SetISOStartDate(isodate string) {
 	}
 }
 
-// Return the currently set start date as an ISO 8601-formatted
+// ISOStartDate returns the currently set start date as an ISO 8601-formatted
 // date (in UTC).
 func (ban Ban) ISOStartDate() string {
 	startTime := time.Unix(ban.Start, 0).UTC()
 	return startTime.Format(ISODate)
 }
 
-// Check whether a ban has expired
+// IsExpired checks whether a ban has expired
 func (ban Ban) IsExpired() bool {
 	// ∞-case
 	if ban.Duration == 0 {

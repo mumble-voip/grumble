@@ -40,12 +40,12 @@ func NewUser(id uint32, name string) (user *User, err error) {
 	}, nil
 }
 
-// Does the channel have comment?
+// HasComment Does the channel have comment?
 func (user *User) HasComment() bool {
 	return len(user.CommentBlob) > 0
 }
 
-// Get the hash of the user's comment blob as a byte slice for transmitting via a protobuf message.
+// CommentBlobHashBytes gets the hash of the user's comment blob as a byte slice for transmitting via a protobuf message.
 // Returns nil if there is no such blob.
 func (user *User) CommentBlobHashBytes() (buf []byte) {
 	buf, err := hex.DecodeString(user.CommentBlob)
@@ -55,12 +55,12 @@ func (user *User) CommentBlobHashBytes() (buf []byte) {
 	return buf
 }
 
-// Does the user have a texture?
+// HasTexture Does the user have a texture?
 func (user *User) HasTexture() bool {
 	return len(user.TextureBlob) > 0
 }
 
-// Get the hash of the user's texture blob as a byte slice for transmitting via a protobuf message.
+// TextureBlobHashBytes gets the hash of the user's texture blob as a byte slice for transmitting via a protobuf message.
 // Returns nil if there is no such blob.
 func (user *User) TextureBlobHashBytes() (buf []byte) {
 	buf, err := hex.DecodeString(user.TextureBlob)

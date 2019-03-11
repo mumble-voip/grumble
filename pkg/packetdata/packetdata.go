@@ -37,13 +37,13 @@ func (pds *PacketData) Skip(skip int) {
 	}
 }
 
-// Returns number of bytes remaining in
+// Left returns number of bytes remaining in
 // the buffer.
 func (pds *PacketData) Left() int {
 	return int(pds.maxsize - pds.offset)
 }
 
-// Returns the size of the currently-assembled data
+// Size returns the size of the currently-assembled data
 // stream
 func (pds *PacketData) Size() int {
 	return pds.offset
@@ -61,7 +61,7 @@ func (pds *PacketData) next() (ret uint64) {
 	return 0
 }
 
-// Get the next byte from the PacketData as a byte (uint8)
+// Next8 gets the next byte from the PacketData as a byte (uint8)
 func (pds *PacketData) Next8() (ret uint8) {
 	if pds.offset < pds.maxsize {
 		ret = uint8(pds.Buf[pds.offset])
@@ -170,88 +170,88 @@ func (pds *PacketData) getVarint() (i uint64) {
 	return
 }
 
-// Read a uint64 from the PacketData
+// GetUint64 reads a uint64 from the PacketData
 func (pds *PacketData) GetUint64() uint64 {
 	return pds.getVarint()
 }
 
-// Write a uint64 to the PacketData
+// PutUint64 writes a uint64 to the PacketData
 func (pds *PacketData) PutUint64(val uint64) {
 	pds.addVarint(val)
 }
 
-// Read a uint32 from the PacketData
+// GetUint32 reads a uint32 from the PacketData
 func (pds *PacketData) GetUint32() uint32 {
 	return uint32(pds.getVarint())
 }
 
-// Write a uint32 to the PacketData
+// PutUint32 writes a uint32 to the PacketData
 func (pds *PacketData) PutUint32(val uint32) {
 	pds.addVarint(uint64(val))
 }
 
-// Read a uint16 from the PacketData
+// GetUint16 reads a uint16 from the PacketData
 func (pds *PacketData) GetUint16() uint16 {
 	return uint16(pds.getVarint())
 }
 
-// Write a uint16 to the PacketData
+// PutUint16 writes a uint16 to the PacketData
 func (pds *PacketData) PutUint16(val uint16) {
 	pds.addVarint(uint64(val))
 }
 
-// Read a uint8 from the PacketData
+// GetUint8 reads a uint8 from the PacketData
 func (pds *PacketData) GetUint8() uint8 {
 	varint := pds.getVarint()
 	return uint8(varint)
 }
 
-// Write a uint8 to the PacketData
+// PutUint8 writes a uint8 to the PacketData
 func (pds *PacketData) PutUint8(val uint8) {
 	pds.addVarint(uint64(val))
 }
 
-// Read a int64 from the PacketData
+// GetInt64 reads a int64 from the PacketData
 func (pds *PacketData) GetInt64() int64 {
 	return int64(pds.getVarint())
 }
 
-// Write a int64 to the PacketData
+// PutInt64 writes a int64 to the PacketData
 func (pds *PacketData) PutInt64(val int64) {
 	pds.addVarint(uint64(val))
 }
 
-// Read a int32 from the PacketData
+// GetInt32 reads a int32 from the PacketData
 func (pds *PacketData) GetInt32() int32 {
 	return int32(pds.getVarint())
 }
 
-// Write a int32 to the PacketData
+// PutInt32 writes a int32 to the PacketData
 func (pds *PacketData) PutInt32(val int32) {
 	pds.addVarint(uint64(val))
 }
 
-// Read a int16 from the PacketData
+// GetInt16 reads a int16 from the PacketData
 func (pds *PacketData) GetInt16() int16 {
 	return int16(pds.getVarint())
 }
 
-// Write a int16 to the PacketData
+// PutInt16 writes a int16 to the PacketData
 func (pds *PacketData) PutInt16(val int16) {
 	pds.addVarint(uint64(val))
 }
 
-// Read a int8 from the PacketData
+// GetInt8 reads a int8 from the PacketData
 func (pds *PacketData) GetInt8() int8 {
 	return int8(pds.getVarint())
 }
 
-// Write a int8 to the PacketData
+// PutInt8 writes a int8 to the PacketData
 func (pds *PacketData) PutInt8(val int8) {
 	pds.addVarint(uint64(val))
 }
 
-// Read a float32 from the PacketData
+// GetFloat32 reads a float32 from the PacketData
 func (pds *PacketData) GetFloat32() float32 {
 	if pds.Left() < 4 {
 		pds.ok = false
@@ -264,7 +264,7 @@ func (pds *PacketData) GetFloat32() float32 {
 	return math.Float32frombits(val)
 }
 
-// Write a float32 to the PacketData
+// PutFloat32 writes a float32 to the PacketData
 func (pds *PacketData) PutFloat32(val float32) {
 	bits := math.Float32bits(val)
 	pds.append(uint64((bits >> 24) & 0xff))
@@ -273,7 +273,7 @@ func (pds *PacketData) PutFloat32(val float32) {
 	pds.append(uint64(bits & 0xff))
 }
 
-// Read a float64 from the PacketData.
+// GetFloat64 reads a float64 from the PacketData.
 func (pds *PacketData) GetFloat64() float64 {
 	if pds.Left() < 8 {
 		pds.ok = false
@@ -286,7 +286,7 @@ func (pds *PacketData) GetFloat64() float64 {
 	return math.Float64frombits(val)
 }
 
-// Write a float64 to the PacketData
+// PutFloat64 writes a float64 to the PacketData
 func (pds *PacketData) PutFloat64(val float64) {
 	bits := math.Float64bits(val)
 	pds.append((bits >> 56) & 0xff)
