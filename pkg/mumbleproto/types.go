@@ -40,7 +40,7 @@ const (
 	UDPMessageVoiceOpus
 )
 
-// Returns the numeric value identifying the message type of msg on the wire.
+// MessageType returns the numeric value identifying the message type of msg on the wire.
 func MessageType(msg interface{}) uint16 {
 	switch msg.(type) {
 	case *Version:

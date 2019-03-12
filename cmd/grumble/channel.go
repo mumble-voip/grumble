@@ -41,38 +41,38 @@ func NewChannel(id int, name string) (channel *Channel) {
 	return
 }
 
-// Add a child channel to a channel
+// AddChild adds a child channel to a channel
 func (channel *Channel) AddChild(child *Channel) {
 	child.parent = channel
 	child.ACL.Parent = &channel.ACL
 	channel.children[child.Id] = child
 }
 
-// Remove a child channel from a parent
+// RemoveChild removes a child channel from a parent
 func (channel *Channel) RemoveChild(child *Channel) {
 	child.parent = nil
 	child.ACL.Parent = nil
 	delete(channel.children, child.Id)
 }
 
-// Add client
+// AddClient adds client
 func (channel *Channel) AddClient(client *Client) {
 	channel.clients[client.Session()] = client
 	client.Channel = channel
 }
 
-// Remove client
+// RemoveClient removes client
 func (channel *Channel) RemoveClient(client *Client) {
 	delete(channel.clients, client.Session())
 	client.Channel = nil
 }
 
-// Does the channel have a description?
+// HasDescription Does the channel have a description?
 func (channel *Channel) HasDescription() bool {
 	return len(channel.DescriptionBlob) > 0
 }
 
-// Get the channel's blob hash as a byte slice for sending via a protobuf message.
+// DescriptionBlobHashBytes gets the channel's blob hash as a byte slice for sending via a protobuf message.
 // Returns nil if there is no blob.
 func (channel *Channel) DescriptionBlobHashBytes() (buf []byte) {
 	buf, err := hex.DecodeString(channel.DescriptionBlob)
@@ -82,7 +82,7 @@ func (channel *Channel) DescriptionBlobHashBytes() (buf []byte) {
 	return buf
 }
 
-// Returns a slice of all channels in this channel's
+// AllLinks returns a slice of all channels in this channel's
 // link chain.
 func (channel *Channel) AllLinks() (seen map[int]*Channel) {
 	seen = make(map[int]*Channel)
@@ -100,7 +100,7 @@ func (channel *Channel) AllLinks() (seen map[int]*Channel) {
 	return
 }
 
-// Returns a slice of all of this channel's subchannels.
+// AllSubChannels returns a slice of all of this channel's subchannels.
 func (channel *Channel) AllSubChannels() (seen map[int]*Channel) {
 	seen = make(map[int]*Channel)
 	walk := []*Channel{}
@@ -120,12 +120,12 @@ func (channel *Channel) AllSubChannels() (seen map[int]*Channel) {
 	return
 }
 
-// Checks whether the channel is temporary
+// IsTemporary checks whether the channel is temporary
 func (channel *Channel) IsTemporary() bool {
 	return channel.temporary
 }
 
-// Checks whether the channel is temporary
+// IsEmpty checks whether the channel is temporary
 func (channel *Channel) IsEmpty() bool {
 	return len(channel.clients) == 0
 }

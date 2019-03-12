@@ -165,7 +165,7 @@ func (server *Server) Debugf(format string, v ...interface{}) {
 	server.Printf(format, v...)
 }
 
-// Get a pointer to the root channel
+// RootChannel gets a pointer to the root channel
 func (server *Server) RootChannel() *Channel {
 	root, exists := server.Channels[0]
 	if !exists {
@@ -195,7 +195,7 @@ func (server *Server) SetSuperUserPassword(password string) {
 	server.cfgUpdate <- &KeyValuePair{Key: key, Value: val}
 }
 
-// Check whether password matches the set SuperUser password.
+// CheckSuperUserPassword checks whether password matches the set SuperUser password.
 func (server *Server) CheckSuperUserPassword(password string) bool {
 	parts := strings.Split(server.cfg.StringValue("SuperUserPassword"), "$")
 	if len(parts) != 3 {
@@ -296,7 +296,7 @@ func (server *Server) handleIncomingClient(conn net.Conn) (err error) {
 	return
 }
 
-// Remove a disconnected client from the server's
+// RemoveClient removes a disconnected client from the server's
 // internal representation.
 func (server *Server) RemoveClient(client *Client, kicked bool) {
 	server.hmutex.Lock()
@@ -336,7 +336,7 @@ func (server *Server) RemoveClient(client *Client, kicked bool) {
 	}
 }
 
-// Add a new channel to the server. Automatically assign it a channel ID.
+// AddChannel adds a new channel to the server. Automatically assign it a channel ID.
 func (server *Server) AddChannel(name string) (channel *Channel) {
 	channel = NewChannel(server.nextChanId, name)
 	server.Channels[channel.Id] = channel
@@ -345,7 +345,7 @@ func (server *Server) AddChannel(name string) (channel *Channel) {
 	return
 }
 
-// Remove a channel from the server.
+// RemoveChanel removes a channel from the server.
 func (server *Server) RemoveChanel(channel *Channel) {
 	if channel.Id == 0 {
 		server.Printf("Attempted to remove root channel.")
@@ -1047,7 +1047,7 @@ func (server *Server) handleUdpPacket(udpaddr *net.UDPAddr, buf []byte) {
 	match.udprecv <- plain
 }
 
-// Clear the Server's caches
+// ClearCaches clears the Server's caches
 func (server *Server) ClearCaches() {
 	for _, client := range server.clients {
 		client.ClearCaches()
@@ -1115,7 +1115,7 @@ func (s *Server) RegisterClient(client *Client) (uid uint32, err error) {
 	return uid, nil
 }
 
-// Remove a registered user.
+// RemoveRegistration removes a registered user.
 func (s *Server) RemoveRegistration(uid uint32) (err error) {
 	user, ok := s.Users[uid]
 	if !ok {
@@ -1162,7 +1162,7 @@ func (s *Server) removeRegisteredUserFromChannel(uid uint32, channel *Channel) {
 	}
 }
 
-// Remove a channel
+// RemoveChannel removes a channel
 func (server *Server) RemoveChannel(channel *Channel) {
 	// Can't remove root
 	if channel == server.RootChannel() {
@@ -1207,7 +1207,7 @@ func (server *Server) RemoveChannel(channel *Channel) {
 	}
 }
 
-// Remove expired bans
+// RemoveExpiredBans removes expired bans
 func (server *Server) RemoveExpiredBans() {
 	server.banlock.Lock()
 	defer server.banlock.Unlock()
@@ -1228,7 +1228,7 @@ func (server *Server) RemoveExpiredBans() {
 	}
 }
 
-// Is the incoming connection conn banned?
+// IsConnectionBanned Is the incoming connection conn banned?
 func (server *Server) IsConnectionBanned(conn net.Conn) bool {
 	server.banlock.RLock()
 	defer server.banlock.RUnlock()
@@ -1243,7 +1243,7 @@ func (server *Server) IsConnectionBanned(conn net.Conn) bool {
 	return false
 }
 
-// Is the certificate hash banned?
+// IsCertHashBanned Is the certificate hash banned?
 func (server *Server) IsCertHashBanned(hash string) bool {
 	server.banlock.RLock()
 	defer server.banlock.RUnlock()
@@ -1344,7 +1344,7 @@ func (server *Server) cleanPerLaunchData() {
 	server.clientAuthenticated = nil
 }
 
-// Returns the port the native server will listen on when it is
+// Port returns the port the native server will listen on when it is
 // started.
 func (server *Server) Port() int {
 	port := server.cfg.IntValue("Port")
@@ -1354,7 +1354,7 @@ func (server *Server) Port() int {
 	return port
 }
 
-// Returns the port the web server will listen on when it is
+// WebPort returns the port the web server will listen on when it is
 // started.
 func (server *Server) WebPort() int {
 	port := server.cfg.IntValue("WebPort")
@@ -1364,7 +1364,7 @@ func (server *Server) WebPort() int {
 	return port
 }
 
-// Returns the port the native server is currently listening
+// CurrentPort returns the port the native server is currently listening
 // on.  If called when the server is not running,
 // this function returns -1.
 func (server *Server) CurrentPort() int {
@@ -1375,7 +1375,7 @@ func (server *Server) CurrentPort() int {
 	return tcpaddr.Port
 }
 
-// Returns the host address the server will listen on when
+// HostAddress returns the host address the server will listen on when
 // it is started. This must be an IP address, either IPv4
 // or IPv6.
 func (server *Server) HostAddress() string {

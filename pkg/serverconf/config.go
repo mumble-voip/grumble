@@ -36,7 +36,7 @@ func New(cfgMap map[string]string) *Config {
 	return &Config{cfgMap: cfgMap}
 }
 
-// Get a copy of the Config's internal config map
+// GetAll gets a copy of the Config's internal config map
 func (cfg *Config) GetAll() (all map[string]string) {
 	cfg.mutex.RLock()
 	defer cfg.mutex.RUnlock()
@@ -62,7 +62,7 @@ func (cfg *Config) Reset(key string) {
 	delete(cfg.cfgMap, key)
 }
 
-// Get the value of a specific config key encoded as a string
+// StringValue gets the value of a specific config key encoded as a string
 func (cfg *Config) StringValue(key string) (value string) {
 	cfg.mutex.RLock()
 	defer cfg.mutex.RUnlock()
@@ -80,21 +80,21 @@ func (cfg *Config) StringValue(key string) (value string) {
 	return ""
 }
 
-// Get the value of a speific config key as an int
+// IntValue gets the value of a speific config key as an int
 func (cfg *Config) IntValue(key string) (intval int) {
 	str := cfg.StringValue(key)
 	intval, _ = strconv.Atoi(str)
 	return
 }
 
-// Get the value of a specific config key as a uint32
+// Uint32Value gets the value of a specific config key as a uint32
 func (cfg *Config) Uint32Value(key string) (uint32val uint32) {
 	str := cfg.StringValue(key)
 	uintval, _ := strconv.ParseUint(str, 10, 0)
 	return uint32(uintval)
 }
 
-// Get the value fo a sepcific config key as a bool
+// BoolValue gets the value fo a sepcific config key as a bool
 func (cfg *Config) BoolValue(key string) (boolval bool) {
 	str := cfg.StringValue(key)
 	boolval, _ = strconv.ParseBool(str)

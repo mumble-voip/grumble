@@ -96,17 +96,17 @@ func (client *Client) Debugf(format string, v ...interface{}) {
 	client.Printf(format, v...)
 }
 
-// Is the client a registered user?
+// IsRegistered Is the client a registered user?
 func (client *Client) IsRegistered() bool {
 	return client.user != nil
 }
 
-// Does the client have a certificate?
+// HasCertificate Does the client have a certificate?
 func (client *Client) HasCertificate() bool {
 	return len(client.certHash) > 0
 }
 
-// Is the client the SuperUser?
+// IsSuperUser Is the client the SuperUser?
 func (client *Client) IsSuperUser() bool {
 	if client.user == nil {
 		return false
@@ -130,7 +130,7 @@ func (client *Client) Tokens() []string {
 	return client.tokens
 }
 
-// Get the User ID of this client.
+// UserId gets the User ID of this client.
 // Returns -1 if the client is not a registered user.
 func (client *Client) UserId() int {
 	if client.user == nil {
@@ -139,7 +139,7 @@ func (client *Client) UserId() int {
 	return int(client.user.Id)
 }
 
-// Get the client's shown name.
+// ShownName gets the client's shown name.
 func (client *Client) ShownName() string {
 	if client.IsSuperUser() {
 		return "SuperUser"
@@ -150,7 +150,7 @@ func (client *Client) ShownName() string {
 	return client.Username
 }
 
-// Check whether the client's certificate is
+// IsVerified checks whether the client's certificate is
 // verified.
 func (client *Client) IsVerified() bool {
 	tlsconn := client.conn.(*tls.Conn)
@@ -207,7 +207,7 @@ func (client *Client) ForceDisconnect() {
 	client.disconnect(true)
 }
 
-// Clear the client's caches
+// ClearCaches clears the client's caches
 func (client *Client) ClearCaches() {
 	for _, vt := range client.voiceTargets {
 		vt.ClearCache()
