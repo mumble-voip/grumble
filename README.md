@@ -29,7 +29,7 @@ Set up a GOPATH. On Unix, do something like this
 
 and on Windows, do something like this (for cmd.exe):
 
-    c:\> set GOPATH=%USERPROFILE\gocode
+    c:\> set GOPATH=%USERPROFILE%\gocode
     c:\> mkdir %GOPATH%
 
 Then, it's time to install Grumble. The following line should do the trick:
