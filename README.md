@@ -1,7 +1,7 @@
 
 Linux CI (Travis CI):
 
-[![Build Status](https://travis-ci.org/mumble-voip/grumble.svg?branch=master)](https://travis-ci.org/mumble-voip/grumble)
+[![Build Status](https://travis-ci.com/mumble-voip/grumble.svg?branch=master)](https://travis-ci.org/mumble-voip/grumble)
 
 Windows CI (AppVeyor):
 
