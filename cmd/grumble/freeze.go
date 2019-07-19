@@ -21,6 +21,8 @@ import (
 	"time"
 )
 
+type parentsMap map[uint32]uint32
+
 // Freeze a server to disk and closes the log file.
 // This must be called from within the Server's synchronous handler.
 func (server *Server) FreezeToFile() error {
@@ -261,6 +263,8 @@ func (c *Channel) Unfreeze(fc *freezer.Channel) {
 				continue
 			}
 			g := acl.Group{}
+			g.Add = make(map[int]bool)
+			g.Remove = make(map[int]bool)
 			if fgrp.Inherit != nil {
 				g.Inherit = *fgrp.Inherit
 			}
@@ -430,7 +434,7 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 	// Add all channels, but don't hook up parent/child relationships
 	// until after we've walked the log file. No need to make it harder
 	// than it really is.
-	parents := make(map[uint32]uint32)
+	parents := make(parentsMap)
 	for _, fc := range fs.Channels {
 		// The frozen channel must contain an Id and a Name,
 		// since the server's frozen channels are guaranteed to
@@ -487,8 +491,48 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 		}
 	}
 
-	// Attempt to walk the stored log file
+	// Attempt to walk the stored log file (if exists)
 	logFile, err := os.Open(logFn)
+	if err == nil {
+		parents, err = s.walkLogFile(parents, logFile)
+		if err != nil {
+			return nil, err
+		}
+	} else if !os.IsNotExist(err) {
+		return nil, err
+	}
+
+	// Hook up children with their parents
+	for chanId, parentId := range parents {
+		childChan, exists := s.Channels[int(chanId)]
+		if !exists {
+			return nil, errors.New("Non-existant child channel")
+		}
+		parentChan, exists := s.Channels[int(parentId)]
+		if !exists {
+			return nil, errors.New("Non-existant parent channel")
+		}
+		parentChan.AddChild(childChan)
+	}
+
+	// Hook up all channel links
+	for _, channel := range s.Channels {
+		if len(channel.Links) > 0 {
+			links := channel.Links
+			channel.Links = make(map[int]*Channel)
+			for chanId, _ := range links {
+				targetChannel := s.Channels[chanId]
+				if targetChannel != nil {
+					s.LinkChannels(channel, targetChannel)
+				}
+			}
+		}
+	}
+
+	return s, nil
+}
+
+func (s *Server) walkLogFile(parents parentsMap, logFile *os.File) (parentsMap, error) {
 	walker, err := freezer.NewReaderWalker(logFile)
 	if err != nil {
 		return nil, err
@@ -649,34 +693,7 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 		}
 	}
 
-	// Hook up children with their parents
-	for chanId, parentId := range parents {
-		childChan, exists := s.Channels[int(chanId)]
-		if !exists {
-			return nil, errors.New("Non-existant child channel")
-		}
-		parentChan, exists := s.Channels[int(parentId)]
-		if !exists {
-			return nil, errors.New("Non-existant parent channel")
-		}
-		parentChan.AddChild(childChan)
-	}
-
-	// Hook up all channel links
-	for _, channel := range s.Channels {
-		if len(channel.Links) > 0 {
-			links := channel.Links
-			channel.Links = make(map[int]*Channel)
-			for chanId, _ := range links {
-				targetChannel := s.Channels[chanId]
-				if targetChannel != nil {
-					s.LinkChannels(channel, targetChannel)
-				}
-			}
-		}
-	}
-
-	return s, nil
+	return parents, nil
 }
 
 // Update the datastore with the user's current state.

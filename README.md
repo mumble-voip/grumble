@@ -16,9 +16,12 @@ Grumble is an implementation of a server for the Mumble voice chat system. It is
 Compiling Grumble from source
 =============================
 
-You must have a Go 1 environment installed to build Grumble. Those are available at:
+## Dependencies
 
-https://golang.org/dl/
+- You must have a Go 1 environment installed to build Grumble. Those are available at: https://golang.org/dl/
+- Grumble requires sqlite3 library
+
+## Build
 
 Once Go is installed, you should set up a GOPATH to avoid clobbering your Go environment's root directory with third party packages.
 
