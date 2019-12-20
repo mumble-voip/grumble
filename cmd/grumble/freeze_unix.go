@@ -22,6 +22,7 @@ func (server *Server) freezeToFile() (err error) {
 		if err != nil {
 			return err
 		}
+		server.freezelog = nil
 	}
 
 	// Make sure the whole server is synced to disk

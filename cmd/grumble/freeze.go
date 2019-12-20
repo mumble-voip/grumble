@@ -49,6 +49,7 @@ func (server *Server) openFreezeLog() error {
 		if err != nil {
 			return err
 		}
+		server.freezelog = nil
 	}
 
 	logfn := filepath.Join(Args.DataDir, "servers", strconv.FormatInt(server.Id, 10), "log.fz")
