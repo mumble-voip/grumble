@@ -15,9 +15,16 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/golang/protobuf/proto"
 	"hash"
 	"log"
+	"net"
+	"net/http"
+	"path/filepath"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/golang/protobuf/proto"
 	"mumble.info/grumble/pkg/acl"
 	"mumble.info/grumble/pkg/ban"
 	"mumble.info/grumble/pkg/freezer"
@@ -27,12 +34,6 @@ import (
 	"mumble.info/grumble/pkg/serverconf"
 	"mumble.info/grumble/pkg/sessionpool"
 	"mumble.info/grumble/pkg/web"
-	"net"
-	"net/http"
-	"path/filepath"
-	"strings"
-	"sync"
-	"time"
 )
 
 // The default port a Murmur server listens on
@@ -1452,9 +1453,9 @@ func (server *Server) Start() (err error) {
 		// Set sensible timeouts, in case no reverse proxy is in front of Grumble.
 		// Non-conforming (or malicious) clients may otherwise block indefinitely and cause
 		// file descriptors (or handles, depending on your OS) to leak and/or be exhausted
-		ReadTimeout: 5 * time.Second,
+		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
-		IdleTimeout: 2 * time.Minute,
+		IdleTimeout:  2 * time.Minute,
 	}
 	go func() {
 		err := server.webhttp.ListenAndServeTLS("", "")
@@ -1529,10 +1530,6 @@ func (server *Server) Stop() (err error) {
 
 	// Close the listeners
 	err = server.tlsl.Close()
-	if err != nil {
-		return err
-	}
-	err = server.tcpl.Close()
 	if err != nil {
 		return err
 	}
