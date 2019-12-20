@@ -1532,10 +1532,6 @@ func (server *Server) Stop() (err error) {
 	if err != nil {
 		return err
 	}
-	err = server.tcpl.Close()
-	if err != nil {
-		return err
-	}
 	err = server.webwsl.Close()
 	if err != nil {
 		return err
