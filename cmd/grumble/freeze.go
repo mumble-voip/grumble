@@ -6,19 +6,20 @@ package main
 
 import (
 	"errors"
-	"github.com/golang/protobuf/proto"
 	"io"
 	"io/ioutil"
 	"log"
+	"os"
+	"path/filepath"
+	"strconv"
+	"time"
+
+	"github.com/golang/protobuf/proto"
 	"mumble.info/grumble/pkg/acl"
 	"mumble.info/grumble/pkg/ban"
 	"mumble.info/grumble/pkg/freezer"
 	"mumble.info/grumble/pkg/mumbleproto"
 	"mumble.info/grumble/pkg/serverconf"
-	"os"
-	"path/filepath"
-	"strconv"
-	"time"
 )
 
 // Freeze a server to disk and closes the log file.
@@ -48,6 +49,7 @@ func (server *Server) openFreezeLog() error {
 		if err != nil {
 			return err
 		}
+		server.freezelog = nil
 	}
 
 	logfn := filepath.Join(Args.DataDir, "servers", strconv.FormatInt(server.Id, 10), "log.fz")
