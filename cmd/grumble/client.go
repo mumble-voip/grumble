@@ -10,16 +10,17 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"errors"
-	"github.com/golang/protobuf/proto"
 	"io"
 	"log"
+	"net"
+	"runtime"
+	"time"
+
+	"github.com/golang/protobuf/proto"
 	"mumble.info/grumble/pkg/acl"
 	"mumble.info/grumble/pkg/cryptstate"
 	"mumble.info/grumble/pkg/mumbleproto"
 	"mumble.info/grumble/pkg/packetdata"
-	"net"
-	"runtime"
-	"time"
 )
 
 // A client connection

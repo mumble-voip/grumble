@@ -6,6 +6,7 @@ package main
 
 import (
 	"encoding/hex"
+
 	"mumble.info/grumble/pkg/acl"
 )
 
