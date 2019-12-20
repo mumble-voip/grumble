@@ -8,11 +8,12 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"mumble.info/grumble/pkg/blobstore"
-	"mumble.info/grumble/pkg/logtarget"
 	"os"
 	"path/filepath"
 	"regexp"
+
+	"mumble.info/grumble/pkg/blobstore"
+	"mumble.info/grumble/pkg/logtarget"
 )
 
 var servers map[int64]*Server

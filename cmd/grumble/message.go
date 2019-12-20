@@ -8,13 +8,14 @@ import (
 	"crypto/aes"
 	"crypto/tls"
 	"fmt"
+	"net"
+	"time"
+
 	"github.com/golang/protobuf/proto"
 	"mumble.info/grumble/pkg/acl"
 	"mumble.info/grumble/pkg/ban"
 	"mumble.info/grumble/pkg/freezer"
 	"mumble.info/grumble/pkg/mumbleproto"
-	"net"
-	"time"
 )
 
 type Message struct {

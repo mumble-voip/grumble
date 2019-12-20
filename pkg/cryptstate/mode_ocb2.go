@@ -7,6 +7,7 @@ package cryptstate
 import (
 	"crypto/aes"
 	"crypto/cipher"
+
 	"mumble.info/grumble/pkg/cryptstate/ocb2"
 )
 
