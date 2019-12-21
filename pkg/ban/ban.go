@@ -10,9 +10,11 @@ import (
 )
 
 const (
+	// ISODate represents ISO 8601 formatting
 	ISODate = "2006-01-02T15:04:05"
 )
 
+// Ban contains information about a specific ban
 type Ban struct {
 	IP       net.IP
 	Mask     int
@@ -23,7 +25,7 @@ type Ban struct {
 	Duration uint32
 }
 
-// Create a net.IPMask from a specified amount of mask bits
+// IPMask creates a net.IPMask from a specified amount of mask bits
 func (ban Ban) IPMask() (mask net.IPMask) {
 	allbits := ban.Mask
 	for i := 0; i < 16; i++ {
@@ -48,7 +50,7 @@ func (ban Ban) Match(ip net.IP) bool {
 	return banned.Equal(masked)
 }
 
-// Set Start date from an ISO 8601 date (in UTC)
+// SetISOStartDate sets Start date from an ISO 8601 date (in UTC)
 func (ban *Ban) SetISOStartDate(isodate string) {
 	startTime, err := time.Parse(ISODate, isodate)
 	if err != nil {

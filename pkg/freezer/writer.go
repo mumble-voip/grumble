@@ -41,7 +41,7 @@ type Log struct {
 	wc io.WriteCloser
 }
 
-// Type LogTx represents a transaction in the log.
+// LogTx represents a transaction in the log.
 // Transactions can be used to group several changes into an
 // atomic entity in the log file.
 type LogTx struct {
@@ -51,7 +51,7 @@ type LogTx struct {
 	numops int
 }
 
-// Create a new log file
+// NewLogFile creates a new log file
 func NewLogFile(fn string) (*Log, error) {
 	f, err := os.Create(fn)
 	if err != nil {
@@ -69,7 +69,7 @@ func (log *Log) Close() error {
 	return log.wc.Close()
 }
 
-// Append a log entry
+// Put will append a log entry
 //
 // This method implicitly creates a transaction
 // group for this single Put operation. It is merely
@@ -83,7 +83,7 @@ func (log *Log) Put(value interface{}) (err error) {
 	return tx.Commit()
 }
 
-// Begin a transaction
+// BeginTx begins a transaction
 func (log *Log) BeginTx() *LogTx {
 	tx := &LogTx{}
 	tx.log = log
@@ -92,7 +92,7 @@ func (log *Log) BeginTx() *LogTx {
 	return tx
 }
 
-// Append a log entry to the transaction.
+// Put will append a log entry to the transaction.
 // The transaction's log entries will not be persisted to
 // the log until the Commit has been called on the transaction.
 func (tx *LogTx) Put(value interface{}) (err error) {

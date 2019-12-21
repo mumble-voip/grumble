@@ -4,8 +4,10 @@
 
 package replacefile
 
+// Flag is a flag that allows you to ignore some errors
 type Flag uint32
 
+// The types of errors that can be ignored
 const (
 	IgnoreMergeErrors Flag = 0x2
 	IgnoreACLErrors   Flag = 0x4

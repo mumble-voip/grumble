@@ -13,6 +13,7 @@ import (
 
 const decryptHistorySize = 0x100
 
+// CryptoMode represents a specific cryptographic mode
 type CryptoMode interface {
 	NonceSize() int
 	KeySize() int
@@ -23,6 +24,7 @@ type CryptoMode interface {
 	Decrypt(dst []byte, src []byte, nonce []byte) bool
 }
 
+// CryptState represents the current state of a cryptographic operation
 type CryptState struct {
 	Key       []byte
 	EncryptIV []byte
@@ -62,6 +64,7 @@ func createMode(mode string) (CryptoMode, error) {
 	return nil, errors.New("cryptstate: no such CryptoMode")
 }
 
+// GenerateKey will generate a key for the specific mode
 func (cs *CryptState) GenerateKey(mode string) error {
 	cm, err := createMode(mode)
 	if err != nil {
@@ -93,6 +96,7 @@ func (cs *CryptState) GenerateKey(mode string) error {
 	return nil
 }
 
+// SetKey will set the cryptographic key for a specific mode
 func (cs *CryptState) SetKey(mode string, key []byte, eiv []byte, div []byte) error {
 	cm, err := createMode(mode)
 	if err != nil {
@@ -115,6 +119,7 @@ func (cs *CryptState) Overhead() int {
 	return 1 + cs.mode.Overhead()
 }
 
+// Decrypt decrypts the source into the destination
 func (cs *CryptState) Decrypt(dst, src []byte) error {
 	if len(src) < cs.Overhead() {
 		return errors.New("cryptstate: crypted length too short to decrypt")
@@ -228,6 +233,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) error {
 	return nil
 }
 
+// Encrypt will encrypt the source into the destination
 func (cs *CryptState) Encrypt(dst, src []byte) {
 	// First, increase our IV
 	for i := range cs.EncryptIV {

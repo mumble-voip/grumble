@@ -6,6 +6,7 @@ package freezer
 
 type typeKind uint32
 
+// The different types of data that can be frozen
 const (
 	ServerType typeKind = iota
 	ConfigKeyValuePairType

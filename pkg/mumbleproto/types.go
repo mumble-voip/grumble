@@ -4,6 +4,7 @@
 
 package mumbleproto
 
+// All different message types
 const (
 	MessageVersion uint16 = iota
 	MessageUDPTunnel
@@ -32,6 +33,7 @@ const (
 	MessageServerConfig
 )
 
+// All different UDP message types
 const (
 	UDPMessageVoiceCELTAlpha = iota
 	UDPMessagePing

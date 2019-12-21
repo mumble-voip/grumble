@@ -10,6 +10,7 @@ import (
 	"errors"
 )
 
+// The different types of errors that can happen if we're not on windows
 var (
 	errOnlyWindows                    = errors.New("replacefile: only implemented on Windows")
 	ErrUnableToMoveReplacement  error = errOnlyWindows
@@ -17,6 +18,7 @@ var (
 	ErrUnableToRemoveReplaced   error = errOnlyWindows
 )
 
+// ReplaceFile tries to replace the file
 func ReplaceFile(replaced string, replacement string, backup string, flags Flag) error {
 	return errOnlyWindows
 }

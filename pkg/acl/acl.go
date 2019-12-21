@@ -4,8 +4,8 @@
 
 package acl
 
+// Per-channel permissions
 const (
-	// Per-channel permissions
 	NonePermission        = 0x0
 	WritePermission       = 0x1
 	TraversePermission    = 0x2
