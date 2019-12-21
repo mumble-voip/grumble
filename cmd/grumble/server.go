@@ -252,7 +252,7 @@ func (server *Server) handleIncomingClient(conn net.Conn) (err error) {
 	client := new(Client)
 	addr := conn.RemoteAddr()
 	if addr == nil {
-		err = errors.New("Unable to extract address for client.")
+		err = errors.New("unable to extract address for client")
 		return
 	}
 

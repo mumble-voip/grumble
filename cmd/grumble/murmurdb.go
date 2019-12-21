@@ -387,12 +387,12 @@ func populateChannelLinkInfo(server *Server, db *sql.DB) (err error) {
 
 		channel, exists := server.Channels[ChannelID]
 		if !exists {
-			return errors.New("Attempt to perform link operation on non-existant channel.")
+			return errors.New("attempt to perform link operation on non-existant channel")
 		}
 
 		other, exists := server.Channels[LinkID]
 		if !exists {
-			return errors.New("Attempt to perform link operation on non-existant channel.")
+			return errors.New("attempt to perform link operation on non-existant channel")
 		}
 
 		server.LinkChannels(channel, other)
