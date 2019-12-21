@@ -869,13 +869,12 @@ func (server *Server) sendClientPermissions(client *Client, channel *Channel) {
 	}
 
 	// fixme(mkrautz): re-add when we have ACL caching
-	return
 
-	perm := acl.Permission(acl.NonePermission)
-	client.sendMessage(&mumbleproto.PermissionQuery{
-		ChannelId:   proto.Uint32(uint32(channel.Id)),
-		Permissions: proto.Uint32(uint32(perm)),
-	})
+	// perm := acl.Permission(acl.NonePermission)
+	// client.sendMessage(&mumbleproto.PermissionQuery{
+	//	ChannelId:   proto.Uint32(uint32(channel.Id)),
+	//	Permissions: proto.Uint32(uint32(perm)),
+	// })
 }
 
 type ClientPredicate func(client *Client) bool

@@ -392,10 +392,9 @@ func (client *Client) SendUDP(buf []byte) error {
 		crypted := make([]byte, len(buf)+client.crypt.Overhead())
 		client.crypt.Encrypt(crypted, buf)
 		return client.server.SendUDP(crypted, client.udpaddr)
-	} else {
-		return client.sendMessage(buf)
 	}
-	panic("unreachable")
+
+	return client.sendMessage(buf)
 }
 
 // Send a Message to the client.  The Message in msg to the client's

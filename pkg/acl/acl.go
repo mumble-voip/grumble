@@ -161,9 +161,7 @@ func HasPermission(ctx *Context, user User, perm Permission) bool {
 	// permissions exccept SpeakPermission and WhisperPermission.
 	if perm != SpeakPermission && perm != WhisperPermission {
 		return (granted & (perm | WritePermission)) != NonePermission
-	} else {
-		return (granted & perm) != NonePermission
 	}
 
-	return false
+	return (granted & perm) != NonePermission
 }

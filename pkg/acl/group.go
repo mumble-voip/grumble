@@ -298,42 +298,40 @@ func GroupMemberCheck(current *Context, acl *Context, name string, user User) (o
 		pdepth := len(userChain) - 1
 		return pdepth >= mindepth && pdepth <= maxdepth
 
-	} else {
-		// Non-magic groups
-		groups := []Group{}
-
-		iter := channel
-		for iter != nil {
-			if group, ok := iter.Groups[name]; ok {
-				// Skip non-inheritable groups if we're in parents
-				// of our evaluated context.
-				if iter != channel && !group.Inheritable {
-					break
-				}
-				// Prepend group
-				groups = append([]Group{group}, groups...)
-				// If this group does not inherit from groups in its ancestors, stop looking
-				// for more ancestor groups.
-				if !group.Inherit {
-					break
-				}
-			}
-			iter = iter.Parent
-		}
-
-		isMember := false
-		for _, group := range groups {
-			if group.AddContains(user.UserId()) || group.TemporaryContains(user.UserId()) || group.TemporaryContains(-int(user.Session())) {
-				isMember = true
-			}
-			if group.RemoveContains(user.UserId()) {
-				isMember = false
-			}
-		}
-		return isMember
 	}
 
-	return false
+	// Non-magic groups
+	groups := []Group{}
+
+	iter := channel
+	for iter != nil {
+		if group, ok := iter.Groups[name]; ok {
+			// Skip non-inheritable groups if we're in parents
+			// of our evaluated context.
+			if iter != channel && !group.Inheritable {
+				break
+			}
+			// Prepend group
+			groups = append([]Group{group}, groups...)
+			// If this group does not inherit from groups in its ancestors, stop looking
+			// for more ancestor groups.
+			if !group.Inherit {
+				break
+			}
+		}
+		iter = iter.Parent
+	}
+
+	isMember := false
+	for _, group := range groups {
+		if group.AddContains(user.UserId()) || group.TemporaryContains(user.UserId()) || group.TemporaryContains(-int(user.Session())) {
+			isMember = true
+		}
+		if group.RemoveContains(user.UserId()) {
+			isMember = false
+		}
+	}
+	return isMember
 }
 
 // GroupNames gets the list of group names for the given ACL context.
