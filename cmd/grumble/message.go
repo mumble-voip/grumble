@@ -1131,20 +1131,20 @@ func (server *Server) handleACLMessage(client *Client, msg *Message) {
 			// message that maps user ids to usernames.
 			if hasgroup {
 				toadd := map[int]bool{}
-				for uid, _ := range group.Add {
+				for uid := range group.Add {
 					users[uid] = true
 					toadd[uid] = true
 				}
-				for uid, _ := range group.Remove {
+				for uid := range group.Remove {
 					users[uid] = true
 					delete(toadd, uid)
 				}
-				for uid, _ := range toadd {
+				for uid := range toadd {
 					mpgroup.Add = append(mpgroup.Add, uint32(uid))
 				}
 			}
 			if haspgroup {
-				for uid, _ := range pgroup.MembersInContext(&parent.ACL) {
+				for uid := range pgroup.MembersInContext(&parent.ACL) {
 					users[uid] = true
 					mpgroup.InheritedMembers = append(mpgroup.InheritedMembers, uint32(uid))
 				}
@@ -1160,7 +1160,7 @@ func (server *Server) handleACLMessage(client *Client, msg *Message) {
 
 		// Map the user ids in the user map to usernames of users.
 		queryusers := &mumbleproto.QueryUsers{}
-		for uid, _ := range users {
+		for uid := range users {
 			user, ok := server.Users[uint32(uid)]
 			if !ok {
 				client.Printf("Invalid user id in ACL")

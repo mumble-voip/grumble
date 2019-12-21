@@ -354,7 +354,7 @@ func populateChannelsFromDatabase(server *Server, db *sql.DB, parentID int) erro
 	}
 
 	// Add subchannels
-	for id, _ := range parent.children {
+	for id := range parent.children {
 		err = populateChannelsFromDatabase(server, db, id)
 		if err != nil {
 			return err

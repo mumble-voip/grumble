@@ -199,7 +199,7 @@ func (channel *Channel) Freeze() (fc *freezer.Channel, err error) {
 
 	// Add linked channels
 	links := []uint32{}
-	for cid, _ := range channel.Links {
+	for cid := range channel.Links {
 		links = append(links, uint32(cid))
 	}
 	fc.Links = links
@@ -669,7 +669,7 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 		if len(channel.Links) > 0 {
 			links := channel.Links
 			channel.Links = make(map[int]*Channel)
-			for chanID, _ := range links {
+			for chanID := range links {
 				targetChannel := s.Channels[chanID]
 				if targetChannel != nil {
 					s.LinkChannels(channel, targetChannel)
@@ -760,7 +760,7 @@ func (server *Server) UpdateFrozenChannel(channel *Channel, state *mumbleproto.C
 	}
 	if len(state.LinksAdd) > 0 || len(state.LinksRemove) > 0 {
 		links := []uint32{}
-		for cid, _ := range channel.Links {
+		for cid := range channel.Links {
 			links = append(links, uint32(cid))
 		}
 		fc.Links = links
