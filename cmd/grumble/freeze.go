@@ -118,8 +118,8 @@ func (server *Server) Freeze() (fs *freezer.Server, err error) {
 
 // UnfreezeBanList will merge the contents of a freezer.BanList into the server's
 // ban list.
-func (s *Server) UnfreezeBanList(fblist *freezer.BanList) {
-	s.Bans = nil
+func (server *Server) UnfreezeBanList(fblist *freezer.BanList) {
+	server.Bans = nil
 	for _, fb := range fblist.Bans {
 		ban := ban.Ban{}
 
@@ -143,7 +143,7 @@ func (s *Server) UnfreezeBanList(fblist *freezer.BanList) {
 			ban.Duration = *fb.Duration
 		}
 
-		s.Bans = append(s.Bans, ban)
+		server.Bans = append(server.Bans, ban)
 	}
 }
 
@@ -212,23 +212,23 @@ func (channel *Channel) Freeze() (fc *freezer.Channel, err error) {
 
 // Unfreeze unfreezes the contents of a freezer.Channel
 // into a channel.
-func (c *Channel) Unfreeze(fc *freezer.Channel) {
+func (channel *Channel) Unfreeze(fc *freezer.Channel) {
 	if fc.Name != nil {
-		c.Name = *fc.Name
+		channel.Name = *fc.Name
 	}
 	if fc.Position != nil {
-		c.Position = int(*fc.Position)
+		channel.Position = int(*fc.Position)
 	}
 	if fc.InheritACL != nil {
-		c.ACL.InheritACL = *fc.InheritACL
+		channel.ACL.InheritACL = *fc.InheritACL
 	}
 	if fc.DescriptionBlob != nil {
-		c.DescriptionBlob = *fc.DescriptionBlob
+		channel.DescriptionBlob = *fc.DescriptionBlob
 	}
 
 	// Update ACLs
 	if fc.ACL != nil {
-		c.ACL.ACLs = nil
+		channel.ACL.ACLs = nil
 		for _, facl := range fc.ACL {
 			aclEntry := acl.ACL{}
 			if facl.ApplyHere != nil {
@@ -251,13 +251,13 @@ func (c *Channel) Unfreeze(fc *freezer.Channel) {
 			if facl.Allow != nil {
 				aclEntry.Allow = acl.Permission(*facl.Allow)
 			}
-			c.ACL.ACLs = append(c.ACL.ACLs, aclEntry)
+			channel.ACL.ACLs = append(channel.ACL.ACLs, aclEntry)
 		}
 	}
 
 	// Update groups
 	if fc.Groups != nil {
-		c.ACL.Groups = make(map[string]acl.Group)
+		channel.ACL.Groups = make(map[string]acl.Group)
 		for _, fgrp := range fc.Groups {
 			if fgrp.Name == nil {
 				continue
@@ -275,7 +275,7 @@ func (c *Channel) Unfreeze(fc *freezer.Channel) {
 			for _, uid := range fgrp.Remove {
 				g.Remove[int(uid)] = true
 			}
-			c.ACL.Groups[g.Name] = g
+			channel.ACL.Groups[g.Name] = g
 		}
 	}
 
@@ -283,9 +283,9 @@ func (c *Channel) Unfreeze(fc *freezer.Channel) {
 	// We can't be sure that the channels the links point to exist
 	// yet, so we delay hooking up the map 'correctly' to later.
 	if fc.Links != nil {
-		c.Links = make(map[int]*Channel)
+		channel.Links = make(map[int]*Channel)
 		for _, link := range fc.Links {
-			c.Links[int(link)] = c
+			channel.Links[int(link)] = channel
 		}
 	}
 }

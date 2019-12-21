@@ -269,36 +269,36 @@ func (client *Client) readProtoMessage() (msg *Message, err error) {
 }
 
 // Send permission denied by type
-func (c *Client) sendPermissionDeniedType(denyType mumbleproto.PermissionDenied_DenyType) {
-	c.sendPermissionDeniedTypeUser(denyType, nil)
+func (client *Client) sendPermissionDeniedType(denyType mumbleproto.PermissionDenied_DenyType) {
+	client.sendPermissionDeniedTypeUser(denyType, nil)
 }
 
 // Send permission denied by type (and user)
-func (c *Client) sendPermissionDeniedTypeUser(denyType mumbleproto.PermissionDenied_DenyType, user *Client) {
+func (client *Client) sendPermissionDeniedTypeUser(denyType mumbleproto.PermissionDenied_DenyType, user *Client) {
 	pd := &mumbleproto.PermissionDenied{
 		Type: denyType.Enum(),
 	}
 	if user != nil {
 		pd.Session = proto.Uint32(uint32(user.Session()))
 	}
-	err := c.sendMessage(pd)
+	err := client.sendMessage(pd)
 	if err != nil {
-		c.Panicf("%v", err.Error())
+		client.Panicf("%v", err.Error())
 		return
 	}
 }
 
 // Send permission denied by who, what, where
-func (c *Client) sendPermissionDenied(who *Client, where *Channel, what acl.Permission) {
+func (client *Client) sendPermissionDenied(who *Client, where *Channel, what acl.Permission) {
 	pd := &mumbleproto.PermissionDenied{
 		Permission: proto.Uint32(uint32(what)),
 		ChannelId:  proto.Uint32(uint32(where.ID)),
 		Session:    proto.Uint32(who.Session()),
 		Type:       mumbleproto.PermissionDenied_Permission.Enum(),
 	}
-	err := c.sendMessage(pd)
+	err := client.sendMessage(pd)
 	if err != nil {
-		c.Panicf("%v", err.Error())
+		client.Panicf("%v", err.Error())
 		return
 	}
 }

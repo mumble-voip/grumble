@@ -953,8 +953,8 @@ func (server *Server) handleIncomingMessage(client *Client, msg *Message) {
 }
 
 // SendUDP will send the content of buf as a UDP packet to addr.
-func (s *Server) SendUDP(buf []byte, addr *net.UDPAddr) (err error) {
-	_, err = s.udpconn.WriteTo(buf, addr)
+func (server *Server) SendUDP(buf []byte, addr *net.UDPAddr) (err error) {
+	_, err = server.udpconn.WriteTo(buf, addr)
 	return
 }
 
@@ -1098,15 +1098,15 @@ func (server *Server) userEnterChannel(client *Client, channel *Channel, usersta
 }
 
 // RegisterClient will register a client on the server.
-func (s *Server) RegisterClient(client *Client) (uid uint32, err error) {
+func (server *Server) RegisterClient(client *Client) (uid uint32, err error) {
 	// Increment nextUserID only if registration succeeded.
 	defer func() {
 		if err == nil {
-			s.nextUserID += 1
+			server.nextUserID += 1
 		}
 	}()
 
-	user, err := NewUser(s.nextUserID, client.Username)
+	user, err := NewUser(server.nextUserID, client.Username)
 	if err != nil {
 		return 0, err
 	}
@@ -1119,34 +1119,34 @@ func (s *Server) RegisterClient(client *Client) (uid uint32, err error) {
 	user.Email = client.Email
 	user.CertHash = client.CertHash()
 
-	uid = s.nextUserID
-	s.Users[uid] = user
-	s.UserCertMap[client.CertHash()] = user
-	s.UserNameMap[client.Username] = user
+	uid = server.nextUserID
+	server.Users[uid] = user
+	server.UserCertMap[client.CertHash()] = user
+	server.UserNameMap[client.Username] = user
 
 	return uid, nil
 }
 
 // RemoveRegistration removes a registered user.
-func (s *Server) RemoveRegistration(uid uint32) (err error) {
-	user, ok := s.Users[uid]
+func (server *Server) RemoveRegistration(uid uint32) (err error) {
+	user, ok := server.Users[uid]
 	if !ok {
 		return errors.New("Unknown user ID")
 	}
 
 	// Remove from user maps
-	delete(s.Users, uid)
-	delete(s.UserCertMap, user.CertHash)
-	delete(s.UserNameMap, user.Name)
+	delete(server.Users, uid)
+	delete(server.UserCertMap, user.CertHash)
+	delete(server.UserNameMap, user.Name)
 
 	// Remove from groups and ACLs.
-	s.removeRegisteredUserFromChannel(uid, s.RootChannel())
+	server.removeRegisteredUserFromChannel(uid, server.RootChannel())
 
 	return nil
 }
 
 // Remove references for user id uid from channel. Traverses subchannels.
-func (s *Server) removeRegisteredUserFromChannel(uid uint32, channel *Channel) {
+func (server *Server) removeRegisteredUserFromChannel(uid uint32, channel *Channel) {
 
 	newACL := []acl.ACL{}
 	for _, chanacl := range channel.ACL.ACLs {
@@ -1170,7 +1170,7 @@ func (s *Server) removeRegisteredUserFromChannel(uid uint32, channel *Channel) {
 	}
 
 	for _, subChan := range channel.children {
-		s.removeRegisteredUserFromChannel(uid, subChan)
+		server.removeRegisteredUserFromChannel(uid, subChan)
 	}
 }
 
