@@ -780,7 +780,7 @@ type UserState struct {
 	// User name, UTF-8 encoded.
 	Name *string `protobuf:"bytes,3,opt,name=name" json:"name,omitempty"`
 	// Registered user ID if the user is registered.
-	UserId *uint32 `protobuf:"varint,4,opt,name=user_id,json=userId" json:"user_id,omitempty"`
+	UserID *uint32 `protobuf:"varint,4,opt,name=user_id,json=userId" json:"user_id,omitempty"`
 	// Channel on which the user is.
 	ChannelId *uint32 `protobuf:"varint,5,opt,name=channel_id,json=channelId" json:"channel_id,omitempty"`
 	// True if the user is muted by admin.
@@ -841,9 +841,9 @@ func (m *UserState) GetName() string {
 	return ""
 }
 
-func (m *UserState) GetUserId() uint32 {
-	if m != nil && m.UserId != nil {
-		return *m.UserId
+func (m *UserState) GetUserID() uint32 {
+	if m != nil && m.UserID != nil {
+		return *m.UserID
 	}
 	return 0
 }
@@ -1321,7 +1321,7 @@ type ACL_ChanACL struct {
 	// True if the ACL has been inherited from the parent.
 	Inherited *bool `protobuf:"varint,3,opt,name=inherited,def=1" json:"inherited,omitempty"`
 	// ID of the user that is affected by this ACL.
-	UserId *uint32 `protobuf:"varint,4,opt,name=user_id,json=userId" json:"user_id,omitempty"`
+	UserID *uint32 `protobuf:"varint,4,opt,name=user_id,json=userId" json:"user_id,omitempty"`
 	// ID of the group that is affected by this ACL.
 	Group *string `protobuf:"bytes,5,opt,name=group" json:"group,omitempty"`
 	// Bit flag field of the permissions granted by this ACL.
@@ -1361,9 +1361,9 @@ func (m *ACL_ChanACL) GetInherited() bool {
 	return Default_ACL_ChanACL_Inherited
 }
 
-func (m *ACL_ChanACL) GetUserId() uint32 {
-	if m != nil && m.UserId != nil {
-		return *m.UserId
+func (m *ACL_ChanACL) GetUserID() uint32 {
+	if m != nil && m.UserID != nil {
+		return *m.UserID
 	}
 	return 0
 }
@@ -1561,7 +1561,7 @@ func (m *UserList) GetUsers() []*UserList_User {
 
 type UserList_User struct {
 	// Registered user ID.
-	UserId *uint32 `protobuf:"varint,1,req,name=user_id,json=userId" json:"user_id,omitempty"`
+	UserID *uint32 `protobuf:"varint,1,req,name=user_id,json=userId" json:"user_id,omitempty"`
 	// Registered user name.
 	Name             *string `protobuf:"bytes,2,opt,name=name" json:"name,omitempty"`
 	LastSeen         *string `protobuf:"bytes,3,opt,name=last_seen,json=lastSeen" json:"last_seen,omitempty"`
@@ -1574,9 +1574,9 @@ func (m *UserList_User) String() string            { return proto.CompactTextStr
 func (*UserList_User) ProtoMessage()               {}
 func (*UserList_User) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{18, 0} }
 
-func (m *UserList_User) GetUserId() uint32 {
-	if m != nil && m.UserId != nil {
-		return *m.UserId
+func (m *UserList_User) GetUserID() uint32 {
+	if m != nil && m.UserID != nil {
+		return *m.UserID
 	}
 	return 0
 }

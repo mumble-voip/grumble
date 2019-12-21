@@ -54,7 +54,7 @@ func (perm Permission) Clean() Permission {
 type ACL struct {
 	// The user id that this ACL applied to. If this
 	// field is -1, the ACL is a group ACL.
-	UserId int
+	UserID int
 	// The group that this ACL applies to.
 	Group string
 
@@ -75,7 +75,7 @@ type ACL struct {
 // IsUserACL returns true if the ACL is defined for a user,
 // as opposed to a group.
 func (acl *ACL) IsUserACL() bool {
-	return acl.UserId != -1
+	return acl.UserID != -1
 }
 
 // IsChannelACL returns true if the ACL is defined for a group,
@@ -93,7 +93,7 @@ func HasPermission(ctx *Context, user User, perm Permission) bool {
 	}
 
 	// SuperUser can't speak or whisper, but everything else is OK
-	if user.UserId() == 0 {
+	if user.UserID() == 0 {
 		if perm == SpeakPermission || perm == WhisperPermission {
 			return false
 		}
@@ -125,7 +125,7 @@ func HasPermission(ctx *Context, user User, perm Permission) bool {
 			// If it's a group ACL, we have to parse and interpret
 			// the group string in the current context to determine
 			// membership. For that we use GroupMemberCheck.
-			matchUser := acl.IsUserACL() && acl.UserId == user.UserId()
+			matchUser := acl.IsUserACL() && acl.UserID == user.UserID()
 			matchGroup := GroupMemberCheck(origCtx, ctx, acl.Group, user)
 			if matchUser || matchGroup {
 				if acl.Allow.isSet(TraversePermission) {

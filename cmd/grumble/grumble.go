@@ -185,7 +185,7 @@ func main() {
 			if err != nil {
 				log.Fatalf("Unable to freeze server to disk: %v", err.Error())
 			}
-			servers[s.Id] = s
+			servers[s.ID] = s
 		}
 	}
 
@@ -196,7 +196,7 @@ func main() {
 			log.Fatalf("Couldn't start server: %s", err.Error())
 		}
 
-		servers[s.Id] = s
+		servers[s.ID] = s
 		os.Mkdir(filepath.Join(serversDirPath, fmt.Sprintf("%v", 1)), 0750)
 		err = s.FreezeToFile()
 		if err != nil {
@@ -208,7 +208,7 @@ func main() {
 	for _, server := range servers {
 		err = server.Start()
 		if err != nil {
-			log.Printf("Unable to start server %v: %v", server.Id, err.Error())
+			log.Printf("Unable to start server %v: %v", server.ID, err.Error())
 		}
 	}
 

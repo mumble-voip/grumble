@@ -270,7 +270,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 		// Add the creator to the channel's admin group
 		if client.IsRegistered() {
 			grp := acl.EmptyGroupWithName("admin")
-			grp.Add[client.UserId()] = true
+			grp.Add[client.UserID()] = true
 			channel.ACL.Groups["admin"] = grp
 		}
 
@@ -281,7 +281,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 			aclEntry.ApplyHere = true
 			aclEntry.ApplySubs = true
 			if client.IsRegistered() {
-				aclEntry.UserId = client.UserId()
+				aclEntry.UserID = client.UserID()
 			} else {
 				aclEntry.Group = "$" + client.CertHash()
 			}
@@ -663,7 +663,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	}
 
 	// Registration
-	if userstate.UserId != nil {
+	if userstate.UserID != nil {
 		// If user == actor, check for SelfRegisterPermission on root channel.
 		// If user != actor, check for RegisterPermission permission on root channel.
 		perm := acl.Permission(acl.RegisterPermission)
@@ -799,13 +799,13 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	}
 
 	userRegistrationChanged := false
-	if userstate.UserId != nil {
+	if userstate.UserID != nil {
 		uid, err := server.RegisterClient(target)
 		if err != nil {
 			client.Printf("Unable to register: %v", err)
-			userstate.UserId = nil
+			userstate.UserID = nil
 		} else {
-			userstate.UserId = proto.Uint32(uid)
+			userstate.UserID = proto.Uint32(uid)
 			client.user = server.Users[uid]
 			userRegistrationChanged = true
 		}
@@ -1079,9 +1079,9 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 					mpacl.Inherited = proto.Bool(iter != channel)
 					mpacl.ApplyHere = proto.Bool(chanacl.ApplyHere)
 					mpacl.ApplySubs = proto.Bool(chanacl.ApplySubs)
-					if chanacl.UserId >= 0 {
-						mpacl.UserId = proto.Uint32(uint32(chanacl.UserId))
-						users[chanacl.UserId] = true
+					if chanacl.UserID >= 0 {
+						mpacl.UserID = proto.Uint32(uint32(chanacl.UserID))
+						users[chanacl.UserID] = true
 					} else {
 						mpacl.Group = proto.String(chanacl.Group)
 					}
@@ -1210,8 +1210,8 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 			chanacl := acl.ACL{}
 			chanacl.ApplyHere = *pbacl.ApplyHere
 			chanacl.ApplySubs = *pbacl.ApplySubs
-			if pbacl.UserId != nil {
-				chanacl.UserId = int(*pbacl.UserId)
+			if pbacl.UserID != nil {
+				chanacl.UserID = int(*pbacl.UserID)
 			} else {
 				chanacl.Group = *pbacl.Group
 			}
@@ -1230,7 +1230,7 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 			chanacl.ApplyHere = true
 			chanacl.ApplySubs = false
 			if client.IsRegistered() {
-				chanacl.UserId = client.UserId()
+				chanacl.UserID = client.UserID()
 			} else if client.HasCertificate() {
 				chanacl.Group = "$" + client.CertHash()
 			}
@@ -1271,7 +1271,7 @@ func (server *Server) handleQueryUsers(client *Client, msg *Message) {
 	for _, name := range query.Names {
 		user, exists := server.UserNameMap[name]
 		if exists {
-			reply.Ids = append(reply.Ids, user.Id)
+			reply.Ids = append(reply.Ids, user.ID)
 			reply.Names = append(reply.Names, name)
 		}
 	}
@@ -1568,7 +1568,7 @@ func (server *Server) handleUserList(client *Client, msg *Message) {
 				continue
 			}
 			userlist.Users = append(userlist.Users, &mumbleproto.UserList_User{
-				UserId: proto.Uint32(uid),
+				UserID: proto.Uint32(uid),
 				Name:   proto.String(user.Name),
 			})
 		}
@@ -1581,7 +1581,7 @@ func (server *Server) handleUserList(client *Client, msg *Message) {
 		if len(userlist.Users) > 0 {
 			tx := server.freezelog.BeginTx()
 			for _, listUser := range userlist.Users {
-				uid := *listUser.UserId
+				uid := *listUser.UserID
 				if uid == 0 {
 					continue
 				}
@@ -1590,7 +1590,7 @@ func (server *Server) handleUserList(client *Client, msg *Message) {
 					if listUser.Name == nil {
 						// De-register
 						server.RemoveRegistration(uid)
-						err := tx.Put(&freezer.UserRemove{Id: listUser.UserId})
+						err := tx.Put(&freezer.UserRemove{Id: listUser.UserID})
 						if err != nil {
 							server.Fatal(err)
 						}
@@ -1598,7 +1598,7 @@ func (server *Server) handleUserList(client *Client, msg *Message) {
 						// Rename user
 						// todo(mkrautz): Validate name.
 						user.Name = *listUser.Name
-						err := tx.Put(&freezer.User{Id: listUser.UserId, Name: listUser.Name})
+						err := tx.Put(&freezer.User{Id: listUser.UserID, Name: listUser.Name})
 						if err != nil {
 							server.Fatal(err)
 						}

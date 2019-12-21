@@ -146,7 +146,7 @@ func populateChannelInfoFromDatabase(server *Server, c *Channel, db *sql.DB) err
 	}
 
 	// Fetch description
-	rows, err := stmt.Query(server.Id, c.ID, ChannelInfoDescription)
+	rows, err := stmt.Query(server.ID, c.ID, ChannelInfoDescription)
 	if err != nil {
 		return err
 	}
@@ -167,7 +167,7 @@ func populateChannelInfoFromDatabase(server *Server, c *Channel, db *sql.DB) err
 	}
 
 	// Fetch position
-	rows, err = stmt.Query(server.Id, c.ID, ChannelInfoPosition)
+	rows, err = stmt.Query(server.ID, c.ID, ChannelInfoPosition)
 	if err != nil {
 		return err
 	}
@@ -190,36 +190,36 @@ func populateChannelACLFromDatabase(server *Server, c *Channel, db *sql.DB) erro
 		return err
 	}
 
-	rows, err := stmt.Query(server.Id, c.ID)
+	rows, err := stmt.Query(server.ID, c.ID)
 	if err != nil {
 		return err
 	}
 
 	for rows.Next() {
 		var (
-			UserId    string
+			UserID    string
 			Group     string
 			ApplyHere bool
 			ApplySub  bool
 			Allow     int64
 			Deny      int64
 		)
-		if err := rows.Scan(&UserId, &Group, &ApplyHere, &ApplySub, &Allow, &Deny); err != nil {
+		if err := rows.Scan(&UserID, &Group, &ApplyHere, &ApplySub, &Allow, &Deny); err != nil {
 			return err
 		}
 
 		aclEntry := acl.ACL{}
 		aclEntry.ApplyHere = ApplyHere
 		aclEntry.ApplySubs = ApplySub
-		if len(UserId) > 0 {
-			aclEntry.UserId, err = strconv.Atoi(UserId)
+		if len(UserID) > 0 {
+			aclEntry.UserID, err = strconv.Atoi(UserID)
 			if err != nil {
 				return err
 			}
 		} else if len(Group) > 0 {
 			aclEntry.Group = Group
 		} else {
-			return errors.New("Invalid ACL: Neither Group or UserId specified")
+			return errors.New("Invalid ACL: Neither Group or UserID specified")
 		}
 
 		aclEntry.Deny = acl.Permission(Deny)
@@ -237,7 +237,7 @@ func populateChannelGroupsFromDatabase(server *Server, c *Channel, db *sql.DB) e
 		return err
 	}
 
-	rows, err := stmt.Query(server.Id, c.ID)
+	rows, err := stmt.Query(server.ID, c.ID)
 	if err != nil {
 		return err
 	}
@@ -246,13 +246,13 @@ func populateChannelGroupsFromDatabase(server *Server, c *Channel, db *sql.DB) e
 
 	for rows.Next() {
 		var (
-			GroupId     int64
+			GroupID     int64
 			Name        string
 			Inherit     bool
 			Inheritable bool
 		)
 
-		if err := rows.Scan(&GroupId, &Name, &Inherit, &Inheritable); err != nil {
+		if err := rows.Scan(&GroupID, &Name, &Inherit, &Inheritable); err != nil {
 			return err
 		}
 
@@ -260,7 +260,7 @@ func populateChannelGroupsFromDatabase(server *Server, c *Channel, db *sql.DB) e
 		g.Inherit = Inherit
 		g.Inheritable = Inheritable
 		c.ACL.Groups[g.Name] = g
-		groups[GroupId] = g
+		groups[GroupID] = g
 	}
 
 	stmt, err = db.Prepare("SELECT user_id, addit FROM group_members WHERE server_id=? AND group_id=?")
@@ -269,25 +269,25 @@ func populateChannelGroupsFromDatabase(server *Server, c *Channel, db *sql.DB) e
 	}
 
 	for gid, grp := range groups {
-		rows, err = stmt.Query(server.Id, gid)
+		rows, err = stmt.Query(server.ID, gid)
 		if err != nil {
 			return err
 		}
 
 		for rows.Next() {
 			var (
-				UserId int64
+				UserID int64
 				Add    bool
 			)
 
-			if err := rows.Scan(&UserId, &Add); err != nil {
+			if err := rows.Scan(&UserID, &Add); err != nil {
 				return err
 			}
 
 			if Add {
-				grp.Add[int(UserId)] = true
+				grp.Add[int(UserID)] = true
 			} else {
-				grp.Remove[int(UserId)] = true
+				grp.Remove[int(UserID)] = true
 			}
 		}
 	}
@@ -296,8 +296,8 @@ func populateChannelGroupsFromDatabase(server *Server, c *Channel, db *sql.DB) e
 }
 
 // Populate the Server with Channels from the database.
-func populateChannelsFromDatabase(server *Server, db *sql.DB, parentId int) error {
-	parent, exists := server.Channels[parentId]
+func populateChannelsFromDatabase(server *Server, db *sql.DB, parentID int) error {
+	parent, exists := server.Channels[parentID]
 	if !exists {
 		return errors.New("Non-existant parent")
 	}
@@ -307,7 +307,7 @@ func populateChannelsFromDatabase(server *Server, db *sql.DB, parentId int) erro
 		return err
 	}
 
-	rows, err := stmt.Query(server.Id, parentId)
+	rows, err := stmt.Query(server.ID, parentID)
 	if err != nil {
 		return err
 	}
@@ -371,26 +371,26 @@ func populateChannelLinkInfo(server *Server, db *sql.DB) (err error) {
 		return err
 	}
 
-	rows, err := stmt.Query(server.Id)
+	rows, err := stmt.Query(server.ID)
 	if err != nil {
 		return err
 	}
 
 	for rows.Next() {
 		var (
-			ChannelId int
-			LinkId    int
+			ChannelID int
+			LinkID    int
 		)
-		if err := rows.Scan(&ChannelId, &LinkId); err != nil {
+		if err := rows.Scan(&ChannelID, &LinkID); err != nil {
 			return err
 		}
 
-		channel, exists := server.Channels[ChannelId]
+		channel, exists := server.Channels[ChannelID]
 		if !exists {
 			return errors.New("Attempt to perform link operation on non-existant channel.")
 		}
 
-		other, exists := server.Channels[LinkId]
+		other, exists := server.Channels[LinkID]
 		if !exists {
 			return errors.New("Attempt to perform link operation on non-existant channel.")
 		}
@@ -408,14 +408,14 @@ func populateUsers(server *Server, db *sql.DB) (err error) {
 		return
 	}
 
-	rows, err := stmt.Query(server.Id)
+	rows, err := stmt.Query(server.ID)
 	if err != nil {
 		return
 	}
 
 	for rows.Next() {
 		var (
-			UserId       int64
+			UserID       int64
 			UserName     string
 			SHA1Password string
 			LastChannel  int
@@ -423,16 +423,16 @@ func populateUsers(server *Server, db *sql.DB) (err error) {
 			LastActive   int64
 		)
 
-		err = rows.Scan(&UserId, &UserName, &SHA1Password, &LastChannel, &Texture, &LastActive)
+		err = rows.Scan(&UserID, &UserName, &SHA1Password, &LastChannel, &Texture, &LastActive)
 		if err != nil {
 			continue
 		}
 
-		if UserId == 0 {
+		if UserID == 0 {
 			server.cfg.Set("SuperUserPassword", "sha1$$"+SHA1Password)
 		}
 
-		user, err := NewUser(uint32(UserId), UserName)
+		user, err := NewUser(uint32(UserID), UserName)
 		if err != nil {
 			return err
 		}
@@ -446,9 +446,9 @@ func populateUsers(server *Server, db *sql.DB) (err error) {
 		}
 
 		user.LastActive = uint64(LastActive)
-		user.LastChannelId = LastChannel
+		user.LastChannelID = LastChannel
 
-		server.Users[user.Id] = user
+		server.Users[user.ID] = user
 	}
 
 	stmt, err = db.Prepare("SELECT key, value FROM user_info WHERE server_id=? AND user_id=?")
@@ -458,7 +458,7 @@ func populateUsers(server *Server, db *sql.DB) (err error) {
 
 	// Populate users with any new-style UserInfo records
 	for uid, user := range server.Users {
-		rows, err = stmt.Query(server.Id, uid)
+		rows, err = stmt.Query(server.ID, uid)
 		if err != nil {
 			return err
 		}
@@ -505,7 +505,7 @@ func populateBans(server *Server, db *sql.DB) (err error) {
 		return
 	}
 
-	rows, err := stmt.Query(server.Id)
+	rows, err := stmt.Query(server.ID)
 	if err != nil {
 		return err
 	}

@@ -112,7 +112,7 @@ func (client *Client) IsSuperUser() bool {
 	if client.user == nil {
 		return false
 	}
-	return client.user.Id == 0
+	return client.user.ID == 0
 }
 
 // ACLContext returns the access control list context for this client
@@ -135,13 +135,13 @@ func (client *Client) Tokens() []string {
 	return client.tokens
 }
 
-// UserId gets the User ID of this client.
+// UserID gets the User ID of this client.
 // Returns -1 if the client is not a registered user.
-func (client *Client) UserId() int {
+func (client *Client) UserID() int {
 	if client.user == nil {
 		return -1
 	}
-	return int(client.user.Id)
+	return int(client.user.ID)
 }
 
 // ShownName gets the client's shown name.

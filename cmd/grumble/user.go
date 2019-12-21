@@ -15,14 +15,14 @@ import (
 
 // User contains all user information
 type User struct {
-	Id            uint32
+	ID            uint32
 	Name          string
 	Password      string
 	CertHash      string
 	Email         string
 	TextureBlob   string
 	CommentBlob   string
-	LastChannelId int
+	LastChannelID int
 	LastActive    uint64
 }
 
@@ -36,7 +36,7 @@ func NewUser(id uint32, name string) (user *User, err error) {
 	}
 
 	return &User{
-		Id:   id,
+		ID:   id,
 		Name: name,
 	}, nil
 }

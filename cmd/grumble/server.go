@@ -71,7 +71,7 @@ type KeyValuePair struct {
 
 // Server is a Grumble server instance
 type Server struct {
-	Id int64
+	ID int64
 
 	tcpl      *net.TCPListener
 	tlsl      net.Listener
@@ -112,13 +112,13 @@ type Server struct {
 
 	// Channels
 	Channels   map[int]*Channel
-	nextChanId int
+	nextChanID int
 
 	// Users
 	Users       map[uint32]*User
 	UserCertMap map[string]*User
 	UserNameMap map[string]*User
-	nextUserId  uint32
+	nextUserID  uint32
 
 	// Sessions
 	pool *sessionpool.SessionPool
@@ -142,7 +142,7 @@ type clientLogForwarder struct {
 
 func (lf clientLogForwarder) Write(incoming []byte) (int, error) {
 	buf := new(bytes.Buffer)
-	buf.WriteString(fmt.Sprintf("<%v:%v(%v)> ", lf.client.Session(), lf.client.ShownName(), lf.client.UserId()))
+	buf.WriteString(fmt.Sprintf("<%v:%v(%v)> ", lf.client.Session(), lf.client.ShownName(), lf.client.UserID()))
 	buf.Write(incoming)
 	lf.logger.Output(3, buf.String())
 	return len(incoming), nil
@@ -152,7 +152,7 @@ func (lf clientLogForwarder) Write(incoming []byte) (int, error) {
 func NewServer(id int64) (s *Server, err error) {
 	s = new(Server)
 
-	s.Id = id
+	s.ID = id
 
 	s.cfg = serverconf.New(nil)
 
@@ -161,13 +161,13 @@ func NewServer(id int64) (s *Server, err error) {
 	s.UserNameMap = make(map[string]*User)
 	s.Users[0], err = NewUser(0, "SuperUser")
 	s.UserNameMap["SuperUser"] = s.Users[0]
-	s.nextUserId = 1
+	s.nextUserID = 1
 
 	s.Channels = make(map[int]*Channel)
 	s.Channels[0] = NewChannel(0, "Root")
-	s.nextChanId = 1
+	s.nextChanID = 1
 
-	s.Logger = log.New(&logtarget.Target, fmt.Sprintf("[%v] ", s.Id), log.LstdFlags|log.Lmicroseconds)
+	s.Logger = log.New(&logtarget.Target, fmt.Sprintf("[%v] ", s.ID), log.LstdFlags|log.Lmicroseconds)
 
 	return
 }
@@ -350,9 +350,9 @@ func (server *Server) RemoveClient(client *Client, kicked bool) {
 
 // AddChannel adds a new channel to the server. Automatically assign it a channel ID.
 func (server *Server) AddChannel(name string) (channel *Channel) {
-	channel = NewChannel(server.nextChanId, name)
+	channel = NewChannel(server.nextChanID, name)
 	server.Channels[channel.ID] = channel
-	server.nextChanId += 1
+	server.nextChanID += 1
 
 	return
 }
@@ -565,7 +565,7 @@ func (server *Server) finishAuthenticate(client *Client) {
 	if client.user != nil {
 		found := false
 		for _, connectedClient := range server.clients {
-			if connectedClient.UserId() == client.UserId() {
+			if connectedClient.UserID() == client.UserID() {
 				found = true
 				break
 			}
@@ -609,7 +609,7 @@ func (server *Server) finishAuthenticate(client *Client) {
 
 	channel := server.RootChannel()
 	if client.IsRegistered() {
-		lastChannel := server.Channels[client.user.LastChannelId]
+		lastChannel := server.Channels[client.user.LastChannelID]
 		if lastChannel != nil {
 			channel = lastChannel
 		}
@@ -626,7 +626,7 @@ func (server *Server) finishAuthenticate(client *Client) {
 	}
 
 	if client.IsRegistered() {
-		userstate.UserId = proto.Uint32(uint32(client.UserId()))
+		userstate.UserID = proto.Uint32(uint32(client.UserID()))
 
 		if client.user.HasTexture() {
 			// Does the client support blobs?
@@ -810,7 +810,7 @@ func (server *Server) sendUserList(client *Client) {
 		}
 
 		if connectedClient.IsRegistered() {
-			userstate.UserId = proto.Uint32(uint32(connectedClient.UserId()))
+			userstate.UserID = proto.Uint32(uint32(connectedClient.UserID()))
 
 			if connectedClient.user.HasTexture() {
 				// Does the client support blobs?
@@ -1099,14 +1099,14 @@ func (server *Server) userEnterChannel(client *Client, channel *Channel, usersta
 
 // RegisterClient will register a client on the server.
 func (s *Server) RegisterClient(client *Client) (uid uint32, err error) {
-	// Increment nextUserId only if registration succeeded.
+	// Increment nextUserID only if registration succeeded.
 	defer func() {
 		if err == nil {
-			s.nextUserId += 1
+			s.nextUserID += 1
 		}
 	}()
 
-	user, err := NewUser(s.nextUserId, client.Username)
+	user, err := NewUser(s.nextUserID, client.Username)
 	if err != nil {
 		return 0, err
 	}
@@ -1119,7 +1119,7 @@ func (s *Server) RegisterClient(client *Client) (uid uint32, err error) {
 	user.Email = client.Email
 	user.CertHash = client.CertHash()
 
-	uid = s.nextUserId
+	uid = s.nextUserID
 	s.Users[uid] = user
 	s.UserCertMap[client.CertHash()] = user
 	s.UserNameMap[client.Username] = user
@@ -1150,7 +1150,7 @@ func (s *Server) removeRegisteredUserFromChannel(uid uint32, channel *Channel) {
 
 	newACL := []acl.ACL{}
 	for _, chanacl := range channel.ACL.ACLs {
-		if chanacl.UserId == int(uid) {
+		if chanacl.UserID == int(uid) {
 			continue
 		}
 		newACL = append(newACL, chanacl)
@@ -1361,7 +1361,7 @@ func (server *Server) cleanPerLaunchData() {
 func (server *Server) Port() int {
 	port := server.cfg.IntValue("Port")
 	if port == 0 {
-		return DefaultPort + int(server.Id) - 1
+		return DefaultPort + int(server.ID) - 1
 	}
 	return port
 }
@@ -1371,7 +1371,7 @@ func (server *Server) Port() int {
 func (server *Server) WebPort() int {
 	port := server.cfg.IntValue("WebPort")
 	if port == 0 {
-		return DefaultWebPort + int(server.Id) - 1
+		return DefaultWebPort + int(server.ID) - 1
 	}
 	return port
 }

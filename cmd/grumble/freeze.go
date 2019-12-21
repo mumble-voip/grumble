@@ -52,7 +52,7 @@ func (server *Server) openFreezeLog() error {
 		server.freezelog = nil
 	}
 
-	logfn := filepath.Join(Args.DataDir, "servers", strconv.FormatInt(server.Id, 10), "log.fz")
+	logfn := filepath.Join(Args.DataDir, "servers", strconv.FormatInt(server.ID, 10), "log.fz")
 	err := os.Remove(logfn)
 	if os.IsNotExist(err) {
 		// fallthrough
@@ -237,10 +237,10 @@ func (c *Channel) Unfreeze(fc *freezer.Channel) {
 			if facl.ApplySubs != nil {
 				aclEntry.ApplySubs = *facl.ApplySubs
 			}
-			if facl.UserId != nil {
-				aclEntry.UserId = int(*facl.UserId)
+			if facl.UserID != nil {
+				aclEntry.UserID = int(*facl.UserID)
 			} else {
-				aclEntry.UserId = -1
+				aclEntry.UserID = -1
 			}
 			if facl.Group != nil {
 				aclEntry.Group = *facl.Group
@@ -295,13 +295,13 @@ func (c *Channel) Unfreeze(fc *freezer.Channel) {
 func (user *User) Freeze() (fu *freezer.User, err error) {
 	fu = new(freezer.User)
 
-	fu.Id = proto.Uint32(user.Id)
+	fu.Id = proto.Uint32(user.ID)
 	fu.Name = proto.String(user.Name)
 	fu.CertHash = proto.String(user.CertHash)
 	fu.Email = proto.String(user.Email)
 	fu.TextureBlob = proto.String(user.TextureBlob)
 	fu.CommentBlob = proto.String(user.CommentBlob)
-	fu.LastChannelId = proto.Uint32(uint32(user.LastChannelId))
+	fu.LastChannelID = proto.Uint32(uint32(user.LastChannelID))
 	fu.LastActive = proto.Uint64(user.LastActive)
 
 	return
@@ -324,8 +324,8 @@ func (u *User) Unfreeze(fu *freezer.User) {
 	if fu.CommentBlob != nil {
 		u.CommentBlob = *fu.CommentBlob
 	}
-	if fu.LastChannelId != nil {
-		u.LastChannelId = int(*fu.LastChannelId)
+	if fu.LastChannelID != nil {
+		u.LastChannelID = int(*fu.LastChannelID)
 	}
 	if fu.LastActive != nil {
 		u.LastActive = *fu.LastActive
@@ -336,8 +336,8 @@ func (u *User) Unfreeze(fu *freezer.User) {
 // ready to be persisted to disk.
 func FreezeACL(aclEntry acl.ACL) (*freezer.ACL, error) {
 	frozenAcl := &freezer.ACL{}
-	if aclEntry.UserId != -1 {
-		frozenAcl.UserId = proto.Uint32(uint32(aclEntry.UserId))
+	if aclEntry.UserID != -1 {
+		frozenAcl.UserID = proto.Uint32(uint32(aclEntry.UserID))
 	} else {
 		frozenAcl.Group = proto.String(aclEntry.Group)
 	}
@@ -445,8 +445,8 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 		// Update the server's nextChanId field if it needs to be,
 		// to make sure the server doesn't re-use channel id's.
 		c := NewChannel(int(*fc.Id), *fc.Name)
-		if c.ID >= s.nextChanId {
-			s.nextChanId = c.ID + 1
+		if c.ID >= s.nextChanID {
+			s.nextChanID = c.ID + 1
 		}
 
 		// Update the channel with the contents of the freezer.Channel.
@@ -472,8 +472,8 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 		if err != nil {
 			return nil, err
 		}
-		if u.Id >= s.nextUserId {
-			s.nextUserId = u.Id + 1
+		if u.ID >= s.nextUserID {
+			s.nextUserID = u.ID + 1
 		}
 
 		// Merge the contents of the freezer.User into
@@ -482,7 +482,7 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 
 		// Update the server's user maps to point correctly
 		// to the new user.
-		s.Users[u.Id] = u
+		s.Users[u.ID] = u
 		s.UserNameMap[u.Name] = u
 		if len(u.CertHash) > 0 {
 			s.UserCertMap[u.CertHash] = u
@@ -520,14 +520,14 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 					continue
 				}
 
-				userId := *fu.Id
+				userID := *fu.Id
 
 				// Determine whether the user already exists on the server or not.
 				// If the user already exists, this log entry simply updates the
 				// data for that user.
 				// If the user doesn't exist, we create it with the data given in
 				// this log entry.
-				user, ok := s.Users[userId]
+				user, ok := s.Users[userID]
 				if !ok {
 					// If no name is given in the log entry, skip this entry.
 					// Also, warn the admin.
@@ -535,14 +535,14 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 						log.Printf("Skipped User creation log entry: No name given.")
 						continue
 					}
-					// Create the new user and increment the UserId
+					// Create the new user and increment the UserID
 					// counter for the server if needed.
-					user, err = NewUser(userId, *fu.Name)
+					user, err = NewUser(userID, *fu.Name)
 					if err != nil {
 						return nil, err
 					}
-					if user.Id >= s.nextUserId {
-						s.nextUserId = user.Id + 1
+					if user.ID >= s.nextUserID {
+						s.nextUserID = user.ID + 1
 					}
 				}
 
@@ -552,7 +552,7 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 
 				// Update the various user maps in the server to
 				// be able to correctly look up the user.
-				s.Users[user.Id] = user
+				s.Users[user.ID] = user
 				s.UserNameMap[user.Name] = user
 				if len(user.CertHash) > 0 {
 					s.UserCertMap[user.CertHash] = user
@@ -566,14 +566,14 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 					continue
 				}
 
-				userId := *fu.Id
+				userID := *fu.Id
 
 				// Does this user even exist?
 				// Warn if we encounter an illegal delete op.
-				user, ok := s.Users[userId]
+				user, ok := s.Users[userID]
 				if ok {
 					// Clear the server maps. That should do it.
-					delete(s.Users, userId)
+					delete(s.Users, userID)
 					delete(s.UserNameMap, user.Name)
 					if len(user.CertHash) > 0 {
 						delete(s.UserCertMap, user.CertHash)
@@ -591,9 +591,9 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 					continue
 				}
 
-				channelId := int(*fc.Id)
+				channelID := int(*fc.Id)
 
-				channel, alreadyExists := s.Channels[channelId]
+				channel, alreadyExists := s.Channels[channelID]
 				if !alreadyExists {
 					if fc.Name == nil {
 						log.Printf("Skipped Channel creation log entry: No name given.")
@@ -601,9 +601,9 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 					}
 					// Add the channel and increment the server's
 					// nextChanId field to a consistent state.
-					channel = NewChannel(channelId, *fc.Name)
-					if channel.ID >= s.nextChanId {
-						s.nextChanId = channel.ID + 1
+					channel = NewChannel(channelID, *fc.Name)
+					if channel.ID >= s.nextChanID {
+						s.nextChanID = channel.ID + 1
 					}
 				}
 
@@ -612,7 +612,7 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 				channel.Unfreeze(fc)
 				// Re-add it to the server's channel map (in case
 				// the channel was newly-created)
-				s.Channels[channelId] = channel
+				s.Channels[channelID] = channel
 
 				// Mark the channel's parent
 				if !alreadyExists {
@@ -652,12 +652,12 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 	}
 
 	// Hook up children with their parents
-	for chanId, parentId := range parents {
-		childChan, exists := s.Channels[int(chanId)]
+	for chanID, parentID := range parents {
+		childChan, exists := s.Channels[int(chanID)]
 		if !exists {
 			return nil, errors.New("Non-existant child channel")
 		}
-		parentChan, exists := s.Channels[int(parentId)]
+		parentChan, exists := s.Channels[int(parentID)]
 		if !exists {
 			return nil, errors.New("Non-existant parent channel")
 		}
@@ -669,8 +669,8 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 		if len(channel.Links) > 0 {
 			links := channel.Links
 			channel.Links = make(map[int]*Channel)
-			for chanId, _ := range links {
-				targetChannel := s.Channels[chanId]
+			for chanID, _ := range links {
+				targetChannel := s.Channels[chanID]
 				if targetChannel != nil {
 					s.LinkChannels(channel, targetChannel)
 				}
@@ -687,7 +687,7 @@ func (server *Server) UpdateFrozenUser(client *Client, state *mumbleproto.UserSt
 	// it includes a registration operation.
 	user := client.user
 	nanos := time.Now().Unix()
-	if state == nil || state.UserId != nil {
+	if state == nil || state.UserID != nil {
 		fu, err := user.Freeze()
 		if err != nil {
 			server.Fatal(err)
@@ -699,9 +699,9 @@ func (server *Server) UpdateFrozenUser(client *Client, state *mumbleproto.UserSt
 		}
 	} else {
 		fu := &freezer.User{}
-		fu.Id = proto.Uint32(user.Id)
+		fu.Id = proto.Uint32(user.ID)
 		if state.ChannelId != nil {
-			fu.LastChannelId = proto.Uint32(uint32(client.Channel.ID))
+			fu.LastChannelID = proto.Uint32(uint32(client.Channel.ID))
 		}
 		if state.TextureHash != nil {
 			fu.TextureBlob = proto.String(user.TextureBlob)
@@ -724,8 +724,8 @@ func (server *Server) UpdateFrozenUserLastChannel(client *Client) {
 		user := client.user
 
 		fu := &freezer.User{}
-		fu.Id = proto.Uint32(user.Id)
-		fu.LastChannelId = proto.Uint32(uint32(client.Channel.ID))
+		fu.Id = proto.Uint32(user.ID)
+		fu.LastChannelID = proto.Uint32(uint32(client.Channel.ID))
 		fu.LastActive = proto.Uint64(uint64(time.Now().Unix()))
 
 		err := server.freezelog.Put(fu)
@@ -739,7 +739,7 @@ func (server *Server) UpdateFrozenUserLastChannel(client *Client) {
 
 // DeleteFrozenUser will mark a user as deleted in the datstore.
 func (server *Server) DeleteFrozenUser(user *User) {
-	err := server.freezelog.Put(&freezer.UserRemove{Id: proto.Uint32(user.Id)})
+	err := server.freezelog.Put(&freezer.UserRemove{Id: proto.Uint32(user.ID)})
 	if err != nil {
 		server.Fatal(err)
 	}

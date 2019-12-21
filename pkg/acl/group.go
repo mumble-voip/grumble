@@ -201,8 +201,8 @@ func GroupMemberCheck(current *Context, acl *Context, name string, user User) (o
 		return true
 	} else if name == "auth" {
 		// The user is part of the auth group is he is authenticated. That is,
-		// his UserId is >= 0.
-		return user.UserId() >= 0
+		// his UserID is >= 0.
+		return user.UserID() >= 0
 	} else if name == "strong" {
 		// The user is part of the strong group if he is authenticated to the server
 		// via a strong certificate (i.e. non-self-signed, trusted by the server's
@@ -325,10 +325,10 @@ func GroupMemberCheck(current *Context, acl *Context, name string, user User) (o
 
 	isMember := false
 	for _, group := range groups {
-		if group.AddContains(user.UserId()) || group.TemporaryContains(user.UserId()) || group.TemporaryContains(-int(user.Session())) {
+		if group.AddContains(user.UserID()) || group.TemporaryContains(user.UserID()) || group.TemporaryContains(-int(user.Session())) {
 			isMember = true
 		}
-		if group.RemoveContains(user.UserId()) {
+		if group.RemoveContains(user.UserID()) {
 			isMember = false
 		}
 	}

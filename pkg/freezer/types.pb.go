@@ -137,7 +137,7 @@ type User struct {
 	Email            *string `protobuf:"bytes,5,opt,name=email" json:"email,omitempty"`
 	TextureBlob      *string `protobuf:"bytes,6,opt,name=texture_blob" json:"texture_blob,omitempty"`
 	CommentBlob      *string `protobuf:"bytes,7,opt,name=comment_blob" json:"comment_blob,omitempty"`
-	LastChannelId    *uint32 `protobuf:"varint,8,opt,name=last_channel_id" json:"last_channel_id,omitempty"`
+	LastChannelID    *uint32 `protobuf:"varint,8,opt,name=last_channel_id" json:"last_channel_id,omitempty"`
 	LastActive       *uint64 `protobuf:"varint,9,opt,name=last_active" json:"last_active,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
@@ -195,9 +195,9 @@ func (this *User) GetCommentBlob() string {
 	return ""
 }
 
-func (this *User) GetLastChannelId() uint32 {
-	if this != nil && this.LastChannelId != nil {
-		return *this.LastChannelId
+func (this *User) GetLastChannelID() uint32 {
+	if this != nil && this.LastChannelID != nil {
+		return *this.LastChannelID
 	}
 	return 0
 }
@@ -301,7 +301,7 @@ func (this *ChannelRemove) GetId() uint32 {
 }
 
 type ACL struct {
-	UserId           *uint32 `protobuf:"varint,1,opt,name=user_id" json:"user_id,omitempty"`
+	UserID           *uint32 `protobuf:"varint,1,opt,name=user_id" json:"user_id,omitempty"`
 	Group            *string `protobuf:"bytes,2,opt,name=group" json:"group,omitempty"`
 	ApplyHere        *bool   `protobuf:"varint,3,opt,name=apply_here" json:"apply_here,omitempty"`
 	ApplySubs        *bool   `protobuf:"varint,4,opt,name=apply_subs" json:"apply_subs,omitempty"`
@@ -314,9 +314,9 @@ func (this *ACL) Reset()         { *this = ACL{} }
 func (this *ACL) String() string { return proto.CompactTextString(this) }
 func (*ACL) ProtoMessage()       {}
 
-func (this *ACL) GetUserId() uint32 {
-	if this != nil && this.UserId != nil {
-		return *this.UserId
+func (this *ACL) GetUserID() uint32 {
+	if this != nil && this.UserID != nil {
+		return *this.UserID
 	}
 	return 0
 }
