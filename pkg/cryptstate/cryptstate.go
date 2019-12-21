@@ -125,8 +125,8 @@ func (cs *CryptState) Decrypt(dst, src []byte) error {
 		return errors.New("cryptstate: crypted length too short to decrypt")
 	}
 
-	plain_len := len(src) - cs.Overhead()
-	if len(dst) < plain_len {
+	plainLen := len(src) - cs.Overhead()
+	if len(dst) < plainLen {
 		return errors.New("cryptstate: not enough space in dst for plain text")
 	}
 

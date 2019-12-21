@@ -308,27 +308,27 @@ func (user *User) Freeze() (fu *freezer.User, err error) {
 }
 
 // Unfreeze will merge the contents of a frozen User into an existing user struct.
-func (u *User) Unfreeze(fu *freezer.User) {
+func (user *User) Unfreeze(fu *freezer.User) {
 	if fu.Name != nil {
-		u.Name = *fu.Name
+		user.Name = *fu.Name
 	}
 	if fu.CertHash != nil {
-		u.CertHash = *fu.CertHash
+		user.CertHash = *fu.CertHash
 	}
 	if fu.Email != nil {
-		u.Email = *fu.Email
+		user.Email = *fu.Email
 	}
 	if fu.TextureBlob != nil {
-		u.TextureBlob = *fu.TextureBlob
+		user.TextureBlob = *fu.TextureBlob
 	}
 	if fu.CommentBlob != nil {
-		u.CommentBlob = *fu.CommentBlob
+		user.CommentBlob = *fu.CommentBlob
 	}
 	if fu.LastChannelID != nil {
-		u.LastChannelID = int(*fu.LastChannelID)
+		user.LastChannelID = int(*fu.LastChannelID)
 	}
 	if fu.LastActive != nil {
-		u.LastActive = *fu.LastActive
+		user.LastActive = *fu.LastActive
 	}
 }
 
