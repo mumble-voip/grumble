@@ -492,18 +492,17 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 		if auth.Password == nil {
 			client.RejectAuth(mumbleproto.Reject_WrongUserPW, "")
 			return
-		} else {
-			if server.CheckSuperUserPassword(*auth.Password) {
-				ok := false
-				client.user, ok = server.UserNameMap[client.Username]
-				if !ok {
-					client.RejectAuth(mumbleproto.Reject_InvalidUsername, "")
-					return
-				}
-			} else {
-				client.RejectAuth(mumbleproto.Reject_WrongUserPW, "")
+		}
+		if server.CheckSuperUserPassword(*auth.Password) {
+			ok := false
+			client.user, ok = server.UserNameMap[client.Username]
+			if !ok {
+				client.RejectAuth(mumbleproto.Reject_InvalidUsername, "")
 				return
 			}
+		} else {
+			client.RejectAuth(mumbleproto.Reject_WrongUserPW, "")
+			return
 		}
 	} else {
 		// First look up registration by name.
@@ -1037,9 +1036,8 @@ func (server *Server) handleUDPPacket(udpaddr *net.UDPAddr, buf []byte) {
 				client.Debugf("unable to decrypt incoming packet, requesting resync: %v", err)
 				client.cryptResync()
 				return
-			} else {
-				match = client
 			}
+			match = client
 		}
 		if match != nil {
 			match.udpaddr = udpaddr

@@ -59,9 +59,9 @@ func (pds *PacketData) next() (ret uint64) {
 		ret = uint64(pds.Buf[pds.offset])
 		pds.offset++
 		return
-	} else {
-		pds.ok = false
 	}
+
+	pds.ok = false
 	return 0
 }
 
@@ -71,9 +71,9 @@ func (pds *PacketData) Next8() (ret uint8) {
 		ret = uint8(pds.Buf[pds.offset])
 		pds.offset++
 		return
-	} else {
-		pds.ok = false
 	}
+
+	pds.ok = false
 	return 0
 }
 
