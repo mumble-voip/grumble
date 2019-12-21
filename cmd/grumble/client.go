@@ -49,12 +49,12 @@ type Client struct {
 	voiceTargets map[uint32]*VoiceTarget
 
 	// Ping stats
-	UdpPingAvg float32
-	UdpPingVar float32
-	UdpPackets uint32
-	TcpPingAvg float32
-	TcpPingVar float32
-	TcpPackets uint32
+	UDPPingAvg float32
+	UDPPingVar float32
+	UDPPackets uint32
+	TCPPingAvg float32
+	TCPPingVar float32
+	TCPPackets uint32
 
 	// If the client is a registered user on the server,
 	// the user field will point to the registration record.

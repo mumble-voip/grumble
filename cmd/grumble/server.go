@@ -1002,12 +1002,12 @@ func (server *Server) udpListenLoop() {
 			}
 
 		} else {
-			server.handleUdpPacket(udpaddr, buf[0:nread])
+			server.handleUDPPacket(udpaddr, buf[0:nread])
 		}
 	}
 }
 
-func (server *Server) handleUdpPacket(udpaddr *net.UDPAddr, buf []byte) {
+func (server *Server) handleUDPPacket(udpaddr *net.UDPAddr, buf []byte) {
 	var match *Client
 	plain := make([]byte, len(buf))
 

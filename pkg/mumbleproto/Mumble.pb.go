@@ -410,17 +410,17 @@ type Ping struct {
 	// The amount of nonce resyncs.
 	Resync *uint32 `protobuf:"varint,5,opt,name=resync" json:"resync,omitempty"`
 	// The total amount of UDP packets received.
-	UdpPackets *uint32 `protobuf:"varint,6,opt,name=udp_packets,json=udpPackets" json:"udp_packets,omitempty"`
+	UDPPackets *uint32 `protobuf:"varint,6,opt,name=udp_packets,json=udpPackets" json:"udp_packets,omitempty"`
 	// The total amount of TCP packets received.
-	TcpPackets *uint32 `protobuf:"varint,7,opt,name=tcp_packets,json=tcpPackets" json:"tcp_packets,omitempty"`
+	TCPPackets *uint32 `protobuf:"varint,7,opt,name=tcp_packets,json=tcpPackets" json:"tcp_packets,omitempty"`
 	// UDP ping average.
-	UdpPingAvg *float32 `protobuf:"fixed32,8,opt,name=udp_ping_avg,json=udpPingAvg" json:"udp_ping_avg,omitempty"`
+	UDPPingAvg *float32 `protobuf:"fixed32,8,opt,name=udp_ping_avg,json=udpPingAvg" json:"udp_ping_avg,omitempty"`
 	// UDP ping variance.
-	UdpPingVar *float32 `protobuf:"fixed32,9,opt,name=udp_ping_var,json=udpPingVar" json:"udp_ping_var,omitempty"`
+	UDPPingVar *float32 `protobuf:"fixed32,9,opt,name=udp_ping_var,json=udpPingVar" json:"udp_ping_var,omitempty"`
 	// TCP ping average.
-	TcpPingAvg *float32 `protobuf:"fixed32,10,opt,name=tcp_ping_avg,json=tcpPingAvg" json:"tcp_ping_avg,omitempty"`
+	TCPPingAvg *float32 `protobuf:"fixed32,10,opt,name=tcp_ping_avg,json=tcpPingAvg" json:"tcp_ping_avg,omitempty"`
 	// TCP ping variance.
-	TcpPingVar       *float32 `protobuf:"fixed32,11,opt,name=tcp_ping_var,json=tcpPingVar" json:"tcp_ping_var,omitempty"`
+	TCPPingVar       *float32 `protobuf:"fixed32,11,opt,name=tcp_ping_var,json=tcpPingVar" json:"tcp_ping_var,omitempty"`
 	XXX_unrecognized []byte   `json:"-"`
 }
 
@@ -464,44 +464,44 @@ func (m *Ping) GetResync() uint32 {
 	return 0
 }
 
-func (m *Ping) GetUdpPackets() uint32 {
-	if m != nil && m.UdpPackets != nil {
-		return *m.UdpPackets
+func (m *Ping) GetUDPPackets() uint32 {
+	if m != nil && m.UDPPackets != nil {
+		return *m.UDPPackets
 	}
 	return 0
 }
 
-func (m *Ping) GetTcpPackets() uint32 {
-	if m != nil && m.TcpPackets != nil {
-		return *m.TcpPackets
+func (m *Ping) GetTCPPackets() uint32 {
+	if m != nil && m.TCPPackets != nil {
+		return *m.TCPPackets
 	}
 	return 0
 }
 
-func (m *Ping) GetUdpPingAvg() float32 {
-	if m != nil && m.UdpPingAvg != nil {
-		return *m.UdpPingAvg
+func (m *Ping) GetUDPPingAvg() float32 {
+	if m != nil && m.UDPPingAvg != nil {
+		return *m.UDPPingAvg
 	}
 	return 0
 }
 
-func (m *Ping) GetUdpPingVar() float32 {
-	if m != nil && m.UdpPingVar != nil {
-		return *m.UdpPingVar
+func (m *Ping) GetUDPPingVar() float32 {
+	if m != nil && m.UDPPingVar != nil {
+		return *m.UDPPingVar
 	}
 	return 0
 }
 
-func (m *Ping) GetTcpPingAvg() float32 {
-	if m != nil && m.TcpPingAvg != nil {
-		return *m.TcpPingAvg
+func (m *Ping) GetTCPPingAvg() float32 {
+	if m != nil && m.TCPPingAvg != nil {
+		return *m.TCPPingAvg
 	}
 	return 0
 }
 
-func (m *Ping) GetTcpPingVar() float32 {
-	if m != nil && m.TcpPingVar != nil {
-		return *m.TcpPingVar
+func (m *Ping) GetTCPPingVar() float32 {
+	if m != nil && m.TCPPingVar != nil {
+		return *m.TCPPingVar
 	}
 	return 0
 }
@@ -1795,17 +1795,17 @@ type UserStats struct {
 	// Packet statistics for packets sent by the server.
 	FromServer *UserStats_Stats `protobuf:"bytes,5,opt,name=from_server,json=fromServer" json:"from_server,omitempty"`
 	// Amount of UDP packets sent.
-	UdpPackets *uint32 `protobuf:"varint,6,opt,name=udp_packets,json=udpPackets" json:"udp_packets,omitempty"`
+	UDPPackets *uint32 `protobuf:"varint,6,opt,name=udp_packets,json=udpPackets" json:"udp_packets,omitempty"`
 	// Amount of TCP packets sent.
-	TcpPackets *uint32 `protobuf:"varint,7,opt,name=tcp_packets,json=tcpPackets" json:"tcp_packets,omitempty"`
+	TCPPackets *uint32 `protobuf:"varint,7,opt,name=tcp_packets,json=tcpPackets" json:"tcp_packets,omitempty"`
 	// UDP ping average.
-	UdpPingAvg *float32 `protobuf:"fixed32,8,opt,name=udp_ping_avg,json=udpPingAvg" json:"udp_ping_avg,omitempty"`
+	UDPPingAvg *float32 `protobuf:"fixed32,8,opt,name=udp_ping_avg,json=udpPingAvg" json:"udp_ping_avg,omitempty"`
 	// UDP ping variance.
-	UdpPingVar *float32 `protobuf:"fixed32,9,opt,name=udp_ping_var,json=udpPingVar" json:"udp_ping_var,omitempty"`
+	UDPPingVar *float32 `protobuf:"fixed32,9,opt,name=udp_ping_var,json=udpPingVar" json:"udp_ping_var,omitempty"`
 	// TCP ping average.
-	TcpPingAvg *float32 `protobuf:"fixed32,10,opt,name=tcp_ping_avg,json=tcpPingAvg" json:"tcp_ping_avg,omitempty"`
+	TCPPingAvg *float32 `protobuf:"fixed32,10,opt,name=tcp_ping_avg,json=tcpPingAvg" json:"tcp_ping_avg,omitempty"`
 	// TCP ping variance.
-	TcpPingVar *float32 `protobuf:"fixed32,11,opt,name=tcp_ping_var,json=tcpPingVar" json:"tcp_ping_var,omitempty"`
+	TCPPingVar *float32 `protobuf:"fixed32,11,opt,name=tcp_ping_var,json=tcpPingVar" json:"tcp_ping_var,omitempty"`
 	// Client version.
 	Version *Version `protobuf:"bytes,12,opt,name=version" json:"version,omitempty"`
 	// A list of CELT bitstream version constants supported by the client of this
@@ -1869,44 +1869,44 @@ func (m *UserStats) GetFromServer() *UserStats_Stats {
 	return nil
 }
 
-func (m *UserStats) GetUdpPackets() uint32 {
-	if m != nil && m.UdpPackets != nil {
-		return *m.UdpPackets
+func (m *UserStats) GetUDPPackets() uint32 {
+	if m != nil && m.UDPPackets != nil {
+		return *m.UDPPackets
 	}
 	return 0
 }
 
-func (m *UserStats) GetTcpPackets() uint32 {
-	if m != nil && m.TcpPackets != nil {
-		return *m.TcpPackets
+func (m *UserStats) GetTCPPackets() uint32 {
+	if m != nil && m.TCPPackets != nil {
+		return *m.TCPPackets
 	}
 	return 0
 }
 
-func (m *UserStats) GetUdpPingAvg() float32 {
-	if m != nil && m.UdpPingAvg != nil {
-		return *m.UdpPingAvg
+func (m *UserStats) GetUDPPingAvg() float32 {
+	if m != nil && m.UDPPingAvg != nil {
+		return *m.UDPPingAvg
 	}
 	return 0
 }
 
-func (m *UserStats) GetUdpPingVar() float32 {
-	if m != nil && m.UdpPingVar != nil {
-		return *m.UdpPingVar
+func (m *UserStats) GetUDPPingVar() float32 {
+	if m != nil && m.UDPPingVar != nil {
+		return *m.UDPPingVar
 	}
 	return 0
 }
 
-func (m *UserStats) GetTcpPingAvg() float32 {
-	if m != nil && m.TcpPingAvg != nil {
-		return *m.TcpPingAvg
+func (m *UserStats) GetTCPPingAvg() float32 {
+	if m != nil && m.TCPPingAvg != nil {
+		return *m.TCPPingAvg
 	}
 	return 0
 }
 
-func (m *UserStats) GetTcpPingVar() float32 {
-	if m != nil && m.TcpPingVar != nil {
-		return *m.TcpPingVar
+func (m *UserStats) GetTCPPingVar() float32 {
+	if m != nil && m.TCPPingVar != nil {
+		return *m.TCPPingVar
 	}
 	return 0
 }

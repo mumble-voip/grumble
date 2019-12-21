@@ -87,24 +87,24 @@ func (server *Server) handlePingMessage(client *Client, msg *Message) {
 		client.crypt.RemoteResync = *ping.Resync
 	}
 
-	if ping.UdpPingAvg != nil {
-		client.UdpPingAvg = *ping.UdpPingAvg
+	if ping.UDPPingAvg != nil {
+		client.UDPPingAvg = *ping.UDPPingAvg
 	}
-	if ping.UdpPingVar != nil {
-		client.UdpPingVar = *ping.UdpPingVar
+	if ping.UDPPingVar != nil {
+		client.UDPPingVar = *ping.UDPPingVar
 	}
-	if ping.UdpPackets != nil {
-		client.UdpPackets = *ping.UdpPackets
+	if ping.UDPPackets != nil {
+		client.UDPPackets = *ping.UDPPackets
 	}
 
-	if ping.TcpPingAvg != nil {
-		client.TcpPingAvg = *ping.TcpPingAvg
+	if ping.TCPPingAvg != nil {
+		client.TCPPingAvg = *ping.TCPPingAvg
 	}
-	if ping.TcpPingVar != nil {
-		client.TcpPingVar = *ping.TcpPingVar
+	if ping.TCPPingVar != nil {
+		client.TCPPingVar = *ping.TCPPingVar
 	}
-	if ping.TcpPackets != nil {
-		client.TcpPackets = *ping.TcpPackets
+	if ping.TCPPackets != nil {
+		client.TCPPackets = *ping.TCPPackets
 	}
 
 	client.sendMessage(&mumbleproto.Ping{
@@ -1358,12 +1358,12 @@ func (server *Server) handleUserStatsMessage(client *Client, msg *Message) {
 		stats.FromServer = fromServer
 	}
 
-	stats.UdpPackets = proto.Uint32(target.UdpPackets)
-	stats.TcpPackets = proto.Uint32(target.TcpPackets)
-	stats.UdpPingAvg = proto.Float32(target.UdpPingAvg)
-	stats.UdpPingVar = proto.Float32(target.UdpPingVar)
-	stats.TcpPingAvg = proto.Float32(target.TcpPingAvg)
-	stats.TcpPingVar = proto.Float32(target.TcpPingVar)
+	stats.UDPPackets = proto.Uint32(target.UDPPackets)
+	stats.TCPPackets = proto.Uint32(target.TCPPackets)
+	stats.UDPPingAvg = proto.Float32(target.UDPPingAvg)
+	stats.UDPPingVar = proto.Float32(target.UDPPingVar)
+	stats.TCPPingAvg = proto.Float32(target.TCPPingAvg)
+	stats.TCPPingVar = proto.Float32(target.TCPPingVar)
 
 	if details {
 		version := &mumbleproto.Version{}
