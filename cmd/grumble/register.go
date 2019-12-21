@@ -16,6 +16,7 @@ import (
 	"net/http"
 )
 
+// Register contains the information necessary to register a server
 type Register struct {
 	XMLName  xml.Name `xml:"server"`
 	Version  string   `xml:"version"`
@@ -33,7 +34,7 @@ type Register struct {
 
 const registerUrl = "https://mumble.info/register.cgi"
 
-// Determines whether a server is public by checking whether the
+// IsPublic Determines whether a server is public by checking whether the
 // config values required for public registration are set.
 //
 // This function is used to determine whether or not to periodically
@@ -54,7 +55,7 @@ func (server *Server) IsPublic() bool {
 	return true
 }
 
-// Perform a public server registration update.
+// RegisterPublicServer will perform a public server registration update.
 //
 // When a Mumble server connects to the master server
 // for registration, it connects using its server certificate

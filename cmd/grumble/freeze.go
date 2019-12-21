@@ -22,7 +22,7 @@ import (
 	"mumble.info/grumble/pkg/serverconf"
 )
 
-// Freeze a server to disk and closes the log file.
+// FreezeToFile will freeze a server to disk and closes the log file.
 // This must be called from within the Server's synchronous handler.
 func (server *Server) FreezeToFile() error {
 	// See freeeze_{windows,unix}.go for real implementations.
@@ -116,7 +116,7 @@ func (server *Server) Freeze() (fs *freezer.Server, err error) {
 	return fs, nil
 }
 
-// Merge the contents of a freezer.BanList into the server's
+// UnfreezeBanList will merge the contents of a freezer.BanList into the server's
 // ban list.
 func (s *Server) UnfreezeBanList(fblist *freezer.BanList) {
 	s.Bans = nil
@@ -147,7 +147,7 @@ func (s *Server) UnfreezeBanList(fblist *freezer.BanList) {
 	}
 }
 
-// Freeze a ban into a flattened protobuf-based struct
+// FreezeBan will freeze a ban into a flattened protobuf-based struct
 // ready to be persisted to disk.
 func FreezeBan(ban ban.Ban) (fb *freezer.Ban) {
 	fb = new(freezer.Ban)
@@ -307,7 +307,7 @@ func (user *User) Freeze() (fu *freezer.User, err error) {
 	return
 }
 
-// Merge the contents of a frozen User into an existing user struct.
+// Unfreeze will merge the contents of a frozen User into an existing user struct.
 func (u *User) Unfreeze(fu *freezer.User) {
 	if fu.Name != nil {
 		u.Name = *fu.Name
@@ -332,7 +332,7 @@ func (u *User) Unfreeze(fu *freezer.User) {
 	}
 }
 
-// Freeze a ChannelACL into it a flattened protobuf-based structure
+// FreezeACL will freeze a ChannelACL into it a flattened protobuf-based structure
 // ready to be persisted to disk.
 func FreezeACL(aclEntry acl.ACL) (*freezer.ACL, error) {
 	frozenAcl := &freezer.ACL{}
@@ -348,7 +348,7 @@ func FreezeACL(aclEntry acl.ACL) (*freezer.ACL, error) {
 	return frozenAcl, nil
 }
 
-// Freeze a Group into a flattened protobuf-based structure
+// FreezeGroup will freeze a Group into a flattened protobuf-based structure
 // ready to be persisted to disk.
 func FreezeGroup(group acl.Group) (*freezer.Group, error) {
 	frozenGroup := &freezer.Group{}
@@ -364,7 +364,7 @@ func FreezeGroup(group acl.Group) (*freezer.Group, error) {
 	return frozenGroup, nil
 }
 
-// Create a new server from its on-disk representation.
+// NewServerFromFrozen will create a new server from its on-disk representation.
 //
 // This will read a full serialized server (typically stored in
 // a file called 'main.fz') from disk.  It will also check for
@@ -681,7 +681,7 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 	return s, nil
 }
 
-// Update the datastore with the user's current state.
+// UpdateFrozenUser will update the datastore with the user's current state.
 func (server *Server) UpdateFrozenUser(client *Client, state *mumbleproto.UserState) {
 	// Full sync If there's no userstate messgae provided, or if there is one, and
 	// it includes a registration operation.
@@ -718,7 +718,7 @@ func (server *Server) UpdateFrozenUser(client *Client, state *mumbleproto.UserSt
 	server.numLogOps += 1
 }
 
-// Update a user's last active channel
+// UpdateFrozenUserLastChannel will update a user's last active channel
 func (server *Server) UpdateFrozenUserLastChannel(client *Client) {
 	if client.IsRegistered() {
 		user := client.user
@@ -737,7 +737,7 @@ func (server *Server) UpdateFrozenUserLastChannel(client *Client) {
 	}
 }
 
-// Mark a user as deleted in the datstore.
+// DeleteFrozenUser will mark a user as deleted in the datstore.
 func (server *Server) DeleteFrozenUser(user *User) {
 	err := server.freezelog.Put(&freezer.UserRemove{Id: proto.Uint32(user.Id)})
 	if err != nil {
@@ -746,7 +746,7 @@ func (server *Server) DeleteFrozenUser(user *User) {
 	server.numLogOps += 1
 }
 
-// Given a target channel and a ChannelState protocol message, create a freezer.Channel that
+// UpdateFrozenChannel will, given a target channel and a ChannelState protocol message, create a freezer.Channel that
 // only includes the values changed by the given ChannelState message.  When done, write that
 // frozen.Channel to the datastore.
 func (server *Server) UpdateFrozenChannel(channel *Channel, state *mumbleproto.ChannelState) {
@@ -814,7 +814,7 @@ func (server *Server) UpdateFrozenChannelACLs(channel *Channel) {
 	server.numLogOps += 1
 }
 
-// Mark a channel as deleted in the datastore.
+// DeleteFrozenChannel will mark a channel as deleted in the datastore.
 func (server *Server) DeleteFrozenChannel(channel *Channel) {
 	err := server.freezelog.Put(&freezer.ChannelRemove{Id: proto.Uint32(uint32(channel.Id))})
 	if err != nil {

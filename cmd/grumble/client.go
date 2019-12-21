@@ -23,7 +23,7 @@ import (
 	"mumble.info/grumble/pkg/packetdata"
 )
 
-// A client connection
+// Client contains all information about a client connection
 type Client struct {
 	// Logging
 	*log.Logger
@@ -115,18 +115,22 @@ func (client *Client) IsSuperUser() bool {
 	return client.user.Id == 0
 }
 
+// ACLContext returns the access control list context for this client
 func (client *Client) ACLContext() *acl.Context {
 	return &client.Channel.ACL
 }
 
+// CertHash returns the certificate hash for this client
 func (client *Client) CertHash() string {
 	return client.certHash
 }
 
+// Session returns the session ID for this client
 func (client *Client) Session() uint32 {
 	return client.session
 }
 
+// Tokens return all tokens for this client
 func (client *Client) Tokens() []string {
 	return client.tokens
 }
@@ -159,13 +163,13 @@ func (client *Client) IsVerified() bool {
 	return len(state.VerifiedChains) > 0
 }
 
-// Log a panic and disconnect the client.
+// Panic will log a panic and disconnect the client.
 func (client *Client) Panic(v ...interface{}) {
 	client.Print(v...)
 	client.Disconnect()
 }
 
-// Log a formatted panic and disconnect the client.
+// Panicf will log a formatted panic and disconnect the client.
 func (client *Client) Panicf(format string, v ...interface{}) {
 	client.Printf(format, v...)
 	client.Disconnect()
@@ -203,7 +207,7 @@ func (client *Client) Disconnect() {
 	client.disconnect(false)
 }
 
-// Disconnect a client (kick/ban)
+// ForceDisconnect will disconnect a client (kick/ban)
 func (client *Client) ForceDisconnect() {
 	client.disconnect(true)
 }
@@ -215,7 +219,7 @@ func (client *Client) ClearCaches() {
 	}
 }
 
-// Reject an authentication attempt
+// RejectAuth will reject an authentication attempt
 func (client *Client) RejectAuth(rejectType mumbleproto.Reject_RejectType, reason string) {
 	var reasonString *string = nil
 	if len(reason) > 0 {
@@ -384,7 +388,7 @@ func (client *Client) udpRecvLoop() {
 	}
 }
 
-// Send buf as a UDP message. If the client does not have
+// SendUDP will send buf as a UDP message. If the client does not have
 // an established UDP connection, the datagram will be tunelled
 // through the client's control channel (TCP).
 func (client *Client) SendUDP(buf []byte) error {

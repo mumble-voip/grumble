@@ -18,12 +18,14 @@ import (
 	"mumble.info/grumble/pkg/mumbleproto"
 )
 
+// Message contains a specific message for a client
 type Message struct {
 	buf    []byte
 	kind   uint16
 	client *Client
 }
 
+// VoiceBroadcast contains a voice broadcast for a specific client
 type VoiceBroadcast struct {
 	// The client who is performing the broadcast
 	client *Client

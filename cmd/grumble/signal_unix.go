@@ -15,6 +15,7 @@ import (
 	"mumble.info/grumble/pkg/logtarget"
 )
 
+// SignalHandler manages signals on Unix like systems
 func SignalHandler() {
 	sigchan := make(chan os.Signal, 10)
 	signal.Notify(sigchan, syscall.SIGUSR2, syscall.SIGTERM, syscall.SIGINT)

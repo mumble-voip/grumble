@@ -23,22 +23,31 @@ import (
 )
 
 const (
+	// ChannelInfoDescription represents the description of a channel info
 	ChannelInfoDescription int = iota
+	// ChannelInfoPosition represents the position of a channel info
 	ChannelInfoPosition
 )
 
 const (
+	// UserInfoName points to the name field of user information
 	UserInfoName int = iota
+	// UserInfoEmail points to the email field of user information
 	UserInfoEmail
+	// UserInfoComment points to the comment field of user information
 	UserInfoComment
+	// UserInfoHash points to the hash field of user information
 	UserInfoHash
+	// UserInfoPassword points to the password field of user information
 	UserInfoPassword
+	// UserInfoLastActive points to the last active field of user information
 	UserInfoLastActive
 )
 
+// SQLiteSupport marks whether SQLite is supported or not
 const SQLiteSupport = true
 
-// Import the structure of an existing Murmur SQLite database.
+// MurmurImport will import the structure of an existing Murmur SQLite database.
 func MurmurImport(filename string) (err error) {
 	db, err := sql.Open("sqlite", filename)
 	if err != nil {
@@ -84,7 +93,7 @@ func MurmurImport(filename string) (err error) {
 	return
 }
 
-// Create a new Server from a Murmur SQLite database
+// NewServerFromSQLite will create a new Server from a Murmur SQLite database
 func NewServerFromSQLite(id int64, db *sql.DB) (s *Server, err error) {
 	s, err = NewServer(id)
 	if err != nil {

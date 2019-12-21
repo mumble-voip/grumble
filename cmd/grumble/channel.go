@@ -10,7 +10,7 @@ import (
 	"mumble.info/grumble/pkg/acl"
 )
 
-// A Mumble channel
+// Channel represents a Mumble channel
 type Channel struct {
 	Id       int
 	Name     string
@@ -31,6 +31,7 @@ type Channel struct {
 	DescriptionBlob string
 }
 
+// NewChannel creates a new Mumble channel
 func NewChannel(id int, name string) (channel *Channel) {
 	channel = new(Channel)
 	channel.Id = id

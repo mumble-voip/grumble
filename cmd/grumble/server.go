@@ -36,13 +36,23 @@ import (
 	"mumble.info/grumble/pkg/web"
 )
 
-// The default port a Murmur server listens on
+// DefaultPort is the default port a Murmur server listens on
 const DefaultPort = 64738
+
+// DefaultWebPort is the default web port a Grumble server listens on
 const DefaultWebPort = 443
+
+// UDPPacketSize is the size of each UDP packet
 const UDPPacketSize = 1024
 
+// LogOpsBeforeSync is the amount of logging operations that can be done
+// before syncing
 const LogOpsBeforeSync = 100
+
+// CeltCompatBitstream specifies the codec for celt compatibility
 const CeltCompatBitstream = -2147483637
+
+// These constants keep track of the different states the server can be in
 const (
 	StateClientConnected = iota
 	StateServerSentVersion
@@ -52,13 +62,14 @@ const (
 	StateClientDead
 )
 
+// KeyValuePair contains a key value pair and a reset flag
 type KeyValuePair struct {
 	Key   string
 	Value string
 	Reset bool
 }
 
-// A Murmur server instance
+// Server is a Grumble server instance
 type Server struct {
 	Id int64
 
@@ -137,7 +148,7 @@ func (lf clientLogForwarder) Write(incoming []byte) (int, error) {
 	return len(incoming), nil
 }
 
-// Allocate a new Murmur instance
+// NewServer will allocate a new Grumble instance
 func NewServer(id int64) (s *Server, err error) {
 	s = new(Server)
 
@@ -175,7 +186,7 @@ func (server *Server) RootChannel() *Channel {
 	return root
 }
 
-// Set password as the new SuperUser password
+// SetSuperUserPassword will set password as the new SuperUser password
 func (server *Server) SetSuperUserPassword(password string) {
 	saltBytes := make([]byte, 24)
 	_, err := rand.Read(saltBytes)
@@ -356,13 +367,13 @@ func (server *Server) RemoveChanel(channel *Channel) {
 	delete(server.Channels, channel.Id)
 }
 
-// Link two channels
+// LinkChannels will link two channels
 func (server *Server) LinkChannels(channel *Channel, other *Channel) {
 	channel.Links[other.Id] = other
 	other.Links[channel.Id] = channel
 }
 
-// Unlink two channels
+// UnlinkChannels will unlink two channels
 func (server *Server) UnlinkChannels(channel *Channel, other *Channel) {
 	delete(channel.Links, other.Id)
 	delete(other.Links, channel.Id)
@@ -877,6 +888,7 @@ func (server *Server) sendClientPermissions(client *Client, channel *Channel) {
 	// })
 }
 
+// ClientPredicate takes a client and returns a boolean
 type ClientPredicate func(client *Client) bool
 
 func (server *Server) broadcastProtoMessageWithPredicate(msg interface{}, clientcheck ClientPredicate) error {
@@ -940,7 +952,7 @@ func (server *Server) handleIncomingMessage(client *Client, msg *Message) {
 	}
 }
 
-// Send the content of buf as a UDP packet to addr.
+// SendUDP will send the content of buf as a UDP packet to addr.
 func (s *Server) SendUDP(buf []byte, addr *net.UDPAddr) (err error) {
 	_, err = s.udpconn.WriteTo(buf, addr)
 	return
@@ -1085,7 +1097,7 @@ func (server *Server) userEnterChannel(client *Client, channel *Channel, usersta
 	}
 }
 
-// Register a client on the server.
+// RegisterClient will register a client on the server.
 func (s *Server) RegisterClient(client *Client) (uid uint32, err error) {
 	// Increment nextUserId only if registration succeeded.
 	defer func() {
@@ -1257,7 +1269,7 @@ func (server *Server) IsCertHashBanned(hash string) bool {
 	return false
 }
 
-// Filter incoming text according to the server's current rules.
+// FilterText filters incoming text according to the server's current rules.
 func (server *Server) FilterText(text string) (filtered string, err error) {
 	options := &htmlfilter.Options{
 		StripHTML:             !server.cfg.BoolValue("AllowHTML"),

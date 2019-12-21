@@ -6,7 +6,7 @@ package main
 
 import "mumble.info/grumble/pkg/acl"
 
-// A VoiceTarget holds information about a single
+// VoiceTarget holds information about a single
 // VoiceTarget entry of a Client.
 type VoiceTarget struct {
 	sessions []uint32
@@ -23,7 +23,7 @@ type voiceTargetChannel struct {
 	onlyGroup   string
 }
 
-// Add's a client's session to the VoiceTarget
+// AddSession adds a client's session to the VoiceTarget
 func (vt *VoiceTarget) AddSession(session uint32) {
 	vt.sessions = append(vt.sessions, session)
 }
@@ -53,7 +53,7 @@ func (vt *VoiceTarget) ClearCache() {
 	vt.fromChannelsCache = nil
 }
 
-// Send the contents of the VoiceBroadcast to all targets specified in the
+// SendVoiceBroadcast will send the contents of the VoiceBroadcast to all targets specified in the
 // VoiceTarget.
 func (vt *VoiceTarget) SendVoiceBroadcast(vb *VoiceBroadcast) {
 	buf := vb.buf
