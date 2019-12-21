@@ -70,7 +70,7 @@ func (pool *SessionPool) Get() (id uint32) {
 	// Increment the next session id and return it.
 	// Note: By incrementing and *then* returning, we skip 0.
 	// This is deliberate, as 0 is an invalid session ID in Mumble.
-	pool.cur += 1
+	pool.cur++
 	id = pool.cur
 	return
 }

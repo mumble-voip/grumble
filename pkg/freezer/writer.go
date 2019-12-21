@@ -156,7 +156,7 @@ func (tx *LogTx) Put(value interface{}) (err error) {
 		return err
 	}
 
-	tx.numops += 1
+	tx.numops++
 
 	return nil
 }

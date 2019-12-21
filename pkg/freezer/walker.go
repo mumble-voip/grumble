@@ -224,7 +224,7 @@ func (walker *Walker) Next() (entries []interface{}, err error) {
 			entries = append(entries, channelRemove)
 		}
 
-		remainOps -= 1
+		remainOps--
 		continue
 	}
 

@@ -145,7 +145,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) error {
 		} else if ivbyte < cs.DecryptIV[0] {
 			cs.DecryptIV[0] = ivbyte
 			for i := 1; i < len(cs.DecryptIV); i++ {
-				cs.DecryptIV[i] += 1
+				cs.DecryptIV[i]++
 				if cs.DecryptIV[i] > 0 {
 					break
 				}
@@ -175,7 +175,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) error {
 			lost = -1
 			cs.DecryptIV[0] = ivbyte
 			for i := 1; i < len(cs.DecryptIV); i++ {
-				cs.DecryptIV[i] -= 1
+				cs.DecryptIV[i]--
 				if cs.DecryptIV[i] > 0 {
 					break
 				}
@@ -190,7 +190,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) error {
 			lost = int(256 - int(cs.DecryptIV[0]) + int(ivbyte) - 1)
 			cs.DecryptIV[0] = ivbyte
 			for i := 1; i < len(cs.DecryptIV); i++ {
-				cs.DecryptIV[i] += 1
+				cs.DecryptIV[i]++
 				if cs.DecryptIV[i] > 0 {
 					break
 				}
@@ -216,7 +216,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) error {
 		cs.DecryptIV = saveiv
 	}
 
-	cs.Good += 1
+	cs.Good++
 	if late > 0 {
 		cs.Late += uint32(late)
 	} else {
@@ -237,7 +237,7 @@ func (cs *CryptState) Decrypt(dst, src []byte) error {
 func (cs *CryptState) Encrypt(dst, src []byte) {
 	// First, increase our IV
 	for i := range cs.EncryptIV {
-		cs.EncryptIV[i] += 1
+		cs.EncryptIV[i]++
 		if cs.EncryptIV[i] > 0 {
 			break
 		}

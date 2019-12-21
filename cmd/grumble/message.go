@@ -58,7 +58,7 @@ func (server *Server) handleCryptSetup(client *Client, msg *Message) {
 			return
 		}
 
-		client.crypt.Resync += 1
+		client.crypt.Resync++
 		if copy(client.crypt.DecryptIV[0:], cs.ClientNonce) != aes.BlockSize {
 			return
 		}

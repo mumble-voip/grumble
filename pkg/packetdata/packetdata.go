@@ -57,7 +57,7 @@ func (pds *PacketData) Size() int {
 func (pds *PacketData) next() (ret uint64) {
 	if pds.offset < pds.maxsize {
 		ret = uint64(pds.Buf[pds.offset])
-		pds.offset += 1
+		pds.offset++
 		return
 	} else {
 		pds.ok = false
@@ -69,7 +69,7 @@ func (pds *PacketData) next() (ret uint64) {
 func (pds *PacketData) Next8() (ret uint8) {
 	if pds.offset < pds.maxsize {
 		ret = uint8(pds.Buf[pds.offset])
-		pds.offset += 1
+		pds.offset++
 		return
 	} else {
 		pds.ok = false
@@ -87,7 +87,7 @@ func (pds *PacketData) append(val uint64) {
 
 	if pds.offset < pds.maxsize {
 		pds.Buf[pds.offset] = byte(val)
-		pds.offset += 1
+		pds.offset++
 	} else {
 		pds.ok = false
 		pds.overshoot++

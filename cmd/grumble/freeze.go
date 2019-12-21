@@ -715,7 +715,7 @@ func (server *Server) UpdateFrozenUser(client *Client, state *mumbleproto.UserSt
 			server.Fatal(err)
 		}
 	}
-	server.numLogOps += 1
+	server.numLogOps++
 }
 
 // UpdateFrozenUserLastChannel will update a user's last active channel
@@ -733,7 +733,7 @@ func (server *Server) UpdateFrozenUserLastChannel(client *Client) {
 			server.Fatal(err)
 		}
 
-		server.numLogOps += 1
+		server.numLogOps++
 	}
 }
 
@@ -743,7 +743,7 @@ func (server *Server) DeleteFrozenUser(user *User) {
 	if err != nil {
 		server.Fatal(err)
 	}
-	server.numLogOps += 1
+	server.numLogOps++
 }
 
 // UpdateFrozenChannel will, given a target channel and a ChannelState protocol message, create a freezer.Channel that
@@ -775,7 +775,7 @@ func (server *Server) UpdateFrozenChannel(channel *Channel, state *mumbleproto.C
 	if err != nil {
 		server.Fatal(err)
 	}
-	server.numLogOps += 1
+	server.numLogOps++
 }
 
 // UpdateFrozenChannelACLs writes a channel's ACL and Group data to disk. Mumble doesn't support
@@ -811,7 +811,7 @@ func (server *Server) UpdateFrozenChannelACLs(channel *Channel) {
 	if err != nil {
 		server.Fatal(err)
 	}
-	server.numLogOps += 1
+	server.numLogOps++
 }
 
 // DeleteFrozenChannel will mark a channel as deleted in the datastore.
@@ -820,7 +820,7 @@ func (server *Server) DeleteFrozenChannel(channel *Channel) {
 	if err != nil {
 		server.Fatal(err)
 	}
-	server.numLogOps += 1
+	server.numLogOps++
 }
 
 // UpdateFrozenBans writes the server's banlist to the datastore.
@@ -833,7 +833,7 @@ func (server *Server) UpdateFrozenBans(bans []ban.Ban) {
 	if err != nil {
 		server.Fatal(err)
 	}
-	server.numLogOps += 1
+	server.numLogOps++
 }
 
 // UpdateConfig writes an updated config value to the datastore.
@@ -846,7 +846,7 @@ func (server *Server) UpdateConfig(key, value string) {
 	if err != nil {
 		server.Fatal(err)
 	}
-	server.numLogOps += 1
+	server.numLogOps++
 }
 
 // ResetConfig writes to the freezelog that the config with key
@@ -859,5 +859,5 @@ func (server *Server) ResetConfig(key string) {
 	if err != nil {
 		server.Fatal(err)
 	}
-	server.numLogOps += 1
+	server.numLogOps++
 }

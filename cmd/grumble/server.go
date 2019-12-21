@@ -352,7 +352,7 @@ func (server *Server) RemoveClient(client *Client, kicked bool) {
 func (server *Server) AddChannel(name string) (channel *Channel) {
 	channel = NewChannel(server.nextChanID, name)
 	server.Channels[channel.ID] = channel
-	server.nextChanID += 1
+	server.nextChanID++
 
 	return
 }
@@ -714,7 +714,7 @@ func (server *Server) updateCodecVersions(connecting *Client) {
 			opus++
 		}
 		for _, codec := range client.codecs {
-			codecusers[codec] += 1
+			codecusers[codec]++
 		}
 	}
 
@@ -1102,7 +1102,7 @@ func (server *Server) RegisterClient(client *Client) (uid uint32, err error) {
 	// Increment nextUserID only if registration succeeded.
 	defer func() {
 		if err == nil {
-			server.nextUserID += 1
+			server.nextUserID++
 		}
 	}()
 
