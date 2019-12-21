@@ -204,7 +204,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 		name = *chanstate.Name
 
 		// We don't allow renames for the root channel.
-		if channel != nil && channel.Id != 0 {
+		if channel != nil && channel.ID != 0 {
 			// Pick a parent. If the name change is part of a re-parent (a channel move),
 			// we must evaluate the parent variable. Since we're explicitly exlcuding the root
 			// channel from renames, channels that are the target of renames are guaranteed to have
@@ -293,7 +293,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 			server.ClearCaches()
 		}
 
-		chanstate.ChannelId = proto.Uint32(uint32(channel.Id))
+		chanstate.ChannelId = proto.Uint32(uint32(channel.ID))
 
 		// Broadcast channel add
 		server.broadcastProtoMessageWithPredicate(chanstate, func(client *Client) bool {
@@ -313,7 +313,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 		if channel.IsTemporary() {
 			userstate := &mumbleproto.UserState{}
 			userstate.Session = proto.Uint32(client.Session())
-			userstate.ChannelId = proto.Uint32(uint32(channel.Id))
+			userstate.ChannelId = proto.Uint32(uint32(channel.ID))
 			server.userEnterChannel(client, channel, userstate)
 			server.broadcastProtoMessage(userstate)
 		}
@@ -325,7 +325,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 		if chanstate.Name != nil {
 			// The client can only rename the channel if it has WritePermission in the channel.
 			// Also, clients cannot change the name of the root channel.
-			if !acl.HasPermission(&channel.ACL, client, acl.WritePermission) || channel.Id == 0 {
+			if !acl.HasPermission(&channel.ACL, client, acl.WritePermission) || channel.ID == 0 {
 				client.sendPermissionDenied(client, channel, acl.WritePermission)
 				return
 			}
@@ -1049,7 +1049,7 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 	}
 
 	reply := &mumbleproto.ACL{}
-	reply.ChannelId = proto.Uint32(uint32(channel.Id))
+	reply.ChannelId = proto.Uint32(uint32(channel.ID))
 
 	channels := []*Channel{}
 	users := map[int]bool{}
@@ -1533,7 +1533,7 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 						server.Panicf("Blobstore error: %v", err)
 						return
 					}
-					chanstate.ChannelId = proto.Uint32(uint32(channel.Id))
+					chanstate.ChannelId = proto.Uint32(uint32(channel.ID))
 					chanstate.Description = proto.String(string(buf))
 					if err := client.sendMessage(chanstate); err != nil {
 						client.Panic(err)

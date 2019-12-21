@@ -85,7 +85,7 @@ func (vt *VoiceTarget) SendVoiceBroadcast(vb *VoiceBroadcast) {
 				if vtc.links {
 					newchans = channel.AllLinks()
 				} else {
-					newchans[channel.Id] = channel
+					newchans[channel.ID] = channel
 				}
 				if vtc.subChannels {
 					subchans := channel.AllSubChannels()

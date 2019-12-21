@@ -292,7 +292,7 @@ func (c *Client) sendPermissionDeniedTypeUser(denyType mumbleproto.PermissionDen
 func (c *Client) sendPermissionDenied(who *Client, where *Channel, what acl.Permission) {
 	pd := &mumbleproto.PermissionDenied{
 		Permission: proto.Uint32(uint32(what)),
-		ChannelId:  proto.Uint32(uint32(where.Id)),
+		ChannelId:  proto.Uint32(uint32(where.ID)),
 		Session:    proto.Uint32(who.Session()),
 		Type:       mumbleproto.PermissionDenied_Permission.Enum(),
 	}
@@ -593,11 +593,11 @@ func (client *Client) sendChannelList() {
 
 func (client *Client) sendChannelTree(channel *Channel) {
 	chanstate := &mumbleproto.ChannelState{
-		ChannelId: proto.Uint32(uint32(channel.Id)),
+		ChannelId: proto.Uint32(uint32(channel.ID)),
 		Name:      proto.String(channel.Name),
 	}
 	if channel.parent != nil {
-		chanstate.Parent = proto.Uint32(uint32(channel.parent.Id))
+		chanstate.Parent = proto.Uint32(uint32(channel.parent.ID))
 	}
 
 	if channel.HasDescription() {

@@ -146,7 +146,7 @@ func populateChannelInfoFromDatabase(server *Server, c *Channel, db *sql.DB) err
 	}
 
 	// Fetch description
-	rows, err := stmt.Query(server.Id, c.Id, ChannelInfoDescription)
+	rows, err := stmt.Query(server.Id, c.ID, ChannelInfoDescription)
 	if err != nil {
 		return err
 	}
@@ -167,7 +167,7 @@ func populateChannelInfoFromDatabase(server *Server, c *Channel, db *sql.DB) err
 	}
 
 	// Fetch position
-	rows, err = stmt.Query(server.Id, c.Id, ChannelInfoPosition)
+	rows, err = stmt.Query(server.Id, c.ID, ChannelInfoPosition)
 	if err != nil {
 		return err
 	}
@@ -190,7 +190,7 @@ func populateChannelACLFromDatabase(server *Server, c *Channel, db *sql.DB) erro
 		return err
 	}
 
-	rows, err := stmt.Query(server.Id, c.Id)
+	rows, err := stmt.Query(server.Id, c.ID)
 	if err != nil {
 		return err
 	}
@@ -237,7 +237,7 @@ func populateChannelGroupsFromDatabase(server *Server, c *Channel, db *sql.DB) e
 		return err
 	}
 
-	rows, err := stmt.Query(server.Id, c.Id)
+	rows, err := stmt.Query(server.Id, c.ID)
 	if err != nil {
 		return err
 	}
@@ -324,7 +324,7 @@ func populateChannelsFromDatabase(server *Server, db *sql.DB, parentId int) erro
 		}
 
 		c := NewChannel(chanid, name)
-		server.Channels[c.Id] = c
+		server.Channels[c.ID] = c
 		c.ACL.InheritACL = inherit
 		parent.AddChild(c)
 	}

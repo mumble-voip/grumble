@@ -351,7 +351,7 @@ func (server *Server) RemoveClient(client *Client, kicked bool) {
 // AddChannel adds a new channel to the server. Automatically assign it a channel ID.
 func (server *Server) AddChannel(name string) (channel *Channel) {
 	channel = NewChannel(server.nextChanId, name)
-	server.Channels[channel.Id] = channel
+	server.Channels[channel.ID] = channel
 	server.nextChanId += 1
 
 	return
@@ -359,24 +359,24 @@ func (server *Server) AddChannel(name string) (channel *Channel) {
 
 // RemoveChanel removes a channel from the server.
 func (server *Server) RemoveChanel(channel *Channel) {
-	if channel.Id == 0 {
+	if channel.ID == 0 {
 		server.Printf("Attempted to remove root channel.")
 		return
 	}
 
-	delete(server.Channels, channel.Id)
+	delete(server.Channels, channel.ID)
 }
 
 // LinkChannels will link two channels
 func (server *Server) LinkChannels(channel *Channel, other *Channel) {
-	channel.Links[other.Id] = other
-	other.Links[channel.Id] = channel
+	channel.Links[other.ID] = other
+	other.Links[channel.ID] = channel
 }
 
 // UnlinkChannels will unlink two channels
 func (server *Server) UnlinkChannels(channel *Channel, other *Channel) {
-	delete(channel.Links, other.Id)
-	delete(other.Links, channel.Id)
+	delete(channel.Links, other.ID)
+	delete(other.Links, channel.ID)
 }
 
 // This is the synchronous handler goroutine.
@@ -618,7 +618,7 @@ func (server *Server) finishAuthenticate(client *Client) {
 	userstate := &mumbleproto.UserState{
 		Session:   proto.Uint32(client.Session()),
 		Name:      proto.String(client.ShownName()),
-		ChannelId: proto.Uint32(uint32(channel.Id)),
+		ChannelId: proto.Uint32(uint32(channel.ID)),
 	}
 
 	if client.HasCertificate() {
@@ -802,7 +802,7 @@ func (server *Server) sendUserList(client *Client) {
 		userstate := &mumbleproto.UserState{
 			Session:   proto.Uint32(connectedClient.Session()),
 			Name:      proto.String(connectedClient.ShownName()),
-			ChannelId: proto.Uint32(uint32(connectedClient.Channel.Id)),
+			ChannelId: proto.Uint32(uint32(connectedClient.Channel.ID)),
 		}
 
 		if connectedClient.HasCertificate() {
@@ -1183,7 +1183,7 @@ func (server *Server) RemoveChannel(channel *Channel) {
 
 	// Remove all links
 	for _, linkedChannel := range channel.Links {
-		delete(linkedChannel.Links, channel.Id)
+		delete(linkedChannel.Links, channel.ID)
 	}
 
 	// Remove all subchannels
@@ -1200,7 +1200,7 @@ func (server *Server) RemoveChannel(channel *Channel) {
 
 		userstate := &mumbleproto.UserState{}
 		userstate.Session = proto.Uint32(client.Session())
-		userstate.ChannelId = proto.Uint32(uint32(target.Id))
+		userstate.ChannelId = proto.Uint32(uint32(target.ID))
 		server.userEnterChannel(client, target, userstate)
 		if err := server.broadcastProtoMessage(userstate); err != nil {
 			server.Panicf("%v", err)
@@ -1209,10 +1209,10 @@ func (server *Server) RemoveChannel(channel *Channel) {
 
 	// Remove the channel itself
 	parent := channel.parent
-	delete(parent.children, channel.Id)
-	delete(server.Channels, channel.Id)
+	delete(parent.children, channel.ID)
+	delete(server.Channels, channel.ID)
 	chanremove := &mumbleproto.ChannelRemove{
-		ChannelId: proto.Uint32(uint32(channel.Id)),
+		ChannelId: proto.Uint32(uint32(channel.ID)),
 	}
 	if err := server.broadcastProtoMessage(chanremove); err != nil {
 		server.Panicf("%v", err)

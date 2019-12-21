@@ -167,10 +167,10 @@ func FreezeBan(ban ban.Ban) (fb *freezer.Ban) {
 func (channel *Channel) Freeze() (fc *freezer.Channel, err error) {
 	fc = new(freezer.Channel)
 
-	fc.Id = proto.Uint32(uint32(channel.Id))
+	fc.Id = proto.Uint32(uint32(channel.ID))
 	fc.Name = proto.String(channel.Name)
 	if channel.parent != nil {
-		fc.ParentId = proto.Uint32(uint32(channel.parent.Id))
+		fc.ParentId = proto.Uint32(uint32(channel.parent.ID))
 	}
 	fc.Position = proto.Int64(int64(channel.Position))
 	fc.InheritAcl = proto.Bool(channel.ACL.InheritACL)
@@ -445,15 +445,15 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 		// Update the server's nextChanId field if it needs to be,
 		// to make sure the server doesn't re-use channel id's.
 		c := NewChannel(int(*fc.Id), *fc.Name)
-		if c.Id >= s.nextChanId {
-			s.nextChanId = c.Id + 1
+		if c.ID >= s.nextChanId {
+			s.nextChanId = c.ID + 1
 		}
 
 		// Update the channel with the contents of the freezer.Channel.
 		c.Unfreeze(fc)
 
 		// Add the channel's id to the server's channel-id-map.
-		s.Channels[c.Id] = c
+		s.Channels[c.ID] = c
 
 		// Mark the channel's parent
 		if fc.ParentId != nil {
@@ -602,8 +602,8 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 					// Add the channel and increment the server's
 					// nextChanId field to a consistent state.
 					channel = NewChannel(channelId, *fc.Name)
-					if channel.Id >= s.nextChanId {
-						s.nextChanId = channel.Id + 1
+					if channel.ID >= s.nextChanId {
+						s.nextChanId = channel.ID + 1
 					}
 				}
 
@@ -701,7 +701,7 @@ func (server *Server) UpdateFrozenUser(client *Client, state *mumbleproto.UserSt
 		fu := &freezer.User{}
 		fu.Id = proto.Uint32(user.Id)
 		if state.ChannelId != nil {
-			fu.LastChannelId = proto.Uint32(uint32(client.Channel.Id))
+			fu.LastChannelId = proto.Uint32(uint32(client.Channel.ID))
 		}
 		if state.TextureHash != nil {
 			fu.TextureBlob = proto.String(user.TextureBlob)
@@ -725,7 +725,7 @@ func (server *Server) UpdateFrozenUserLastChannel(client *Client) {
 
 		fu := &freezer.User{}
 		fu.Id = proto.Uint32(user.Id)
-		fu.LastChannelId = proto.Uint32(uint32(client.Channel.Id))
+		fu.LastChannelId = proto.Uint32(uint32(client.Channel.ID))
 		fu.LastActive = proto.Uint64(uint64(time.Now().Unix()))
 
 		err := server.freezelog.Put(fu)
@@ -751,7 +751,7 @@ func (server *Server) DeleteFrozenUser(user *User) {
 // frozen.Channel to the datastore.
 func (server *Server) UpdateFrozenChannel(channel *Channel, state *mumbleproto.ChannelState) {
 	fc := &freezer.Channel{}
-	fc.Id = proto.Uint32(uint32(channel.Id))
+	fc.Id = proto.Uint32(uint32(channel.ID))
 	if state.Name != nil {
 		fc.Name = state.Name
 	}
@@ -784,7 +784,7 @@ func (server *Server) UpdateFrozenChannel(channel *Channel, state *mumbleproto.C
 func (server *Server) UpdateFrozenChannelACLs(channel *Channel) {
 	fc := &freezer.Channel{}
 
-	fc.Id = proto.Uint32(uint32(channel.Id))
+	fc.Id = proto.Uint32(uint32(channel.ID))
 	fc.InheritAcl = proto.Bool(channel.ACL.InheritACL)
 
 	acls := []*freezer.ACL{}
@@ -816,7 +816,7 @@ func (server *Server) UpdateFrozenChannelACLs(channel *Channel) {
 
 // DeleteFrozenChannel will mark a channel as deleted in the datastore.
 func (server *Server) DeleteFrozenChannel(channel *Channel) {
-	err := server.freezelog.Put(&freezer.ChannelRemove{Id: proto.Uint32(uint32(channel.Id))})
+	err := server.freezelog.Put(&freezer.ChannelRemove{Id: proto.Uint32(uint32(channel.ID))})
 	if err != nil {
 		server.Fatal(err)
 	}

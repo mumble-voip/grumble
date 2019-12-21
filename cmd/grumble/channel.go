@@ -12,7 +12,7 @@ import (
 
 // Channel represents a Mumble channel
 type Channel struct {
-	Id       int
+	ID       int
 	Name     string
 	Position int
 
@@ -34,7 +34,7 @@ type Channel struct {
 // NewChannel creates a new Mumble channel
 func NewChannel(id int, name string) (channel *Channel) {
 	channel = new(Channel)
-	channel.Id = id
+	channel.ID = id
 	channel.Name = name
 	channel.clients = make(map[uint32]*Client)
 	channel.children = make(map[int]*Channel)
@@ -47,14 +47,14 @@ func NewChannel(id int, name string) (channel *Channel) {
 func (channel *Channel) AddChild(child *Channel) {
 	child.parent = channel
 	child.ACL.Parent = &channel.ACL
-	channel.children[child.Id] = child
+	channel.children[child.ID] = child
 }
 
 // RemoveChild removes a child channel from a parent
 func (channel *Channel) RemoveChild(child *Channel) {
 	child.parent = nil
 	child.ACL.Parent = nil
-	delete(channel.children, child.Id)
+	delete(channel.children, child.ID)
 }
 
 // AddClient adds client
@@ -93,8 +93,8 @@ func (channel *Channel) AllLinks() (seen map[int]*Channel) {
 		current := walk[len(walk)-1]
 		walk = walk[0 : len(walk)-1]
 		for _, linked := range current.Links {
-			if _, alreadySeen := seen[linked.Id]; !alreadySeen {
-				seen[linked.Id] = linked
+			if _, alreadySeen := seen[linked.ID]; !alreadySeen {
+				seen[linked.ID] = linked
 				walk = append(walk, linked)
 			}
 		}
@@ -112,8 +112,8 @@ func (channel *Channel) AllSubChannels() (seen map[int]*Channel) {
 			current := walk[len(walk)-1]
 			walk = walk[0 : len(walk)-1]
 			for _, child := range current.children {
-				if _, alreadySeen := seen[child.Id]; !alreadySeen {
-					seen[child.Id] = child
+				if _, alreadySeen := seen[child.ID]; !alreadySeen {
+					seen[child.ID] = child
 					walk = append(walk, child)
 				}
 			}
