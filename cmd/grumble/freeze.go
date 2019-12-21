@@ -173,7 +173,7 @@ func (channel *Channel) Freeze() (fc *freezer.Channel, err error) {
 		fc.ParentId = proto.Uint32(uint32(channel.parent.ID))
 	}
 	fc.Position = proto.Int64(int64(channel.Position))
-	fc.InheritAcl = proto.Bool(channel.ACL.InheritACL)
+	fc.InheritACL = proto.Bool(channel.ACL.InheritACL)
 
 	// Freeze the channel's ACLs
 	acls := []*freezer.ACL{}
@@ -184,7 +184,7 @@ func (channel *Channel) Freeze() (fc *freezer.Channel, err error) {
 		}
 		acls = append(acls, facl)
 	}
-	fc.Acl = acls
+	fc.ACL = acls
 
 	// Freeze the channel's groups
 	groups := []*freezer.Group{}
@@ -219,17 +219,17 @@ func (c *Channel) Unfreeze(fc *freezer.Channel) {
 	if fc.Position != nil {
 		c.Position = int(*fc.Position)
 	}
-	if fc.InheritAcl != nil {
-		c.ACL.InheritACL = *fc.InheritAcl
+	if fc.InheritACL != nil {
+		c.ACL.InheritACL = *fc.InheritACL
 	}
 	if fc.DescriptionBlob != nil {
 		c.DescriptionBlob = *fc.DescriptionBlob
 	}
 
 	// Update ACLs
-	if fc.Acl != nil {
+	if fc.ACL != nil {
 		c.ACL.ACLs = nil
-		for _, facl := range fc.Acl {
+		for _, facl := range fc.ACL {
 			aclEntry := acl.ACL{}
 			if facl.ApplyHere != nil {
 				aclEntry.ApplyHere = *facl.ApplyHere
@@ -335,17 +335,17 @@ func (u *User) Unfreeze(fu *freezer.User) {
 // FreezeACL will freeze a ChannelACL into it a flattened protobuf-based structure
 // ready to be persisted to disk.
 func FreezeACL(aclEntry acl.ACL) (*freezer.ACL, error) {
-	frozenAcl := &freezer.ACL{}
+	frozenACL := &freezer.ACL{}
 	if aclEntry.UserID != -1 {
-		frozenAcl.UserID = proto.Uint32(uint32(aclEntry.UserID))
+		frozenACL.UserID = proto.Uint32(uint32(aclEntry.UserID))
 	} else {
-		frozenAcl.Group = proto.String(aclEntry.Group)
+		frozenACL.Group = proto.String(aclEntry.Group)
 	}
-	frozenAcl.ApplyHere = proto.Bool(aclEntry.ApplyHere)
-	frozenAcl.ApplySubs = proto.Bool(aclEntry.ApplySubs)
-	frozenAcl.Allow = proto.Uint32(uint32(aclEntry.Allow))
-	frozenAcl.Deny = proto.Uint32(uint32(aclEntry.Deny))
-	return frozenAcl, nil
+	frozenACL.ApplyHere = proto.Bool(aclEntry.ApplyHere)
+	frozenACL.ApplySubs = proto.Bool(aclEntry.ApplySubs)
+	frozenACL.Allow = proto.Uint32(uint32(aclEntry.Allow))
+	frozenACL.Deny = proto.Uint32(uint32(aclEntry.Deny))
+	return frozenACL, nil
 }
 
 // FreezeGroup will freeze a Group into a flattened protobuf-based structure
@@ -785,7 +785,7 @@ func (server *Server) UpdateFrozenChannelACLs(channel *Channel) {
 	fc := &freezer.Channel{}
 
 	fc.Id = proto.Uint32(uint32(channel.ID))
-	fc.InheritAcl = proto.Bool(channel.ACL.InheritACL)
+	fc.InheritACL = proto.Bool(channel.ACL.InheritACL)
 
 	acls := []*freezer.ACL{}
 	for _, aclEntry := range channel.ACL.ACLs {
@@ -795,7 +795,7 @@ func (server *Server) UpdateFrozenChannelACLs(channel *Channel) {
 		}
 		acls = append(acls, facl)
 	}
-	fc.Acl = acls
+	fc.ACL = acls
 
 	groups := []*freezer.Group{}
 	for _, grp := range channel.ACL.Groups {

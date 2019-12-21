@@ -230,9 +230,9 @@ type Channel struct {
 	Name             *string  `protobuf:"bytes,2,opt,name=name" json:"name,omitempty"`
 	ParentId         *uint32  `protobuf:"varint,3,opt,name=parent_id" json:"parent_id,omitempty"`
 	Position         *int64   `protobuf:"varint,4,opt,name=position" json:"position,omitempty"`
-	InheritAcl       *bool    `protobuf:"varint,5,opt,name=inherit_acl" json:"inherit_acl,omitempty"`
+	InheritACL       *bool    `protobuf:"varint,5,opt,name=inherit_acl" json:"inherit_acl,omitempty"`
 	Links            []uint32 `protobuf:"varint,6,rep,name=links" json:"links,omitempty"`
-	Acl              []*ACL   `protobuf:"bytes,7,rep,name=acl" json:"acl,omitempty"`
+	ACL              []*ACL   `protobuf:"bytes,7,rep,name=acl" json:"acl,omitempty"`
 	Groups           []*Group `protobuf:"bytes,8,rep,name=groups" json:"groups,omitempty"`
 	DescriptionBlob  *string  `protobuf:"bytes,9,opt,name=description_blob" json:"description_blob,omitempty"`
 	XXX_unrecognized []byte   `json:"-"`
@@ -270,9 +270,9 @@ func (this *Channel) GetPosition() int64 {
 	return 0
 }
 
-func (this *Channel) GetInheritAcl() bool {
-	if this != nil && this.InheritAcl != nil {
-		return *this.InheritAcl
+func (this *Channel) GetInheritACL() bool {
+	if this != nil && this.InheritACL != nil {
+		return *this.InheritACL
 	}
 	return false
 }

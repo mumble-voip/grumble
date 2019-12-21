@@ -932,7 +932,7 @@ func (server *Server) handleIncomingMessage(client *Client, msg *Message) {
 	case mumbleproto.MessageTextMessage:
 		server.handleTextMessage(msg.client, msg)
 	case mumbleproto.MessageACL:
-		server.handleAclMessage(msg.client, msg)
+		server.handleACLMessage(msg.client, msg)
 	case mumbleproto.MessageQueryUsers:
 		server.handleQueryUsers(msg.client, msg)
 	case mumbleproto.MessageCryptSetup:

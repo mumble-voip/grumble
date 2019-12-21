@@ -1183,11 +1183,11 @@ type ACL struct {
 	// Channel ID of the channel this message affects.
 	ChannelId *uint32 `protobuf:"varint,1,req,name=channel_id,json=channelId" json:"channel_id,omitempty"`
 	// True if the channel inherits its parent's ACLs.
-	InheritAcls *bool `protobuf:"varint,2,opt,name=inherit_acls,json=inheritAcls,def=1" json:"inherit_acls,omitempty"`
+	InheritACLs *bool `protobuf:"varint,2,opt,name=inherit_acls,json=inheritACLs,def=1" json:"inherit_acls,omitempty"`
 	// User group specifications.
 	Groups []*ACL_ChanGroup `protobuf:"bytes,3,rep,name=groups" json:"groups,omitempty"`
 	// ACL specifications.
-	Acls []*ACL_ChanACL `protobuf:"bytes,4,rep,name=acls" json:"acls,omitempty"`
+	ACLs []*ACL_ChanACL `protobuf:"bytes,4,rep,name=acls" json:"acls,omitempty"`
 	// True if the message is a query for ACLs instead of setting them.
 	Query            *bool  `protobuf:"varint,5,opt,name=query,def=0" json:"query,omitempty"`
 	XXX_unrecognized []byte `json:"-"`
@@ -1198,7 +1198,7 @@ func (m *ACL) String() string            { return proto.CompactTextString(m) }
 func (*ACL) ProtoMessage()               {}
 func (*ACL) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13} }
 
-const Default_ACL_InheritAcls bool = true
+const Default_ACL_InheritACLs bool = true
 const Default_ACL_Query bool = false
 
 func (m *ACL) GetChannelId() uint32 {
@@ -1208,11 +1208,11 @@ func (m *ACL) GetChannelId() uint32 {
 	return 0
 }
 
-func (m *ACL) GetInheritAcls() bool {
-	if m != nil && m.InheritAcls != nil {
-		return *m.InheritAcls
+func (m *ACL) GetInheritACLs() bool {
+	if m != nil && m.InheritACLs != nil {
+		return *m.InheritACLs
 	}
-	return Default_ACL_InheritAcls
+	return Default_ACL_InheritACLs
 }
 
 func (m *ACL) GetGroups() []*ACL_ChanGroup {
@@ -1222,9 +1222,9 @@ func (m *ACL) GetGroups() []*ACL_ChanGroup {
 	return nil
 }
 
-func (m *ACL) GetAcls() []*ACL_ChanACL {
+func (m *ACL) GetACLs() []*ACL_ChanACL {
 	if m != nil {
-		return m.Acls
+		return m.ACLs
 	}
 	return nil
 }

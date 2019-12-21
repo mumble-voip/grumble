@@ -25,14 +25,14 @@ type Register struct {
 	Host     string   `xml:"host"`
 	Password string   `xml:"password"`
 	Port     int      `xml:"port"`
-	Url      string   `xml:"url"`
+	URL      string   `xml:"url"`
 	Digest   string   `xml:"digest"`
 	Users    int      `xml:"users"`
 	Channels int      `xml:"channels"`
 	Location string   `xml:"location"`
 }
 
-const registerUrl = "https://mumble.info/register.cgi"
+const registerURL = "https://mumble.info/register.cgi"
 
 // IsPublic Determines whether a server is public by checking whether the
 // config values required for public registration are set.
@@ -84,7 +84,7 @@ func (server *Server) RegisterPublicServer() {
 		Name:     server.cfg.StringValue("RegisterName"),
 		Host:     server.cfg.StringValue("RegisterHost"),
 		Password: server.cfg.StringValue("RegisterPassword"),
-		Url:      server.cfg.StringValue("RegisterWebUrl"),
+		URL:      server.cfg.StringValue("RegisterWebUrl"),
 		Location: server.cfg.StringValue("RegisterLocation"),
 		Port:     server.CurrentPort(),
 		Digest:   digest,
@@ -106,7 +106,7 @@ func (server *Server) RegisterPublicServer() {
 			TLSClientConfig: config,
 		}
 		client := &http.Client{Transport: tr}
-		r, err := client.Post(registerUrl, "text/xml", ioutil.NopCloser(buf))
+		r, err := client.Post(registerURL, "text/xml", ioutil.NopCloser(buf))
 		if err != nil {
 			server.Printf("register: unable to post registration request: %v", err)
 			return

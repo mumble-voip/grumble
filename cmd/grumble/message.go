@@ -1028,7 +1028,7 @@ func (server *Server) handleTextMessage(client *Client, msg *Message) {
 }
 
 // ACL set/query
-func (server *Server) handleAclMessage(client *Client, msg *Message) {
+func (server *Server) handleACLMessage(client *Client, msg *Message) {
 	pacl := &mumbleproto.ACL{}
 	err := proto.Unmarshal(msg.buf, pacl)
 	if err != nil {
@@ -1056,7 +1056,7 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 
 	// Query the current ACL state for the channel
 	if pacl.Query != nil && *pacl.Query != false {
-		reply.InheritAcls = proto.Bool(channel.ACL.InheritACL)
+		reply.InheritACLs = proto.Bool(channel.ACL.InheritACL)
 		// Walk the channel tree to get all relevant channels.
 		// (Stop if we reach a channel that doesn't have the InheritACL flag set)
 		iter := channel
@@ -1071,7 +1071,7 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 
 		// Construct the protobuf ChanACL objects corresponding to the ACLs defined
 		// in our channel list.
-		reply.Acls = []*mumbleproto.ACL_ChanACL{}
+		reply.ACLs = []*mumbleproto.ACL_ChanACL{}
 		for _, iter := range channels {
 			for _, chanacl := range iter.ACL.ACLs {
 				if iter == channel || chanacl.ApplySubs {
@@ -1087,7 +1087,7 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 					}
 					mpacl.Grant = proto.Uint32(uint32(chanacl.Allow))
 					mpacl.Deny = proto.Uint32(uint32(chanacl.Deny))
-					reply.Acls = append(reply.Acls, mpacl)
+					reply.ACLs = append(reply.ACLs, mpacl)
 				}
 			}
 		}
@@ -1187,7 +1187,7 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 		channel.ACL.Groups = map[string]acl.Group{}
 
 		// Add the received groups to the channel.
-		channel.ACL.InheritACL = *pacl.InheritAcls
+		channel.ACL.InheritACL = *pacl.InheritACLs
 		for _, pbgrp := range pacl.Groups {
 			changroup := acl.EmptyGroupWithName(*pbgrp.Name)
 
@@ -1206,7 +1206,7 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 			channel.ACL.Groups[changroup.Name] = changroup
 		}
 		// Add the received ACLs to the channel.
-		for _, pbacl := range pacl.Acls {
+		for _, pbacl := range pacl.ACLs {
 			chanacl := acl.ACL{}
 			chanacl.ApplyHere = *pbacl.ApplyHere
 			chanacl.ApplySubs = *pbacl.ApplySubs
