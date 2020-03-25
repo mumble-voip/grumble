@@ -1562,3 +1562,8 @@ func (server *Server) Stop() (err error) {
 
 	return nil
 }
+
+// Set will set a configuration value
+func (server *Server) Set(key string, value string) {
+	server.cfg.Set(key, value)
+}
