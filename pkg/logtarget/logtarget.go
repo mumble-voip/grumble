@@ -7,15 +7,23 @@ package logtarget
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"sync"
 )
+
+type LogTarget interface {
+	io.Writer
+
+	OpenFile(string) error
+	Rotate() error
+}
 
 // LogTarget implements the io.Writer interface, allowing
 // LogTarget to be registered with the regular Go log package.
 // LogTarget multiplexes its incoming writes to multiple optional
 // output writers, and one main output writer (the log file).
-type LogTarget struct {
+type FileLogTarget struct {
 	mu     sync.Mutex
 	logfn  string
 	file   *os.File
@@ -24,8 +32,12 @@ type LogTarget struct {
 
 var Target LogTarget
 
+func init() {
+	Target = &FileLogTarget{}
+}
+
 // Write writes a log message to all registered io.Writers
-func (target *LogTarget) Write(in []byte) (int, error) {
+func (target *FileLogTarget) Write(in []byte) (int, error) {
 	target.mu.Lock()
 	defer target.mu.Unlock()
 
@@ -48,7 +60,7 @@ func (target *LogTarget) Write(in []byte) (int, error) {
 
 // OpenFile opens the main log file for writing.
 // This method will open the file in append-only mode.
-func (target *LogTarget) OpenFile(fn string) (err error) {
+func (target *FileLogTarget) OpenFile(fn string) (err error) {
 	target.logfn = fn
 	target.file, err = os.OpenFile(target.logfn, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0650)
 	if err != nil {
@@ -61,7 +73,7 @@ func (target *LogTarget) OpenFile(fn string) (err error) {
 // This method holds a lock while rotating the log file,
 // and all log writes will be held back until the rotation
 // is complete.
-func (target *LogTarget) Rotate() error {
+func (target *FileLogTarget) Rotate() error {
 	target.mu.Lock()
 	defer target.mu.Unlock()
 

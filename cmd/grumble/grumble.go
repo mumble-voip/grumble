@@ -44,7 +44,7 @@ func main() {
 	}
 	log.SetPrefix("[G] ")
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
-	log.SetOutput(&logtarget.Target)
+	log.SetOutput(logtarget.Target)
 	log.Printf("Grumble")
 	log.Printf("Using data directory: %s", Args.DataDir)
 
