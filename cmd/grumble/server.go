@@ -193,7 +193,10 @@ func (server *Server) SetSuperUserPassword(password string) {
 	key := "SuperUserPassword"
 	val := "sha1$" + salt + "$" + digest
 	server.cfg.Set(key, val)
-	server.cfgUpdate <- &KeyValuePair{Key: key, Value: val}
+
+	if server.cfgUpdate != nil {
+		server.cfgUpdate <- &KeyValuePair{Key: key, Value: val}
+	}
 }
 
 // CheckSuperUserPassword checks whether password matches the set SuperUser password.
