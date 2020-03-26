@@ -6,7 +6,6 @@
 package logtarget
 
 import (
-	"bytes"
 	"io"
 	"os"
 	"sync"
@@ -23,10 +22,9 @@ type LogTarget interface {
 }
 
 type fileLogTarget struct {
-	mu     sync.Mutex
-	logfn  string
-	file   *os.File
-	memLog *bytes.Buffer
+	mu    sync.Mutex
+	logfn string
+	file  *os.File
 }
 
 var Default LogTarget
