@@ -175,8 +175,7 @@ func (server *Server) RootChannel() *Channel {
 	return root
 }
 
-// Set password as the new SuperUser password
-func (server *Server) SetSuperUserPassword(password string) {
+func (server *Server) setConfigPassword(key, password string) {
 	saltBytes := make([]byte, 24)
 	_, err := rand.Read(saltBytes)
 	if err != nil {
@@ -190,7 +189,6 @@ func (server *Server) SetSuperUserPassword(password string) {
 	digest := hex.EncodeToString(hasher.Sum(nil))
 
 	// Could be racy, but shouldn't really matter...
-	key := "SuperUserPassword"
 	val := "sha1$" + salt + "$" + digest
 	server.cfg.Set(key, val)
 
@@ -199,9 +197,13 @@ func (server *Server) SetSuperUserPassword(password string) {
 	}
 }
 
-// CheckSuperUserPassword checks whether password matches the set SuperUser password.
-func (server *Server) CheckSuperUserPassword(password string) bool {
-	parts := strings.Split(server.cfg.StringValue("SuperUserPassword"), "$")
+// Set password as the new SuperUser password
+func (server *Server) SetSuperUserPassword(password string) {
+	server.setConfigPassword("SuperUserPassword", password)
+}
+
+func (server *Server) checkConfigPassword(key, password string) bool {
+	parts := strings.Split(server.cfg.StringValue(key), "$")
 	if len(parts) != 3 {
 		return false
 	}
@@ -237,6 +239,11 @@ func (server *Server) CheckSuperUserPassword(password string) bool {
 	}
 
 	return false
+}
+
+// CheckSuperUserPassword checks whether password matches the set SuperUser password.
+func (server *Server) CheckSuperUserPassword(password string) bool {
+	return server.checkConfigPassword("SuperUserPassword", password)
 }
 
 // Called by the server to initiate a new client connection.
