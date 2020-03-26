@@ -20,7 +20,7 @@ func SignalHandler() {
 	signal.Notify(sigchan, syscall.SIGUSR2, syscall.SIGTERM, syscall.SIGINT)
 	for sig := range sigchan {
 		if sig == syscall.SIGUSR2 {
-			err := logtarget.Target.Rotate()
+			err := logtarget.Default.Rotate()
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "unable to rotate log file: %v", err)
 			}

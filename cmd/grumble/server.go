@@ -156,7 +156,7 @@ func NewServer(id int64) (s *Server, err error) {
 	s.Channels[0] = NewChannel(0, "Root")
 	s.nextChanId = 1
 
-	s.Logger = log.New(logtarget.Target, fmt.Sprintf("[%v] ", s.Id), log.LstdFlags|log.Lmicroseconds)
+	s.Logger = log.New(logtarget.Default, fmt.Sprintf("[%v] ", s.Id), log.LstdFlags|log.Lmicroseconds)
 
 	return
 }
