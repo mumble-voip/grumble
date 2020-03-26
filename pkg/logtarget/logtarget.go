@@ -19,7 +19,6 @@ import (
 type LogTarget interface {
 	io.Writer
 
-	OpenFile(string) error
 	Rotate() error
 }
 
@@ -32,8 +31,17 @@ type fileLogTarget struct {
 
 var Default LogTarget
 
-func init() {
-	Default = &fileLogTarget{}
+// OpenFile creates a LogTarget pointing to a log file
+// and returns it.
+// This method will open the file in append-only mode.
+func OpenFile(fileName string) (t LogTarget, err error) {
+	target := &fileLogTarget{}
+	target.logfn = fileName
+	target.file, err = os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0650)
+	if err != nil {
+		return nil, err
+	}
+	return target, nil
 }
 
 // Write writes a log message to all registered io.Writers
@@ -56,17 +64,6 @@ func (target *fileLogTarget) Write(in []byte) (int, error) {
 	}
 
 	return len(in), nil
-}
-
-// OpenFile opens the main log file for writing.
-// This method will open the file in append-only mode.
-func (target *fileLogTarget) OpenFile(fn string) (err error) {
-	target.logfn = fn
-	target.file, err = os.OpenFile(target.logfn, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0650)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // Rotate rotates the current log file.

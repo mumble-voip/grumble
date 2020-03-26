@@ -37,7 +37,7 @@ func main() {
 	dataDir.Close()
 
 	// Set up logging
-	err = logtarget.Default.OpenFile(Args.LogPath)
+	logtarget.Default, err = logtarget.OpenFile(Args.LogPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to open log file (%v): %v", Args.LogPath, err)
 		return
