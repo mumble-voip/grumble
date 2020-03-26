@@ -29,7 +29,7 @@ func (server *Server) freezeToFile() (err error) {
 	if err != nil {
 		return err
 	}
-	f, err := ioutil.TempFile(filepath.Join(Args.DataDir, "servers", strconv.FormatInt(server.Id, 10)), ".main.fz_")
+	f, err := ioutil.TempFile(filepath.Join(server.DataDir, "servers", strconv.FormatInt(server.Id, 10)), ".main.fz_")
 	if err != nil {
 		return err
 	}
@@ -51,8 +51,8 @@ func (server *Server) freezeToFile() (err error) {
 	}
 
 	src := f.Name()
-	dst := filepath.Join(Args.DataDir, "servers", strconv.FormatInt(server.Id, 10), "main.fz")
-	backup := filepath.Join(Args.DataDir, "servers", strconv.FormatInt(server.Id, 10), "backup.fz")
+	dst := filepath.Join(server.DataDir, "servers", strconv.FormatInt(server.Id, 10), "main.fz")
+	backup := filepath.Join(server.DataDir, "servers", strconv.FormatInt(server.Id, 10), "backup.fz")
 
 	err = replacefile.ReplaceFile(dst, src, backup, replacefile.Flag(0))
 	// If the dst file does not exist (as in, on first launch)

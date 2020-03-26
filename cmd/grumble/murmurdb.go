@@ -39,7 +39,7 @@ const (
 const SQLiteSupport = true
 
 // Import the structure of an existing Murmur SQLite database.
-func MurmurImport(filename string) (err error) {
+func MurmurImport(filename string, dataDir string) (err error) {
 	db, err := sql.Open("sqlite", filename)
 	if err != nil {
 		panic(err.Error())
@@ -68,7 +68,7 @@ func MurmurImport(filename string) (err error) {
 			return err
 		}
 
-		err = os.Mkdir(filepath.Join(Args.DataDir, strconv.FormatInt(sid, 10)), 0750)
+		err = os.Mkdir(filepath.Join(dataDir, strconv.FormatInt(sid, 10)), 0750)
 		if err != nil {
 			return err
 		}

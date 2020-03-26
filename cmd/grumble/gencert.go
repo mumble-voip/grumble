@@ -20,7 +20,7 @@ import (
 // Generate a 4096-bit RSA keypair and a Grumble auto-generated X509
 // certificate. Output PEM-encoded DER representations of the resulting
 // certificate and private key to certpath and keypath.
-func GenerateSelfSignedCert(certpath, keypath string) (err error) {
+func GenerateSelfSignedCert(certpath, keypath string, dataDir string) (err error) {
 	now := time.Now()
 	tmpl := &x509.Certificate{
 		SerialNumber: big.NewInt(0),
@@ -56,7 +56,7 @@ func GenerateSelfSignedCert(certpath, keypath string) (err error) {
 		Bytes: keybuf,
 	}
 
-	certfn := filepath.Join(Args.DataDir, "cert.pem")
+	certfn := filepath.Join(dataDir, "cert.pem")
 	file, err := os.OpenFile(certfn, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0700)
 	if err != nil {
 		return err
@@ -67,7 +67,7 @@ func GenerateSelfSignedCert(certpath, keypath string) (err error) {
 		return err
 	}
 
-	keyfn := filepath.Join(Args.DataDir, "key.pem")
+	keyfn := filepath.Join(dataDir, "key.pem")
 	file, err = os.OpenFile(keyfn, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0700)
 	if err != nil {
 		return err
