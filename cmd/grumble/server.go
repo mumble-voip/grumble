@@ -256,6 +256,10 @@ func (server *Server) CheckServerPassword(password string) bool {
 	return server.checkConfigPassword("ServerPassword", password)
 }
 
+func (server *Server) hasServerPassword() bool {
+	return server.cfg.StringValue("ServerPassword") != ""
+}
+
 // Called by the server to initiate a new client connection.
 func (server *Server) handleIncomingClient(conn net.Conn) (err error) {
 	client := new(Client)
@@ -532,6 +536,13 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 			if exists {
 				client.user = user
 			}
+		}
+	}
+
+	if client.user == nil && server.hasServerPassword() {
+		if auth.Password == nil || !server.CheckServerPassword(*auth.Password) {
+			client.RejectAuth(mumbleproto.Reject_WrongServerPW, "Invalid server password")
+			return
 		}
 	}
 
