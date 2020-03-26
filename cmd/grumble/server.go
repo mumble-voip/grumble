@@ -197,9 +197,14 @@ func (server *Server) setConfigPassword(key, password string) {
 	}
 }
 
-// Set password as the new SuperUser password
+// SetSuperUserPassword sets password as the new SuperUser password
 func (server *Server) SetSuperUserPassword(password string) {
 	server.setConfigPassword("SuperUserPassword", password)
+}
+
+// SetServerPassword sets password as the new Server password
+func (server *Server) SetServerPassword(password string) {
+	server.setConfigPassword("ServerPassword", password)
 }
 
 func (server *Server) checkConfigPassword(key, password string) bool {
@@ -244,6 +249,11 @@ func (server *Server) checkConfigPassword(key, password string) bool {
 // CheckSuperUserPassword checks whether password matches the set SuperUser password.
 func (server *Server) CheckSuperUserPassword(password string) bool {
 	return server.checkConfigPassword("SuperUserPassword", password)
+}
+
+// CheckServerPassword checks whether password matches the set Server password.
+func (server *Server) CheckServerPassword(password string) bool {
+	return server.checkConfigPassword("ServerPassword", password)
 }
 
 // Called by the server to initiate a new client connection.
