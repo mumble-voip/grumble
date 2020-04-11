@@ -24,3 +24,4 @@ test.out
 goinstall.log
 *.sqlite
 build/
+.idea/
