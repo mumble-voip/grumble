@@ -410,17 +410,17 @@ type Ping struct {
 	// The amount of nonce resyncs.
 	Resync *uint32 `protobuf:"varint,5,opt,name=resync" json:"resync,omitempty"`
 	// The total amount of UDP packets received.
-	UdpPackets *uint32 `protobuf:"varint,6,opt,name=udp_packets,json=udpPackets" json:"udp_packets,omitempty"`
+	UDPPackets *uint32 `protobuf:"varint,6,opt,name=udp_packets,json=udpPackets" json:"udp_packets,omitempty"`
 	// The total amount of TCP packets received.
-	TcpPackets *uint32 `protobuf:"varint,7,opt,name=tcp_packets,json=tcpPackets" json:"tcp_packets,omitempty"`
+	TCPPackets *uint32 `protobuf:"varint,7,opt,name=tcp_packets,json=tcpPackets" json:"tcp_packets,omitempty"`
 	// UDP ping average.
-	UdpPingAvg *float32 `protobuf:"fixed32,8,opt,name=udp_ping_avg,json=udpPingAvg" json:"udp_ping_avg,omitempty"`
+	UDPPingAvg *float32 `protobuf:"fixed32,8,opt,name=udp_ping_avg,json=udpPingAvg" json:"udp_ping_avg,omitempty"`
 	// UDP ping variance.
-	UdpPingVar *float32 `protobuf:"fixed32,9,opt,name=udp_ping_var,json=udpPingVar" json:"udp_ping_var,omitempty"`
+	UDPPingVar *float32 `protobuf:"fixed32,9,opt,name=udp_ping_var,json=udpPingVar" json:"udp_ping_var,omitempty"`
 	// TCP ping average.
-	TcpPingAvg *float32 `protobuf:"fixed32,10,opt,name=tcp_ping_avg,json=tcpPingAvg" json:"tcp_ping_avg,omitempty"`
+	TCPPingAvg *float32 `protobuf:"fixed32,10,opt,name=tcp_ping_avg,json=tcpPingAvg" json:"tcp_ping_avg,omitempty"`
 	// TCP ping variance.
-	TcpPingVar       *float32 `protobuf:"fixed32,11,opt,name=tcp_ping_var,json=tcpPingVar" json:"tcp_ping_var,omitempty"`
+	TCPPingVar       *float32 `protobuf:"fixed32,11,opt,name=tcp_ping_var,json=tcpPingVar" json:"tcp_ping_var,omitempty"`
 	XXX_unrecognized []byte   `json:"-"`
 }
 
@@ -464,44 +464,44 @@ func (m *Ping) GetResync() uint32 {
 	return 0
 }
 
-func (m *Ping) GetUdpPackets() uint32 {
-	if m != nil && m.UdpPackets != nil {
-		return *m.UdpPackets
+func (m *Ping) GetUDPPackets() uint32 {
+	if m != nil && m.UDPPackets != nil {
+		return *m.UDPPackets
 	}
 	return 0
 }
 
-func (m *Ping) GetTcpPackets() uint32 {
-	if m != nil && m.TcpPackets != nil {
-		return *m.TcpPackets
+func (m *Ping) GetTCPPackets() uint32 {
+	if m != nil && m.TCPPackets != nil {
+		return *m.TCPPackets
 	}
 	return 0
 }
 
-func (m *Ping) GetUdpPingAvg() float32 {
-	if m != nil && m.UdpPingAvg != nil {
-		return *m.UdpPingAvg
+func (m *Ping) GetUDPPingAvg() float32 {
+	if m != nil && m.UDPPingAvg != nil {
+		return *m.UDPPingAvg
 	}
 	return 0
 }
 
-func (m *Ping) GetUdpPingVar() float32 {
-	if m != nil && m.UdpPingVar != nil {
-		return *m.UdpPingVar
+func (m *Ping) GetUDPPingVar() float32 {
+	if m != nil && m.UDPPingVar != nil {
+		return *m.UDPPingVar
 	}
 	return 0
 }
 
-func (m *Ping) GetTcpPingAvg() float32 {
-	if m != nil && m.TcpPingAvg != nil {
-		return *m.TcpPingAvg
+func (m *Ping) GetTCPPingAvg() float32 {
+	if m != nil && m.TCPPingAvg != nil {
+		return *m.TCPPingAvg
 	}
 	return 0
 }
 
-func (m *Ping) GetTcpPingVar() float32 {
-	if m != nil && m.TcpPingVar != nil {
-		return *m.TcpPingVar
+func (m *Ping) GetTCPPingVar() float32 {
+	if m != nil && m.TCPPingVar != nil {
+		return *m.TCPPingVar
 	}
 	return 0
 }
@@ -780,7 +780,7 @@ type UserState struct {
 	// User name, UTF-8 encoded.
 	Name *string `protobuf:"bytes,3,opt,name=name" json:"name,omitempty"`
 	// Registered user ID if the user is registered.
-	UserId *uint32 `protobuf:"varint,4,opt,name=user_id,json=userId" json:"user_id,omitempty"`
+	UserID *uint32 `protobuf:"varint,4,opt,name=user_id,json=userId" json:"user_id,omitempty"`
 	// Channel on which the user is.
 	ChannelId *uint32 `protobuf:"varint,5,opt,name=channel_id,json=channelId" json:"channel_id,omitempty"`
 	// True if the user is muted by admin.
@@ -841,9 +841,9 @@ func (m *UserState) GetName() string {
 	return ""
 }
 
-func (m *UserState) GetUserId() uint32 {
-	if m != nil && m.UserId != nil {
-		return *m.UserId
+func (m *UserState) GetUserID() uint32 {
+	if m != nil && m.UserID != nil {
+		return *m.UserID
 	}
 	return 0
 }
@@ -1183,11 +1183,11 @@ type ACL struct {
 	// Channel ID of the channel this message affects.
 	ChannelId *uint32 `protobuf:"varint,1,req,name=channel_id,json=channelId" json:"channel_id,omitempty"`
 	// True if the channel inherits its parent's ACLs.
-	InheritAcls *bool `protobuf:"varint,2,opt,name=inherit_acls,json=inheritAcls,def=1" json:"inherit_acls,omitempty"`
+	InheritACLs *bool `protobuf:"varint,2,opt,name=inherit_acls,json=inheritACLs,def=1" json:"inherit_acls,omitempty"`
 	// User group specifications.
 	Groups []*ACL_ChanGroup `protobuf:"bytes,3,rep,name=groups" json:"groups,omitempty"`
 	// ACL specifications.
-	Acls []*ACL_ChanACL `protobuf:"bytes,4,rep,name=acls" json:"acls,omitempty"`
+	ACLs []*ACL_ChanACL `protobuf:"bytes,4,rep,name=acls" json:"acls,omitempty"`
 	// True if the message is a query for ACLs instead of setting them.
 	Query            *bool  `protobuf:"varint,5,opt,name=query,def=0" json:"query,omitempty"`
 	XXX_unrecognized []byte `json:"-"`
@@ -1198,7 +1198,7 @@ func (m *ACL) String() string            { return proto.CompactTextString(m) }
 func (*ACL) ProtoMessage()               {}
 func (*ACL) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13} }
 
-const Default_ACL_InheritAcls bool = true
+const Default_ACL_InheritACLs bool = true
 const Default_ACL_Query bool = false
 
 func (m *ACL) GetChannelId() uint32 {
@@ -1208,11 +1208,11 @@ func (m *ACL) GetChannelId() uint32 {
 	return 0
 }
 
-func (m *ACL) GetInheritAcls() bool {
-	if m != nil && m.InheritAcls != nil {
-		return *m.InheritAcls
+func (m *ACL) GetInheritACLs() bool {
+	if m != nil && m.InheritACLs != nil {
+		return *m.InheritACLs
 	}
-	return Default_ACL_InheritAcls
+	return Default_ACL_InheritACLs
 }
 
 func (m *ACL) GetGroups() []*ACL_ChanGroup {
@@ -1222,9 +1222,9 @@ func (m *ACL) GetGroups() []*ACL_ChanGroup {
 	return nil
 }
 
-func (m *ACL) GetAcls() []*ACL_ChanACL {
+func (m *ACL) GetACLs() []*ACL_ChanACL {
 	if m != nil {
-		return m.Acls
+		return m.ACLs
 	}
 	return nil
 }
@@ -1321,7 +1321,7 @@ type ACL_ChanACL struct {
 	// True if the ACL has been inherited from the parent.
 	Inherited *bool `protobuf:"varint,3,opt,name=inherited,def=1" json:"inherited,omitempty"`
 	// ID of the user that is affected by this ACL.
-	UserId *uint32 `protobuf:"varint,4,opt,name=user_id,json=userId" json:"user_id,omitempty"`
+	UserID *uint32 `protobuf:"varint,4,opt,name=user_id,json=userId" json:"user_id,omitempty"`
 	// ID of the group that is affected by this ACL.
 	Group *string `protobuf:"bytes,5,opt,name=group" json:"group,omitempty"`
 	// Bit flag field of the permissions granted by this ACL.
@@ -1361,9 +1361,9 @@ func (m *ACL_ChanACL) GetInherited() bool {
 	return Default_ACL_ChanACL_Inherited
 }
 
-func (m *ACL_ChanACL) GetUserId() uint32 {
-	if m != nil && m.UserId != nil {
-		return *m.UserId
+func (m *ACL_ChanACL) GetUserID() uint32 {
+	if m != nil && m.UserID != nil {
+		return *m.UserID
 	}
 	return 0
 }
@@ -1561,7 +1561,7 @@ func (m *UserList) GetUsers() []*UserList_User {
 
 type UserList_User struct {
 	// Registered user ID.
-	UserId *uint32 `protobuf:"varint,1,req,name=user_id,json=userId" json:"user_id,omitempty"`
+	UserID *uint32 `protobuf:"varint,1,req,name=user_id,json=userId" json:"user_id,omitempty"`
 	// Registered user name.
 	Name             *string `protobuf:"bytes,2,opt,name=name" json:"name,omitempty"`
 	LastSeen         *string `protobuf:"bytes,3,opt,name=last_seen,json=lastSeen" json:"last_seen,omitempty"`
@@ -1574,9 +1574,9 @@ func (m *UserList_User) String() string            { return proto.CompactTextStr
 func (*UserList_User) ProtoMessage()               {}
 func (*UserList_User) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{18, 0} }
 
-func (m *UserList_User) GetUserId() uint32 {
-	if m != nil && m.UserId != nil {
-		return *m.UserId
+func (m *UserList_User) GetUserID() uint32 {
+	if m != nil && m.UserID != nil {
+		return *m.UserID
 	}
 	return 0
 }
@@ -1795,17 +1795,17 @@ type UserStats struct {
 	// Packet statistics for packets sent by the server.
 	FromServer *UserStats_Stats `protobuf:"bytes,5,opt,name=from_server,json=fromServer" json:"from_server,omitempty"`
 	// Amount of UDP packets sent.
-	UdpPackets *uint32 `protobuf:"varint,6,opt,name=udp_packets,json=udpPackets" json:"udp_packets,omitempty"`
+	UDPPackets *uint32 `protobuf:"varint,6,opt,name=udp_packets,json=udpPackets" json:"udp_packets,omitempty"`
 	// Amount of TCP packets sent.
-	TcpPackets *uint32 `protobuf:"varint,7,opt,name=tcp_packets,json=tcpPackets" json:"tcp_packets,omitempty"`
+	TCPPackets *uint32 `protobuf:"varint,7,opt,name=tcp_packets,json=tcpPackets" json:"tcp_packets,omitempty"`
 	// UDP ping average.
-	UdpPingAvg *float32 `protobuf:"fixed32,8,opt,name=udp_ping_avg,json=udpPingAvg" json:"udp_ping_avg,omitempty"`
+	UDPPingAvg *float32 `protobuf:"fixed32,8,opt,name=udp_ping_avg,json=udpPingAvg" json:"udp_ping_avg,omitempty"`
 	// UDP ping variance.
-	UdpPingVar *float32 `protobuf:"fixed32,9,opt,name=udp_ping_var,json=udpPingVar" json:"udp_ping_var,omitempty"`
+	UDPPingVar *float32 `protobuf:"fixed32,9,opt,name=udp_ping_var,json=udpPingVar" json:"udp_ping_var,omitempty"`
 	// TCP ping average.
-	TcpPingAvg *float32 `protobuf:"fixed32,10,opt,name=tcp_ping_avg,json=tcpPingAvg" json:"tcp_ping_avg,omitempty"`
+	TCPPingAvg *float32 `protobuf:"fixed32,10,opt,name=tcp_ping_avg,json=tcpPingAvg" json:"tcp_ping_avg,omitempty"`
 	// TCP ping variance.
-	TcpPingVar *float32 `protobuf:"fixed32,11,opt,name=tcp_ping_var,json=tcpPingVar" json:"tcp_ping_var,omitempty"`
+	TCPPingVar *float32 `protobuf:"fixed32,11,opt,name=tcp_ping_var,json=tcpPingVar" json:"tcp_ping_var,omitempty"`
 	// Client version.
 	Version *Version `protobuf:"bytes,12,opt,name=version" json:"version,omitempty"`
 	// A list of CELT bitstream version constants supported by the client of this
@@ -1869,44 +1869,44 @@ func (m *UserStats) GetFromServer() *UserStats_Stats {
 	return nil
 }
 
-func (m *UserStats) GetUdpPackets() uint32 {
-	if m != nil && m.UdpPackets != nil {
-		return *m.UdpPackets
+func (m *UserStats) GetUDPPackets() uint32 {
+	if m != nil && m.UDPPackets != nil {
+		return *m.UDPPackets
 	}
 	return 0
 }
 
-func (m *UserStats) GetTcpPackets() uint32 {
-	if m != nil && m.TcpPackets != nil {
-		return *m.TcpPackets
+func (m *UserStats) GetTCPPackets() uint32 {
+	if m != nil && m.TCPPackets != nil {
+		return *m.TCPPackets
 	}
 	return 0
 }
 
-func (m *UserStats) GetUdpPingAvg() float32 {
-	if m != nil && m.UdpPingAvg != nil {
-		return *m.UdpPingAvg
+func (m *UserStats) GetUDPPingAvg() float32 {
+	if m != nil && m.UDPPingAvg != nil {
+		return *m.UDPPingAvg
 	}
 	return 0
 }
 
-func (m *UserStats) GetUdpPingVar() float32 {
-	if m != nil && m.UdpPingVar != nil {
-		return *m.UdpPingVar
+func (m *UserStats) GetUDPPingVar() float32 {
+	if m != nil && m.UDPPingVar != nil {
+		return *m.UDPPingVar
 	}
 	return 0
 }
 
-func (m *UserStats) GetTcpPingAvg() float32 {
-	if m != nil && m.TcpPingAvg != nil {
-		return *m.TcpPingAvg
+func (m *UserStats) GetTCPPingAvg() float32 {
+	if m != nil && m.TCPPingAvg != nil {
+		return *m.TCPPingAvg
 	}
 	return 0
 }
 
-func (m *UserStats) GetTcpPingVar() float32 {
-	if m != nil && m.TcpPingVar != nil {
-		return *m.TcpPingVar
+func (m *UserStats) GetTCPPingVar() float32 {
+	if m != nil && m.TCPPingVar != nil {
+		return *m.TCPPingVar
 	}
 	return 0
 }

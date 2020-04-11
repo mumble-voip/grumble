@@ -36,13 +36,23 @@ import (
 	"mumble.info/grumble/pkg/web"
 )
 
-// The default port a Murmur server listens on
+// DefaultPort is the default port a Murmur server listens on
 const DefaultPort = 64738
+
+// DefaultWebPort is the default web port a Grumble server listens on
 const DefaultWebPort = 443
+
+// UDPPacketSize is the size of each UDP packet
 const UDPPacketSize = 1024
 
+// LogOpsBeforeSync is the amount of logging operations that can be done
+// before syncing
 const LogOpsBeforeSync = 100
+
+// CeltCompatBitstream specifies the codec for celt compatibility
 const CeltCompatBitstream = -2147483637
+
+// These constants keep track of the different states the server can be in
 const (
 	StateClientConnected = iota
 	StateServerSentVersion
@@ -52,15 +62,16 @@ const (
 	StateClientDead
 )
 
+// KeyValuePair contains a key value pair and a reset flag
 type KeyValuePair struct {
 	Key   string
 	Value string
 	Reset bool
 }
 
-// A Murmur server instance
+// Server is a Grumble server instance
 type Server struct {
-	Id int64
+	ID int64
 
 	tcpl      *net.TCPListener
 	tlsl      net.Listener
@@ -101,13 +112,13 @@ type Server struct {
 
 	// Channels
 	Channels   map[int]*Channel
-	nextChanId int
+	nextChanID int
 
 	// Users
 	Users       map[uint32]*User
 	UserCertMap map[string]*User
 	UserNameMap map[string]*User
-	nextUserId  uint32
+	nextUserID  uint32
 
 	// Sessions
 	pool *sessionpool.SessionPool
@@ -131,17 +142,17 @@ type clientLogForwarder struct {
 
 func (lf clientLogForwarder) Write(incoming []byte) (int, error) {
 	buf := new(bytes.Buffer)
-	buf.WriteString(fmt.Sprintf("<%v:%v(%v)> ", lf.client.Session(), lf.client.ShownName(), lf.client.UserId()))
+	buf.WriteString(fmt.Sprintf("<%v:%v(%v)> ", lf.client.Session(), lf.client.ShownName(), lf.client.UserID()))
 	buf.Write(incoming)
 	lf.logger.Output(3, buf.String())
 	return len(incoming), nil
 }
 
-// Allocate a new Murmur instance
+// NewServer will allocate a new Grumble instance
 func NewServer(id int64) (s *Server, err error) {
 	s = new(Server)
 
-	s.Id = id
+	s.ID = id
 
 	s.cfg = serverconf.New(nil)
 
@@ -150,13 +161,13 @@ func NewServer(id int64) (s *Server, err error) {
 	s.UserNameMap = make(map[string]*User)
 	s.Users[0], err = NewUser(0, "SuperUser")
 	s.UserNameMap["SuperUser"] = s.Users[0]
-	s.nextUserId = 1
+	s.nextUserID = 1
 
 	s.Channels = make(map[int]*Channel)
 	s.Channels[0] = NewChannel(0, "Root")
-	s.nextChanId = 1
+	s.nextChanID = 1
 
-	s.Logger = log.New(&logtarget.Target, fmt.Sprintf("[%v] ", s.Id), log.LstdFlags|log.Lmicroseconds)
+	s.Logger = log.New(&logtarget.Target, fmt.Sprintf("[%v] ", s.ID), log.LstdFlags|log.Lmicroseconds)
 
 	return
 }
@@ -175,7 +186,7 @@ func (server *Server) RootChannel() *Channel {
 	return root
 }
 
-// Set password as the new SuperUser password
+// SetSuperUserPassword will set password as the new SuperUser password
 func (server *Server) SetSuperUserPassword(password string) {
 	saltBytes := make([]byte, 24)
 	_, err := rand.Read(saltBytes)
@@ -244,7 +255,7 @@ func (server *Server) handleIncomingClient(conn net.Conn) (err error) {
 	client := new(Client)
 	addr := conn.RemoteAddr()
 	if addr == nil {
-		err = errors.New("Unable to extract address for client.")
+		err = errors.New("unable to extract address for client")
 		return
 	}
 
@@ -342,33 +353,33 @@ func (server *Server) RemoveClient(client *Client, kicked bool) {
 
 // AddChannel adds a new channel to the server. Automatically assign it a channel ID.
 func (server *Server) AddChannel(name string) (channel *Channel) {
-	channel = NewChannel(server.nextChanId, name)
-	server.Channels[channel.Id] = channel
-	server.nextChanId += 1
+	channel = NewChannel(server.nextChanID, name)
+	server.Channels[channel.ID] = channel
+	server.nextChanID++
 
 	return
 }
 
 // RemoveChanel removes a channel from the server.
 func (server *Server) RemoveChanel(channel *Channel) {
-	if channel.Id == 0 {
+	if channel.ID == 0 {
 		server.Printf("Attempted to remove root channel.")
 		return
 	}
 
-	delete(server.Channels, channel.Id)
+	delete(server.Channels, channel.ID)
 }
 
-// Link two channels
+// LinkChannels will link two channels
 func (server *Server) LinkChannels(channel *Channel, other *Channel) {
-	channel.Links[other.Id] = other
-	other.Links[channel.Id] = channel
+	channel.Links[other.ID] = other
+	other.Links[channel.ID] = channel
 }
 
-// Unlink two channels
+// UnlinkChannels will unlink two channels
 func (server *Server) UnlinkChannels(channel *Channel, other *Channel) {
-	delete(channel.Links, other.Id)
-	delete(other.Links, channel.Id)
+	delete(channel.Links, other.ID)
+	delete(other.Links, channel.ID)
 }
 
 // This is the synchronous handler goroutine.
@@ -484,18 +495,17 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 		if auth.Password == nil {
 			client.RejectAuth(mumbleproto.Reject_WrongUserPW, "")
 			return
-		} else {
-			if server.CheckSuperUserPassword(*auth.Password) {
-				ok := false
-				client.user, ok = server.UserNameMap[client.Username]
-				if !ok {
-					client.RejectAuth(mumbleproto.Reject_InvalidUsername, "")
-					return
-				}
-			} else {
-				client.RejectAuth(mumbleproto.Reject_WrongUserPW, "")
+		}
+		if server.CheckSuperUserPassword(*auth.Password) {
+			ok := false
+			client.user, ok = server.UserNameMap[client.Username]
+			if !ok {
+				client.RejectAuth(mumbleproto.Reject_InvalidUsername, "")
 				return
 			}
+		} else {
+			client.RejectAuth(mumbleproto.Reject_WrongUserPW, "")
+			return
 		}
 	} else {
 		// First look up registration by name.
@@ -557,7 +567,7 @@ func (server *Server) finishAuthenticate(client *Client) {
 	if client.user != nil {
 		found := false
 		for _, connectedClient := range server.clients {
-			if connectedClient.UserId() == client.UserId() {
+			if connectedClient.UserID() == client.UserID() {
 				found = true
 				break
 			}
@@ -601,7 +611,7 @@ func (server *Server) finishAuthenticate(client *Client) {
 
 	channel := server.RootChannel()
 	if client.IsRegistered() {
-		lastChannel := server.Channels[client.user.LastChannelId]
+		lastChannel := server.Channels[client.user.LastChannelID]
 		if lastChannel != nil {
 			channel = lastChannel
 		}
@@ -610,7 +620,7 @@ func (server *Server) finishAuthenticate(client *Client) {
 	userstate := &mumbleproto.UserState{
 		Session:   proto.Uint32(client.Session()),
 		Name:      proto.String(client.ShownName()),
-		ChannelId: proto.Uint32(uint32(channel.Id)),
+		ChannelId: proto.Uint32(uint32(channel.ID)),
 	}
 
 	if client.HasCertificate() {
@@ -618,7 +628,7 @@ func (server *Server) finishAuthenticate(client *Client) {
 	}
 
 	if client.IsRegistered() {
-		userstate.UserId = proto.Uint32(uint32(client.UserId()))
+		userstate.UserID = proto.Uint32(uint32(client.UserID()))
 
 		if client.user.HasTexture() {
 			// Does the client support blobs?
@@ -706,7 +716,7 @@ func (server *Server) updateCodecVersions(connecting *Client) {
 			opus++
 		}
 		for _, codec := range client.codecs {
-			codecusers[codec] += 1
+			codecusers[codec]++
 		}
 	}
 
@@ -794,7 +804,7 @@ func (server *Server) sendUserList(client *Client) {
 		userstate := &mumbleproto.UserState{
 			Session:   proto.Uint32(connectedClient.Session()),
 			Name:      proto.String(connectedClient.ShownName()),
-			ChannelId: proto.Uint32(uint32(connectedClient.Channel.Id)),
+			ChannelId: proto.Uint32(uint32(connectedClient.Channel.ID)),
 		}
 
 		if connectedClient.HasCertificate() {
@@ -802,7 +812,7 @@ func (server *Server) sendUserList(client *Client) {
 		}
 
 		if connectedClient.IsRegistered() {
-			userstate.UserId = proto.Uint32(uint32(connectedClient.UserId()))
+			userstate.UserID = proto.Uint32(uint32(connectedClient.UserID()))
 
 			if connectedClient.user.HasTexture() {
 				// Does the client support blobs?
@@ -872,15 +882,15 @@ func (server *Server) sendClientPermissions(client *Client, channel *Channel) {
 	}
 
 	// fixme(mkrautz): re-add when we have ACL caching
-	return
 
-	perm := acl.Permission(acl.NonePermission)
-	client.sendMessage(&mumbleproto.PermissionQuery{
-		ChannelId:   proto.Uint32(uint32(channel.Id)),
-		Permissions: proto.Uint32(uint32(perm)),
-	})
+	// perm := acl.Permission(acl.NonePermission)
+	// client.sendMessage(&mumbleproto.PermissionQuery{
+	//	ChannelId:   proto.Uint32(uint32(channel.Id)),
+	//	Permissions: proto.Uint32(uint32(perm)),
+	// })
 }
 
+// ClientPredicate takes a client and returns a boolean
 type ClientPredicate func(client *Client) bool
 
 func (server *Server) broadcastProtoMessageWithPredicate(msg interface{}, clientcheck ClientPredicate) error {
@@ -924,7 +934,7 @@ func (server *Server) handleIncomingMessage(client *Client, msg *Message) {
 	case mumbleproto.MessageTextMessage:
 		server.handleTextMessage(msg.client, msg)
 	case mumbleproto.MessageACL:
-		server.handleAclMessage(msg.client, msg)
+		server.handleACLMessage(msg.client, msg)
 	case mumbleproto.MessageQueryUsers:
 		server.handleQueryUsers(msg.client, msg)
 	case mumbleproto.MessageCryptSetup:
@@ -944,9 +954,9 @@ func (server *Server) handleIncomingMessage(client *Client, msg *Message) {
 	}
 }
 
-// Send the content of buf as a UDP packet to addr.
-func (s *Server) SendUDP(buf []byte, addr *net.UDPAddr) (err error) {
-	_, err = s.udpconn.WriteTo(buf, addr)
+// SendUDP will send the content of buf as a UDP packet to addr.
+func (server *Server) SendUDP(buf []byte, addr *net.UDPAddr) (err error) {
+	_, err = server.udpconn.WriteTo(buf, addr)
 	return
 }
 
@@ -994,12 +1004,12 @@ func (server *Server) udpListenLoop() {
 			}
 
 		} else {
-			server.handleUdpPacket(udpaddr, buf[0:nread])
+			server.handleUDPPacket(udpaddr, buf[0:nread])
 		}
 	}
 }
 
-func (server *Server) handleUdpPacket(udpaddr *net.UDPAddr, buf []byte) {
+func (server *Server) handleUDPPacket(udpaddr *net.UDPAddr, buf []byte) {
 	var match *Client
 	plain := make([]byte, len(buf))
 
@@ -1029,9 +1039,8 @@ func (server *Server) handleUdpPacket(udpaddr *net.UDPAddr, buf []byte) {
 				client.Debugf("unable to decrypt incoming packet, requesting resync: %v", err)
 				client.cryptResync()
 				return
-			} else {
-				match = client
 			}
+			match = client
 		}
 		if match != nil {
 			match.udpaddr = udpaddr
@@ -1089,16 +1098,16 @@ func (server *Server) userEnterChannel(client *Client, channel *Channel, usersta
 	}
 }
 
-// Register a client on the server.
-func (s *Server) RegisterClient(client *Client) (uid uint32, err error) {
-	// Increment nextUserId only if registration succeeded.
+// RegisterClient will register a client on the server.
+func (server *Server) RegisterClient(client *Client) (uid uint32, err error) {
+	// Increment nextUserID only if registration succeeded.
 	defer func() {
 		if err == nil {
-			s.nextUserId += 1
+			server.nextUserID++
 		}
 	}()
 
-	user, err := NewUser(s.nextUserId, client.Username)
+	user, err := NewUser(server.nextUserID, client.Username)
 	if err != nil {
 		return 0, err
 	}
@@ -1111,38 +1120,38 @@ func (s *Server) RegisterClient(client *Client) (uid uint32, err error) {
 	user.Email = client.Email
 	user.CertHash = client.CertHash()
 
-	uid = s.nextUserId
-	s.Users[uid] = user
-	s.UserCertMap[client.CertHash()] = user
-	s.UserNameMap[client.Username] = user
+	uid = server.nextUserID
+	server.Users[uid] = user
+	server.UserCertMap[client.CertHash()] = user
+	server.UserNameMap[client.Username] = user
 
 	return uid, nil
 }
 
 // RemoveRegistration removes a registered user.
-func (s *Server) RemoveRegistration(uid uint32) (err error) {
-	user, ok := s.Users[uid]
+func (server *Server) RemoveRegistration(uid uint32) (err error) {
+	user, ok := server.Users[uid]
 	if !ok {
 		return errors.New("Unknown user ID")
 	}
 
 	// Remove from user maps
-	delete(s.Users, uid)
-	delete(s.UserCertMap, user.CertHash)
-	delete(s.UserNameMap, user.Name)
+	delete(server.Users, uid)
+	delete(server.UserCertMap, user.CertHash)
+	delete(server.UserNameMap, user.Name)
 
 	// Remove from groups and ACLs.
-	s.removeRegisteredUserFromChannel(uid, s.RootChannel())
+	server.removeRegisteredUserFromChannel(uid, server.RootChannel())
 
 	return nil
 }
 
 // Remove references for user id uid from channel. Traverses subchannels.
-func (s *Server) removeRegisteredUserFromChannel(uid uint32, channel *Channel) {
+func (server *Server) removeRegisteredUserFromChannel(uid uint32, channel *Channel) {
 
 	newACL := []acl.ACL{}
 	for _, chanacl := range channel.ACL.ACLs {
-		if chanacl.UserId == int(uid) {
+		if chanacl.UserID == int(uid) {
 			continue
 		}
 		newACL = append(newACL, chanacl)
@@ -1162,7 +1171,7 @@ func (s *Server) removeRegisteredUserFromChannel(uid uint32, channel *Channel) {
 	}
 
 	for _, subChan := range channel.children {
-		s.removeRegisteredUserFromChannel(uid, subChan)
+		server.removeRegisteredUserFromChannel(uid, subChan)
 	}
 }
 
@@ -1175,7 +1184,7 @@ func (server *Server) RemoveChannel(channel *Channel) {
 
 	// Remove all links
 	for _, linkedChannel := range channel.Links {
-		delete(linkedChannel.Links, channel.Id)
+		delete(linkedChannel.Links, channel.ID)
 	}
 
 	// Remove all subchannels
@@ -1192,7 +1201,7 @@ func (server *Server) RemoveChannel(channel *Channel) {
 
 		userstate := &mumbleproto.UserState{}
 		userstate.Session = proto.Uint32(client.Session())
-		userstate.ChannelId = proto.Uint32(uint32(target.Id))
+		userstate.ChannelId = proto.Uint32(uint32(target.ID))
 		server.userEnterChannel(client, target, userstate)
 		if err := server.broadcastProtoMessage(userstate); err != nil {
 			server.Panicf("%v", err)
@@ -1201,10 +1210,10 @@ func (server *Server) RemoveChannel(channel *Channel) {
 
 	// Remove the channel itself
 	parent := channel.parent
-	delete(parent.children, channel.Id)
-	delete(server.Channels, channel.Id)
+	delete(parent.children, channel.ID)
+	delete(server.Channels, channel.ID)
 	chanremove := &mumbleproto.ChannelRemove{
-		ChannelId: proto.Uint32(uint32(channel.Id)),
+		ChannelId: proto.Uint32(uint32(channel.ID)),
 	}
 	if err := server.broadcastProtoMessage(chanremove); err != nil {
 		server.Panicf("%v", err)
@@ -1261,7 +1270,7 @@ func (server *Server) IsCertHashBanned(hash string) bool {
 	return false
 }
 
-// Filter incoming text according to the server's current rules.
+// FilterText filters incoming text according to the server's current rules.
 func (server *Server) FilterText(text string) (filtered string, err error) {
 	options := &htmlfilter.Options{
 		StripHTML:             !server.cfg.BoolValue("AllowHTML"),
@@ -1353,7 +1362,7 @@ func (server *Server) cleanPerLaunchData() {
 func (server *Server) Port() int {
 	port := server.cfg.IntValue("Port")
 	if port == 0 {
-		return DefaultPort + int(server.Id) - 1
+		return DefaultPort + int(server.ID) - 1
 	}
 	return port
 }
@@ -1363,7 +1372,7 @@ func (server *Server) Port() int {
 func (server *Server) WebPort() int {
 	port := server.cfg.IntValue("WebPort")
 	if port == 0 {
-		return DefaultWebPort + int(server.Id) - 1
+		return DefaultWebPort + int(server.ID) - 1
 	}
 	return port
 }

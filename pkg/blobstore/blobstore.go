@@ -2,7 +2,7 @@
 // The use of this source code is goverened by a BSD-style
 // license that can be found in the LICENSE-file.
 
-// This package implements a simple disk-persisted content-addressed blobstore.
+// Package blobstore implements a simple disk-persisted content-addressed blobstore.
 package blobstore
 
 import (

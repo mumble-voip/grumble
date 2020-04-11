@@ -13,19 +13,20 @@ import (
 //
 // Users are registered clients on the server.
 
+// User contains all user information
 type User struct {
-	Id            uint32
+	ID            uint32
 	Name          string
 	Password      string
 	CertHash      string
 	Email         string
 	TextureBlob   string
 	CommentBlob   string
-	LastChannelId int
+	LastChannelID int
 	LastActive    uint64
 }
 
-// Create a new User
+// NewUser will create a new User
 func NewUser(id uint32, name string) (user *User, err error) {
 	if id < 0 {
 		return nil, errors.New("Invalid user id")
@@ -35,12 +36,12 @@ func NewUser(id uint32, name string) (user *User, err error) {
 	}
 
 	return &User{
-		Id:   id,
+		ID:   id,
 		Name: name,
 	}, nil
 }
 
-// HasComment Does the channel have comment?
+// HasComment checks whether the channel have comment?
 func (user *User) HasComment() bool {
 	return len(user.CommentBlob) > 0
 }

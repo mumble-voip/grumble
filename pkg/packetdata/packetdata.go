@@ -9,6 +9,7 @@ import (
 	"math"
 )
 
+// PacketData contains one packet of information
 type PacketData struct {
 	Buf       []byte
 	offset    int
@@ -17,6 +18,7 @@ type PacketData struct {
 	ok        bool
 }
 
+// New creates a new packet data from the buffer
 func New(buf []byte) (pds *PacketData) {
 	pds = new(PacketData)
 	pds.Buf = buf
@@ -25,10 +27,12 @@ func New(buf []byte) (pds *PacketData) {
 	return
 }
 
+// IsValid checks whether the current packet data is valid
 func (pds *PacketData) IsValid() bool {
 	return pds.ok
 }
 
+// Skip will skip some data
 func (pds *PacketData) Skip(skip int) {
 	if pds.Left() >= skip {
 		pds.offset += skip
@@ -53,11 +57,11 @@ func (pds *PacketData) Size() int {
 func (pds *PacketData) next() (ret uint64) {
 	if pds.offset < pds.maxsize {
 		ret = uint64(pds.Buf[pds.offset])
-		pds.offset += 1
+		pds.offset++
 		return
-	} else {
-		pds.ok = false
 	}
+
+	pds.ok = false
 	return 0
 }
 
@@ -65,11 +69,11 @@ func (pds *PacketData) next() (ret uint64) {
 func (pds *PacketData) Next8() (ret uint8) {
 	if pds.offset < pds.maxsize {
 		ret = uint8(pds.Buf[pds.offset])
-		pds.offset += 1
+		pds.offset++
 		return
-	} else {
-		pds.ok = false
 	}
+
+	pds.ok = false
 	return 0
 }
 
@@ -83,7 +87,7 @@ func (pds *PacketData) append(val uint64) {
 
 	if pds.offset < pds.maxsize {
 		pds.Buf[pds.offset] = byte(val)
-		pds.offset += 1
+		pds.offset++
 	} else {
 		pds.ok = false
 		pds.overshoot++
@@ -299,7 +303,7 @@ func (pds *PacketData) PutFloat64(val float64) {
 	pds.append(bits & 0xff)
 }
 
-// Copy a buffer out of the PacketData into dst.
+// CopyBytes will copy a buffer out of the PacketData into dst.
 func (pds *PacketData) CopyBytes(dst []byte) {
 	if pds.Left() >= len(dst) {
 		if copy(dst, pds.Buf[pds.offset:pds.offset+len(dst)]) != len(dst) {
@@ -310,7 +314,7 @@ func (pds *PacketData) CopyBytes(dst []byte) {
 	}
 }
 
-// Put a buffer src into the PacketData at the
+// PutBytes will put a buffer src into the PacketData at the
 // current offset.
 func (pds *PacketData) PutBytes(src []byte) {
 	if pds.Left() >= len(src) {

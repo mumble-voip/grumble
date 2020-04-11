@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-// Generate a 4096-bit RSA keypair and a Grumble auto-generated X509
+// GenerateSelfSignedCert will generate a 4096-bit RSA keypair and a Grumble auto-generated X509
 // certificate. Output PEM-encoded DER representations of the resulting
 // certificate and private key to certpath and keypath.
 func GenerateSelfSignedCert(certpath, keypath string) (err error) {

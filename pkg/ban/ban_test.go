@@ -33,12 +33,12 @@ func TestMatchV4(t *testing.T) {
 		t.Errorf("Invalid IP")
 	}
 
-	clientIp := net.ParseIP("192.168.1.50")
-	if len(clientIp) == 0 {
+	clientIP := net.ParseIP("192.168.1.50")
+	if len(clientIP) == 0 {
 		t.Errorf("Invalid IP")
 	}
 
-	if b.Match(clientIp) != true {
+	if b.Match(clientIP) != true {
 		t.Errorf("IPv4: unexpected match")
 	}
 }
@@ -51,12 +51,12 @@ func TestMismatchV4(t *testing.T) {
 		t.Errorf("Invalid IP")
 	}
 
-	clientIp := net.ParseIP("192.168.2.1")
-	if len(clientIp) == 0 {
+	clientIP := net.ParseIP("192.168.2.1")
+	if len(clientIP) == 0 {
 		t.Errorf("Invalid IP")
 	}
 
-	if b.Match(clientIp) == true {
+	if b.Match(clientIP) == true {
 		t.Errorf("IPv4: unexpected mismatch")
 	}
 }
@@ -69,12 +69,12 @@ func TestMatchV6(t *testing.T) {
 		t.Errorf("Invalid IP")
 	}
 
-	clientIp := net.ParseIP("2a00:1450:400b:c00::54")
-	if len(clientIp) == 0 {
+	clientIP := net.ParseIP("2a00:1450:400b:c00::54")
+	if len(clientIP) == 0 {
 		t.Errorf("Invalid IP")
 	}
 
-	if b.Match(clientIp) != true {
+	if b.Match(clientIP) != true {
 		t.Errorf("IPv6: unexpected match")
 	}
 }
@@ -88,12 +88,12 @@ func TestMismatchV6(t *testing.T) {
 		t.Errorf("Invalid IP")
 	}
 
-	clientIp := net.ParseIP("2a00:1450:400b:deaf:42f0:cafe:babe:54")
-	if len(clientIp) == 0 {
+	clientIP := net.ParseIP("2a00:1450:400b:deaf:42f0:cafe:babe:54")
+	if len(clientIP) == 0 {
 		t.Errorf("Invalid IP")
 	}
 
-	if b.Match(clientIp) == true {
+	if b.Match(clientIP) == true {
 		t.Errorf("IPv6: unexpected mismatch")
 	}
 }

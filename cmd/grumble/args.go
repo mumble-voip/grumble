@@ -8,6 +8,8 @@ import (
 	"text/template"
 )
 
+// UsageArgs contains usage information that can be
+// templated for the final usage display
 type UsageArgs struct {
 	Version        string
 	BuildDate      string
@@ -67,6 +69,7 @@ func defaultLogPath() string {
 	return filepath.Join(defaultDataDir(), "grumble.log")
 }
 
+// Usage will print usage information about the command
 func Usage() {
 	t, err := template.New("usage").Parse(usageTmpl)
 	if err != nil {
@@ -85,6 +88,7 @@ func Usage() {
 	}
 }
 
+// Args contains all the possible arguments to the Grumble command
 var Args args
 
 func init() {

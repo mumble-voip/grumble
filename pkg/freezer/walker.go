@@ -23,14 +23,14 @@ func isEOF(err error) bool {
 	return false
 }
 
-// Type Walker implements a method for
+// Walker implements a method for
 // iterating the transaction groups of an
 // immutable Log.
 type Walker struct {
 	r io.Reader
 }
 
-// Type txReader imlpements a checksumming reader, intended
+// txReader imlpements a checksumming reader, intended
 // for reading transaction groups of a Log.
 //
 // Besides auto-checksumming the read content, it also
@@ -79,7 +79,7 @@ func (txr *txReader) Consumed() int {
 	return txr.consumed
 }
 
-// Create a new Walker that iterates over the log entries of a given Reader.
+// NewReaderWalker creates a new Walker that iterates over the log entries of a given Reader.
 func NewReaderWalker(r io.Reader) (walker *Walker, err error) {
 	walker = new(Walker)
 	walker.r = r
@@ -224,7 +224,7 @@ func (walker *Walker) Next() (entries []interface{}, err error) {
 			entries = append(entries, channelRemove)
 		}
 
-		remainOps -= 1
+		remainOps--
 		continue
 	}
 

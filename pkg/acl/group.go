@@ -1,6 +1,7 @@
 // Copyright (c) 2010-2013 The Grumble Authors
 // The use of this source code is goverened by a BSD-style
 // license that can be found in the LICENSE-file.
+
 package acl
 
 import (
@@ -49,7 +50,7 @@ func (group *Group) AddContains(id int) (ok bool) {
 // AddUsers gets the list of user ids in the Add set.
 func (group *Group) AddUsers() []int {
 	users := []int{}
-	for uid, _ := range group.Add {
+	for uid := range group.Add {
 		users = append(users, uid)
 	}
 	return users
@@ -64,7 +65,7 @@ func (group *Group) RemoveContains(id int) (ok bool) {
 // RemoveUsers gets the list of user ids in the Remove set.
 func (group *Group) RemoveUsers() []int {
 	users := []int{}
-	for uid, _ := range group.Remove {
+	for uid := range group.Remove {
 		users = append(users, uid)
 	}
 	return users
@@ -105,10 +106,10 @@ func (group *Group) MembersInContext(ctx *Context) map[int]bool {
 	}
 
 	for _, curgroup := range groups {
-		for uid, _ := range curgroup.Add {
+		for uid := range curgroup.Add {
 			members[uid] = true
 		}
-		for uid, _ := range curgroup.Remove {
+		for uid := range curgroup.Remove {
 			delete(members, uid)
 		}
 	}
@@ -200,8 +201,8 @@ func GroupMemberCheck(current *Context, acl *Context, name string, user User) (o
 		return true
 	} else if name == "auth" {
 		// The user is part of the auth group is he is authenticated. That is,
-		// his UserId is >= 0.
-		return user.UserId() >= 0
+		// his UserID is >= 0.
+		return user.UserID() >= 0
 	} else if name == "strong" {
 		// The user is part of the strong group if he is authenticated to the server
 		// via a strong certificate (i.e. non-self-signed, trusted by the server's
@@ -298,42 +299,40 @@ func GroupMemberCheck(current *Context, acl *Context, name string, user User) (o
 		pdepth := len(userChain) - 1
 		return pdepth >= mindepth && pdepth <= maxdepth
 
-	} else {
-		// Non-magic groups
-		groups := []Group{}
-
-		iter := channel
-		for iter != nil {
-			if group, ok := iter.Groups[name]; ok {
-				// Skip non-inheritable groups if we're in parents
-				// of our evaluated context.
-				if iter != channel && !group.Inheritable {
-					break
-				}
-				// Prepend group
-				groups = append([]Group{group}, groups...)
-				// If this group does not inherit from groups in its ancestors, stop looking
-				// for more ancestor groups.
-				if !group.Inherit {
-					break
-				}
-			}
-			iter = iter.Parent
-		}
-
-		isMember := false
-		for _, group := range groups {
-			if group.AddContains(user.UserId()) || group.TemporaryContains(user.UserId()) || group.TemporaryContains(-int(user.Session())) {
-				isMember = true
-			}
-			if group.RemoveContains(user.UserId()) {
-				isMember = false
-			}
-		}
-		return isMember
 	}
 
-	return false
+	// Non-magic groups
+	groups := []Group{}
+
+	iter := channel
+	for iter != nil {
+		if group, ok := iter.Groups[name]; ok {
+			// Skip non-inheritable groups if we're in parents
+			// of our evaluated context.
+			if iter != channel && !group.Inheritable {
+				break
+			}
+			// Prepend group
+			groups = append([]Group{group}, groups...)
+			// If this group does not inherit from groups in its ancestors, stop looking
+			// for more ancestor groups.
+			if !group.Inherit {
+				break
+			}
+		}
+		iter = iter.Parent
+	}
+
+	isMember := false
+	for _, group := range groups {
+		if group.AddContains(user.UserID()) || group.TemporaryContains(user.UserID()) || group.TemporaryContains(-int(user.Session())) {
+			isMember = true
+		}
+		if group.RemoveContains(user.UserID()) {
+			isMember = false
+		}
+	}
+	return isMember
 }
 
 // GroupNames gets the list of group names for the given ACL context.

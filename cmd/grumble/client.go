@@ -23,7 +23,7 @@ import (
 	"mumble.info/grumble/pkg/packetdata"
 )
 
-// A client connection
+// Client contains all information about a client connection
 type Client struct {
 	// Logging
 	*log.Logger
@@ -49,12 +49,12 @@ type Client struct {
 	voiceTargets map[uint32]*VoiceTarget
 
 	// Ping stats
-	UdpPingAvg float32
-	UdpPingVar float32
-	UdpPackets uint32
-	TcpPingAvg float32
-	TcpPingVar float32
-	TcpPackets uint32
+	UDPPingAvg float32
+	UDPPingVar float32
+	UDPPackets uint32
+	TCPPingAvg float32
+	TCPPingVar float32
+	TCPPackets uint32
 
 	// If the client is a registered user on the server,
 	// the user field will point to the registration record.
@@ -112,32 +112,36 @@ func (client *Client) IsSuperUser() bool {
 	if client.user == nil {
 		return false
 	}
-	return client.user.Id == 0
+	return client.user.ID == 0
 }
 
+// ACLContext returns the access control list context for this client
 func (client *Client) ACLContext() *acl.Context {
 	return &client.Channel.ACL
 }
 
+// CertHash returns the certificate hash for this client
 func (client *Client) CertHash() string {
 	return client.certHash
 }
 
+// Session returns the session ID for this client
 func (client *Client) Session() uint32 {
 	return client.session
 }
 
+// Tokens return all tokens for this client
 func (client *Client) Tokens() []string {
 	return client.tokens
 }
 
-// UserId gets the User ID of this client.
+// UserID gets the User ID of this client.
 // Returns -1 if the client is not a registered user.
-func (client *Client) UserId() int {
+func (client *Client) UserID() int {
 	if client.user == nil {
 		return -1
 	}
-	return int(client.user.Id)
+	return int(client.user.ID)
 }
 
 // ShownName gets the client's shown name.
@@ -159,13 +163,13 @@ func (client *Client) IsVerified() bool {
 	return len(state.VerifiedChains) > 0
 }
 
-// Log a panic and disconnect the client.
+// Panic will log a panic and disconnect the client.
 func (client *Client) Panic(v ...interface{}) {
 	client.Print(v...)
 	client.Disconnect()
 }
 
-// Log a formatted panic and disconnect the client.
+// Panicf will log a formatted panic and disconnect the client.
 func (client *Client) Panicf(format string, v ...interface{}) {
 	client.Printf(format, v...)
 	client.Disconnect()
@@ -203,7 +207,7 @@ func (client *Client) Disconnect() {
 	client.disconnect(false)
 }
 
-// Disconnect a client (kick/ban)
+// ForceDisconnect will disconnect a client (kick/ban)
 func (client *Client) ForceDisconnect() {
 	client.disconnect(true)
 }
@@ -215,7 +219,7 @@ func (client *Client) ClearCaches() {
 	}
 }
 
-// Reject an authentication attempt
+// RejectAuth will reject an authentication attempt
 func (client *Client) RejectAuth(rejectType mumbleproto.Reject_RejectType, reason string) {
 	var reasonString *string = nil
 	if len(reason) > 0 {
@@ -265,36 +269,36 @@ func (client *Client) readProtoMessage() (msg *Message, err error) {
 }
 
 // Send permission denied by type
-func (c *Client) sendPermissionDeniedType(denyType mumbleproto.PermissionDenied_DenyType) {
-	c.sendPermissionDeniedTypeUser(denyType, nil)
+func (client *Client) sendPermissionDeniedType(denyType mumbleproto.PermissionDenied_DenyType) {
+	client.sendPermissionDeniedTypeUser(denyType, nil)
 }
 
 // Send permission denied by type (and user)
-func (c *Client) sendPermissionDeniedTypeUser(denyType mumbleproto.PermissionDenied_DenyType, user *Client) {
+func (client *Client) sendPermissionDeniedTypeUser(denyType mumbleproto.PermissionDenied_DenyType, user *Client) {
 	pd := &mumbleproto.PermissionDenied{
 		Type: denyType.Enum(),
 	}
 	if user != nil {
 		pd.Session = proto.Uint32(uint32(user.Session()))
 	}
-	err := c.sendMessage(pd)
+	err := client.sendMessage(pd)
 	if err != nil {
-		c.Panicf("%v", err.Error())
+		client.Panicf("%v", err.Error())
 		return
 	}
 }
 
 // Send permission denied by who, what, where
-func (c *Client) sendPermissionDenied(who *Client, where *Channel, what acl.Permission) {
+func (client *Client) sendPermissionDenied(who *Client, where *Channel, what acl.Permission) {
 	pd := &mumbleproto.PermissionDenied{
 		Permission: proto.Uint32(uint32(what)),
-		ChannelId:  proto.Uint32(uint32(where.Id)),
+		ChannelId:  proto.Uint32(uint32(where.ID)),
 		Session:    proto.Uint32(who.Session()),
 		Type:       mumbleproto.PermissionDenied_Permission.Enum(),
 	}
-	err := c.sendMessage(pd)
+	err := client.sendMessage(pd)
 	if err != nil {
-		c.Panicf("%v", err.Error())
+		client.Panicf("%v", err.Error())
 		return
 	}
 }
@@ -384,7 +388,7 @@ func (client *Client) udpRecvLoop() {
 	}
 }
 
-// Send buf as a UDP message. If the client does not have
+// SendUDP will send buf as a UDP message. If the client does not have
 // an established UDP connection, the datagram will be tunelled
 // through the client's control channel (TCP).
 func (client *Client) SendUDP(buf []byte) error {
@@ -392,10 +396,9 @@ func (client *Client) SendUDP(buf []byte) error {
 		crypted := make([]byte, len(buf)+client.crypt.Overhead())
 		client.crypt.Encrypt(crypted, buf)
 		return client.server.SendUDP(crypted, client.udpaddr)
-	} else {
-		return client.sendMessage(buf)
 	}
-	panic("unreachable")
+
+	return client.sendMessage(buf)
 }
 
 // Send a Message to the client.  The Message in msg to the client's
@@ -590,11 +593,11 @@ func (client *Client) sendChannelList() {
 
 func (client *Client) sendChannelTree(channel *Channel) {
 	chanstate := &mumbleproto.ChannelState{
-		ChannelId: proto.Uint32(uint32(channel.Id)),
+		ChannelId: proto.Uint32(uint32(channel.ID)),
 		Name:      proto.String(channel.Name),
 	}
 	if channel.parent != nil {
-		chanstate.Parent = proto.Uint32(uint32(channel.parent.Id))
+		chanstate.Parent = proto.Uint32(uint32(channel.parent.ID))
 	}
 
 	if channel.HasDescription() {
@@ -616,7 +619,7 @@ func (client *Client) sendChannelTree(channel *Channel) {
 	chanstate.Position = proto.Int32(int32(channel.Position))
 
 	links := []uint32{}
-	for cid, _ := range channel.Links {
+	for cid := range channel.Links {
 		links = append(links, uint32(cid))
 	}
 	chanstate.Links = links

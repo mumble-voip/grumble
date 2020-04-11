@@ -10,7 +10,7 @@ import (
 	"sync"
 )
 
-// A SessionPool is a pool for session IDs.
+// SessionPool is a pool for session IDs.
 // IDs are re-used in MRU order, for ease of implementation in Go.
 type SessionPool struct {
 	mutex  sync.Mutex
@@ -19,13 +19,13 @@ type SessionPool struct {
 	cur    uint32
 }
 
-// Create a new SessionPool container.
+// New creates a new SessionPool container.
 func New() (pool *SessionPool) {
 	pool = new(SessionPool)
 	return
 }
 
-// Enable use-tracking for the SessionPool.
+// EnableUseTracking will enable use-tracking for the SessionPool.
 //
 // When enabled, the SessionPool stores all session IDs
 // returned by Get() internally. When an ID is reclaimed,
@@ -70,7 +70,7 @@ func (pool *SessionPool) Get() (id uint32) {
 	// Increment the next session id and return it.
 	// Note: By incrementing and *then* returning, we skip 0.
 	// This is deliberate, as 0 is an invalid session ID in Mumble.
-	pool.cur += 1
+	pool.cur++
 	id = pool.cur
 	return
 }

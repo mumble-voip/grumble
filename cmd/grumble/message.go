@@ -18,12 +18,14 @@ import (
 	"mumble.info/grumble/pkg/mumbleproto"
 )
 
+// Message contains a specific message for a client
 type Message struct {
 	buf    []byte
 	kind   uint16
 	client *Client
 }
 
+// VoiceBroadcast contains a voice broadcast for a specific client
 type VoiceBroadcast struct {
 	// The client who is performing the broadcast
 	client *Client
@@ -56,7 +58,7 @@ func (server *Server) handleCryptSetup(client *Client, msg *Message) {
 			return
 		}
 
-		client.crypt.Resync += 1
+		client.crypt.Resync++
 		if copy(client.crypt.DecryptIV[0:], cs.ClientNonce) != aes.BlockSize {
 			return
 		}
@@ -85,24 +87,24 @@ func (server *Server) handlePingMessage(client *Client, msg *Message) {
 		client.crypt.RemoteResync = *ping.Resync
 	}
 
-	if ping.UdpPingAvg != nil {
-		client.UdpPingAvg = *ping.UdpPingAvg
+	if ping.UDPPingAvg != nil {
+		client.UDPPingAvg = *ping.UDPPingAvg
 	}
-	if ping.UdpPingVar != nil {
-		client.UdpPingVar = *ping.UdpPingVar
+	if ping.UDPPingVar != nil {
+		client.UDPPingVar = *ping.UDPPingVar
 	}
-	if ping.UdpPackets != nil {
-		client.UdpPackets = *ping.UdpPackets
+	if ping.UDPPackets != nil {
+		client.UDPPackets = *ping.UDPPackets
 	}
 
-	if ping.TcpPingAvg != nil {
-		client.TcpPingAvg = *ping.TcpPingAvg
+	if ping.TCPPingAvg != nil {
+		client.TCPPingAvg = *ping.TCPPingAvg
 	}
-	if ping.TcpPingVar != nil {
-		client.TcpPingVar = *ping.TcpPingVar
+	if ping.TCPPingVar != nil {
+		client.TCPPingVar = *ping.TCPPingVar
 	}
-	if ping.TcpPackets != nil {
-		client.TcpPackets = *ping.TcpPackets
+	if ping.TCPPackets != nil {
+		client.TCPPackets = *ping.TCPPackets
 	}
 
 	client.sendMessage(&mumbleproto.Ping{
@@ -202,7 +204,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 		name = *chanstate.Name
 
 		// We don't allow renames for the root channel.
-		if channel != nil && channel.Id != 0 {
+		if channel != nil && channel.ID != 0 {
 			// Pick a parent. If the name change is part of a re-parent (a channel move),
 			// we must evaluate the parent variable. Since we're explicitly exlcuding the root
 			// channel from renames, channels that are the target of renames are guaranteed to have
@@ -268,7 +270,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 		// Add the creator to the channel's admin group
 		if client.IsRegistered() {
 			grp := acl.EmptyGroupWithName("admin")
-			grp.Add[client.UserId()] = true
+			grp.Add[client.UserID()] = true
 			channel.ACL.Groups["admin"] = grp
 		}
 
@@ -279,7 +281,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 			aclEntry.ApplyHere = true
 			aclEntry.ApplySubs = true
 			if client.IsRegistered() {
-				aclEntry.UserId = client.UserId()
+				aclEntry.UserID = client.UserID()
 			} else {
 				aclEntry.Group = "$" + client.CertHash()
 			}
@@ -291,7 +293,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 			server.ClearCaches()
 		}
 
-		chanstate.ChannelId = proto.Uint32(uint32(channel.Id))
+		chanstate.ChannelId = proto.Uint32(uint32(channel.ID))
 
 		// Broadcast channel add
 		server.broadcastProtoMessageWithPredicate(chanstate, func(client *Client) bool {
@@ -311,7 +313,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 		if channel.IsTemporary() {
 			userstate := &mumbleproto.UserState{}
 			userstate.Session = proto.Uint32(client.Session())
-			userstate.ChannelId = proto.Uint32(uint32(channel.Id))
+			userstate.ChannelId = proto.Uint32(uint32(channel.ID))
 			server.userEnterChannel(client, channel, userstate)
 			server.broadcastProtoMessage(userstate)
 		}
@@ -323,7 +325,7 @@ func (server *Server) handleChannelStateMessage(client *Client, msg *Message) {
 		if chanstate.Name != nil {
 			// The client can only rename the channel if it has WritePermission in the channel.
 			// Also, clients cannot change the name of the root channel.
-			if !acl.HasPermission(&channel.ACL, client, acl.WritePermission) || channel.Id == 0 {
+			if !acl.HasPermission(&channel.ACL, client, acl.WritePermission) || channel.ID == 0 {
 				client.sendPermissionDenied(client, channel, acl.WritePermission)
 				return
 			}
@@ -661,7 +663,7 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	}
 
 	// Registration
-	if userstate.UserId != nil {
+	if userstate.UserID != nil {
 		// If user == actor, check for SelfRegisterPermission on root channel.
 		// If user != actor, check for RegisterPermission permission on root channel.
 		perm := acl.Permission(acl.RegisterPermission)
@@ -797,13 +799,13 @@ func (server *Server) handleUserStateMessage(client *Client, msg *Message) {
 	}
 
 	userRegistrationChanged := false
-	if userstate.UserId != nil {
+	if userstate.UserID != nil {
 		uid, err := server.RegisterClient(target)
 		if err != nil {
 			client.Printf("Unable to register: %v", err)
-			userstate.UserId = nil
+			userstate.UserID = nil
 		} else {
-			userstate.UserId = proto.Uint32(uid)
+			userstate.UserID = proto.Uint32(uid)
 			client.user = server.Users[uid]
 			userRegistrationChanged = true
 		}
@@ -1026,7 +1028,7 @@ func (server *Server) handleTextMessage(client *Client, msg *Message) {
 }
 
 // ACL set/query
-func (server *Server) handleAclMessage(client *Client, msg *Message) {
+func (server *Server) handleACLMessage(client *Client, msg *Message) {
 	pacl := &mumbleproto.ACL{}
 	err := proto.Unmarshal(msg.buf, pacl)
 	if err != nil {
@@ -1047,14 +1049,14 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 	}
 
 	reply := &mumbleproto.ACL{}
-	reply.ChannelId = proto.Uint32(uint32(channel.Id))
+	reply.ChannelId = proto.Uint32(uint32(channel.ID))
 
 	channels := []*Channel{}
 	users := map[int]bool{}
 
 	// Query the current ACL state for the channel
 	if pacl.Query != nil && *pacl.Query != false {
-		reply.InheritAcls = proto.Bool(channel.ACL.InheritACL)
+		reply.InheritACLs = proto.Bool(channel.ACL.InheritACL)
 		// Walk the channel tree to get all relevant channels.
 		// (Stop if we reach a channel that doesn't have the InheritACL flag set)
 		iter := channel
@@ -1069,7 +1071,7 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 
 		// Construct the protobuf ChanACL objects corresponding to the ACLs defined
 		// in our channel list.
-		reply.Acls = []*mumbleproto.ACL_ChanACL{}
+		reply.ACLs = []*mumbleproto.ACL_ChanACL{}
 		for _, iter := range channels {
 			for _, chanacl := range iter.ACL.ACLs {
 				if iter == channel || chanacl.ApplySubs {
@@ -1077,15 +1079,15 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 					mpacl.Inherited = proto.Bool(iter != channel)
 					mpacl.ApplyHere = proto.Bool(chanacl.ApplyHere)
 					mpacl.ApplySubs = proto.Bool(chanacl.ApplySubs)
-					if chanacl.UserId >= 0 {
-						mpacl.UserId = proto.Uint32(uint32(chanacl.UserId))
-						users[chanacl.UserId] = true
+					if chanacl.UserID >= 0 {
+						mpacl.UserID = proto.Uint32(uint32(chanacl.UserID))
+						users[chanacl.UserID] = true
 					} else {
 						mpacl.Group = proto.String(chanacl.Group)
 					}
 					mpacl.Grant = proto.Uint32(uint32(chanacl.Allow))
 					mpacl.Deny = proto.Uint32(uint32(chanacl.Deny))
-					reply.Acls = append(reply.Acls, mpacl)
+					reply.ACLs = append(reply.ACLs, mpacl)
 				}
 			}
 		}
@@ -1129,20 +1131,20 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 			// message that maps user ids to usernames.
 			if hasgroup {
 				toadd := map[int]bool{}
-				for uid, _ := range group.Add {
+				for uid := range group.Add {
 					users[uid] = true
 					toadd[uid] = true
 				}
-				for uid, _ := range group.Remove {
+				for uid := range group.Remove {
 					users[uid] = true
 					delete(toadd, uid)
 				}
-				for uid, _ := range toadd {
+				for uid := range toadd {
 					mpgroup.Add = append(mpgroup.Add, uint32(uid))
 				}
 			}
 			if haspgroup {
-				for uid, _ := range pgroup.MembersInContext(&parent.ACL) {
+				for uid := range pgroup.MembersInContext(&parent.ACL) {
 					users[uid] = true
 					mpgroup.InheritedMembers = append(mpgroup.InheritedMembers, uint32(uid))
 				}
@@ -1158,7 +1160,7 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 
 		// Map the user ids in the user map to usernames of users.
 		queryusers := &mumbleproto.QueryUsers{}
-		for uid, _ := range users {
+		for uid := range users {
 			user, ok := server.Users[uint32(uid)]
 			if !ok {
 				client.Printf("Invalid user id in ACL")
@@ -1185,7 +1187,7 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 		channel.ACL.Groups = map[string]acl.Group{}
 
 		// Add the received groups to the channel.
-		channel.ACL.InheritACL = *pacl.InheritAcls
+		channel.ACL.InheritACL = *pacl.InheritACLs
 		for _, pbgrp := range pacl.Groups {
 			changroup := acl.EmptyGroupWithName(*pbgrp.Name)
 
@@ -1204,12 +1206,12 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 			channel.ACL.Groups[changroup.Name] = changroup
 		}
 		// Add the received ACLs to the channel.
-		for _, pbacl := range pacl.Acls {
+		for _, pbacl := range pacl.ACLs {
 			chanacl := acl.ACL{}
 			chanacl.ApplyHere = *pbacl.ApplyHere
 			chanacl.ApplySubs = *pbacl.ApplySubs
-			if pbacl.UserId != nil {
-				chanacl.UserId = int(*pbacl.UserId)
+			if pbacl.UserID != nil {
+				chanacl.UserID = int(*pbacl.UserID)
 			} else {
 				chanacl.Group = *pbacl.Group
 			}
@@ -1228,7 +1230,7 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 			chanacl.ApplyHere = true
 			chanacl.ApplySubs = false
 			if client.IsRegistered() {
-				chanacl.UserId = client.UserId()
+				chanacl.UserID = client.UserID()
 			} else if client.HasCertificate() {
 				chanacl.Group = "$" + client.CertHash()
 			}
@@ -1269,7 +1271,7 @@ func (server *Server) handleQueryUsers(client *Client, msg *Message) {
 	for _, name := range query.Names {
 		user, exists := server.UserNameMap[name]
 		if exists {
-			reply.Ids = append(reply.Ids, user.Id)
+			reply.Ids = append(reply.Ids, user.ID)
 			reply.Names = append(reply.Names, name)
 		}
 	}
@@ -1356,12 +1358,12 @@ func (server *Server) handleUserStatsMessage(client *Client, msg *Message) {
 		stats.FromServer = fromServer
 	}
 
-	stats.UdpPackets = proto.Uint32(target.UdpPackets)
-	stats.TcpPackets = proto.Uint32(target.TcpPackets)
-	stats.UdpPingAvg = proto.Float32(target.UdpPingAvg)
-	stats.UdpPingVar = proto.Float32(target.UdpPingVar)
-	stats.TcpPingAvg = proto.Float32(target.TcpPingAvg)
-	stats.TcpPingVar = proto.Float32(target.TcpPingVar)
+	stats.UDPPackets = proto.Uint32(target.UDPPackets)
+	stats.TCPPackets = proto.Uint32(target.TCPPackets)
+	stats.UDPPingAvg = proto.Float32(target.UDPPingAvg)
+	stats.UDPPingVar = proto.Float32(target.UDPPingVar)
+	stats.TCPPingAvg = proto.Float32(target.TCPPingAvg)
+	stats.TCPPingVar = proto.Float32(target.TCPPingVar)
 
 	if details {
 		version := &mumbleproto.Version{}
@@ -1531,7 +1533,7 @@ func (server *Server) handleRequestBlob(client *Client, msg *Message) {
 						server.Panicf("Blobstore error: %v", err)
 						return
 					}
-					chanstate.ChannelId = proto.Uint32(uint32(channel.Id))
+					chanstate.ChannelId = proto.Uint32(uint32(channel.ID))
 					chanstate.Description = proto.String(string(buf))
 					if err := client.sendMessage(chanstate); err != nil {
 						client.Panic(err)
@@ -1566,7 +1568,7 @@ func (server *Server) handleUserList(client *Client, msg *Message) {
 				continue
 			}
 			userlist.Users = append(userlist.Users, &mumbleproto.UserList_User{
-				UserId: proto.Uint32(uid),
+				UserID: proto.Uint32(uid),
 				Name:   proto.String(user.Name),
 			})
 		}
@@ -1579,7 +1581,7 @@ func (server *Server) handleUserList(client *Client, msg *Message) {
 		if len(userlist.Users) > 0 {
 			tx := server.freezelog.BeginTx()
 			for _, listUser := range userlist.Users {
-				uid := *listUser.UserId
+				uid := *listUser.UserID
 				if uid == 0 {
 					continue
 				}
@@ -1588,7 +1590,7 @@ func (server *Server) handleUserList(client *Client, msg *Message) {
 					if listUser.Name == nil {
 						// De-register
 						server.RemoveRegistration(uid)
-						err := tx.Put(&freezer.UserRemove{Id: listUser.UserId})
+						err := tx.Put(&freezer.UserRemove{Id: listUser.UserID})
 						if err != nil {
 							server.Fatal(err)
 						}
@@ -1596,7 +1598,7 @@ func (server *Server) handleUserList(client *Client, msg *Message) {
 						// Rename user
 						// todo(mkrautz): Validate name.
 						user.Name = *listUser.Name
-						err := tx.Put(&freezer.User{Id: listUser.UserId, Name: listUser.Name})
+						err := tx.Put(&freezer.User{Id: listUser.UserID, Name: listUser.Name})
 						if err != nil {
 							server.Fatal(err)
 						}

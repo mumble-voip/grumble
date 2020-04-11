@@ -16,6 +16,7 @@ import (
 	"net/http"
 )
 
+// Register contains the information necessary to register a server
 type Register struct {
 	XMLName  xml.Name `xml:"server"`
 	Version  string   `xml:"version"`
@@ -24,16 +25,16 @@ type Register struct {
 	Host     string   `xml:"host"`
 	Password string   `xml:"password"`
 	Port     int      `xml:"port"`
-	Url      string   `xml:"url"`
+	URL      string   `xml:"url"`
 	Digest   string   `xml:"digest"`
 	Users    int      `xml:"users"`
 	Channels int      `xml:"channels"`
 	Location string   `xml:"location"`
 }
 
-const registerUrl = "https://mumble.info/register.cgi"
+const registerURL = "https://mumble.info/register.cgi"
 
-// Determines whether a server is public by checking whether the
+// IsPublic Determines whether a server is public by checking whether the
 // config values required for public registration are set.
 //
 // This function is used to determine whether or not to periodically
@@ -54,7 +55,7 @@ func (server *Server) IsPublic() bool {
 	return true
 }
 
-// Perform a public server registration update.
+// RegisterPublicServer will perform a public server registration update.
 //
 // When a Mumble server connects to the master server
 // for registration, it connects using its server certificate
@@ -83,7 +84,7 @@ func (server *Server) RegisterPublicServer() {
 		Name:     server.cfg.StringValue("RegisterName"),
 		Host:     server.cfg.StringValue("RegisterHost"),
 		Password: server.cfg.StringValue("RegisterPassword"),
-		Url:      server.cfg.StringValue("RegisterWebUrl"),
+		URL:      server.cfg.StringValue("RegisterWebUrl"),
 		Location: server.cfg.StringValue("RegisterLocation"),
 		Port:     server.CurrentPort(),
 		Digest:   digest,
@@ -105,7 +106,7 @@ func (server *Server) RegisterPublicServer() {
 			TLSClientConfig: config,
 		}
 		client := &http.Client{Transport: tr}
-		r, err := client.Post(registerUrl, "text/xml", ioutil.NopCloser(buf))
+		r, err := client.Post(registerURL, "text/xml", ioutil.NopCloser(buf))
 		if err != nil {
 			server.Printf("register: unable to post registration request: %v", err)
 			return

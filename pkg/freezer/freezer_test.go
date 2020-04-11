@@ -147,7 +147,7 @@ func TestLogging(t *testing.T) {
 		if !proto.Equal(val, testValues[i]) {
 			t.Error("proto message mismatch")
 		}
-		i += 1
+		i++
 	}
 }
 

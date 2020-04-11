@@ -22,12 +22,13 @@ var defaultCfg = map[string]string{
 	"SendVersion":           "true",
 }
 
+// Config contains all configurations
 type Config struct {
 	cfgMap map[string]string
 	mutex  sync.RWMutex
 }
 
-// Create a new Config using cfgMap as the intial internal config map.
+// New creates a new Config using cfgMap as the intial internal config map.
 // If cfgMap is nil, ConfigWithMap will create a new config map.
 func New(cfgMap map[string]string) *Config {
 	if cfgMap == nil {

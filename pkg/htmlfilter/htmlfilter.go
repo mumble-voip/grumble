@@ -12,6 +12,7 @@ import (
 	"strings"
 )
 
+// Options contains the different possible HTML filtering options
 type Options struct {
 	StripHTML             bool
 	MaxTextMessageLength  int
@@ -24,6 +25,7 @@ var defaultOptions Options = Options{
 	MaxImageMessageLength: 1024 * 1024,
 }
 
+// Errors that can happen in this module
 var (
 	ErrExceedsTextMessageLength  = errors.New("Exceeds text message length")
 	ErrExceedsImageMessageLength = errors.New("Exceeds image message length")

@@ -10,7 +10,7 @@ package acl
 // permissions in an ACL context.
 type User interface {
 	Session() uint32
-	UserId() int
+	UserID() int
 
 	CertHash() string
 	Tokens() []string

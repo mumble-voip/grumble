@@ -23,6 +23,7 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+// Listener represents a specific network listener
 type Listener struct {
 	sockets chan *conn
 	done    chan struct{}
@@ -31,6 +32,7 @@ type Listener struct {
 	logger  *log.Logger
 }
 
+// NewListener creates a new listener
 func NewListener(laddr net.Addr, logger *log.Logger) *Listener {
 	return &Listener{
 		sockets: make(chan *conn),
@@ -40,6 +42,7 @@ func NewListener(laddr net.Addr, logger *log.Logger) *Listener {
 	}
 }
 
+// Accept blocks and waits for a new connection
 func (l *Listener) Accept() (net.Conn, error) {
 	if atomic.LoadInt32(&l.closed) != 0 {
 		return nil, fmt.Errorf("accept ws %v: use of closed websocket listener", l.addr)
@@ -52,6 +55,7 @@ func (l *Listener) Accept() (net.Conn, error) {
 	}
 }
 
+// Close will close the underlying listener
 func (l *Listener) Close() error {
 	if !atomic.CompareAndSwapInt32(&l.closed, 0, 1) {
 		return fmt.Errorf("close ws %v: use of closed websocket listener", l.addr)
@@ -60,6 +64,7 @@ func (l *Listener) Close() error {
 	return nil
 }
 
+// Addr returns the internal address
 func (l *Listener) Addr() net.Addr {
 	return l.addr
 }
