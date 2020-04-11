@@ -1,7 +1,7 @@
 
 Linux CI (Travis CI):
 
-[![Build Status](https://travis-ci.com/mumble-voip/grumble.svg?branch=master)](https://travis-ci.org/mumble-voip/grumble)
+[![Build Status](https://travis-ci.com/mumble-voip/grumble.svg?branch=master)](https://travis-ci.com/mumble-voip/grumble)
 
 Windows CI (AppVeyor):
 
@@ -23,18 +23,21 @@ https://golang.org/dl/
 Once Go is installed, you should set up a GOPATH to avoid clobbering your Go environment's root directory with third party packages.
 
 Set up a GOPATH. On Unix, do something like this
-
-    $ export GOPATH=$HOME/gocode
-    $ mkdir -p $GOPATH
+```shell script
+$ export GOPATH=$HOME/gocode
+$ mkdir -p $GOPATH
+```
 
 and on Windows, do something like this (for cmd.exe):
-
-    c:\> set GOPATH=%USERPROFILE%\gocode
-    c:\> mkdir %GOPATH%
+```shell script
+c:\> set GOPATH=%USERPROFILE%\gocode
+c:\> mkdir %GOPATH%
+```
 
 Then, it's time to install Grumble. The following line should do the trick:
-
-    $ go get mumble.info/grumble/cmd/grumble
+```shell script
+$ go get mumble.info/grumble/cmd/grumble
+```
 
 And that should be it. Grumble has been built, and is available in $GOPATH/bin as 'grumble'.
 
@@ -61,29 +64,32 @@ Docker
 ## Getting the image
 
 ### Building
-
-    $ git clone https://github.com/mumble-voip/grumble.git
-    $ cd grumble/
-    $ docker build -t mumble-voip/grumble .
+```shell script
+$ git clone https://github.com/mumble-voip/grumble.git
+$ cd grumble/
+$ docker build -t mumble-voip/grumble .
+```
 
 ## Running
 
 ### Command line
-
-    $ docker run \
-      -v $HOME/.grumble:/data \
-      -p 64738:64738 \
-      -p 64738:64738/udp \
-      mumble-voip/grumble
+```shell script
+$ docker run \
+  -v $HOME/.grumble:/data \
+  -p 64738:64738 \
+  -p 64738:64738/udp \
+  mumble-voip/grumble
+```
 
 ### Compose
-
-    version: '3'
-    services:
-      grumble:
-        image: mumble-voip/grumble
-        ports:
-          - 64738:64738
-          - 64738:64738/udp
-        volumes:
-          - $HOME/.grumble:/data
+```yaml
+version: '3'
+services:
+  grumble:
+    image: mumble-voip/grumble
+    ports:
+      - 64738:64738
+      - 64738:64738/udp
+    volumes:
+      - $HOME/.grumble:/data
+```
