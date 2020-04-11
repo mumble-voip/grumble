@@ -161,7 +161,7 @@ func (client *Client) IsVerified() bool {
 
 // Log a panic and disconnect the client.
 func (client *Client) Panic(v ...interface{}) {
-	client.Print(v)
+	client.Print(v...)
 	client.Disconnect()
 }
 
