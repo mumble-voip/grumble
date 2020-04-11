@@ -3,6 +3,7 @@ language: go
 go:
   - 1.9
   - 1.10.x
+  - 1.14.x
 
 go_import_path: mumble.info/grumble
 
