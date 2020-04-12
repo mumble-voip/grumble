@@ -66,7 +66,7 @@ func (target *logTarget) Write(out []byte) (int, error) {
 	target.mu.Lock()
 	defer target.mu.Unlock()
 
-	return target.Write(out)
+	return target.w.Write(out)
 }
 
 // Rotate rotates the current log file, if one is opened.
