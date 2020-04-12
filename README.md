@@ -7,6 +7,10 @@ Windows CI (AppVeyor):
 
 [![Build status](https://ci.appveyor.com/api/projects/status/yfvg0eagpuy9kgg9/branch/master?svg=true)](https://ci.appveyor.com/project/mumble-voip/grumble/branch/master)
 
+Go:
+
+[![Go Report Card](https://goreportcard.com/badge/github.com/mumble-voip/grumble)](https://goreportcard.com/report/github.com/mumble-voip/grumble)
+
 
 What is Grumble?
 ================
