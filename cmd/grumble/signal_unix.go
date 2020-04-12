@@ -8,6 +8,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -27,6 +28,14 @@ func SignalHandler() {
 			continue
 		}
 		if sig == syscall.SIGINT || sig == syscall.SIGTERM {
+			for _, server := range servers {
+				log.Printf("Stopping server %v", server.Id)
+				err := server.Stop()
+				if err != nil {
+					log.Printf("Server err %v", err)
+				}
+			}
+			log.Print("All servers stopped. Exiting.")
 			os.Exit(0)
 		}
 	}
