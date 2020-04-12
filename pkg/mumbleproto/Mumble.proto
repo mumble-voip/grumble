@@ -1,3 +1,10 @@
+// Copyright 2005-2020 The Mumble Developers. All rights reserved.
+// Use of this source code is governed by a BSD-style license
+// that can be found in the LICENSE file at the root of the
+// Mumble source tree or at <https://www.mumble.info/LICENSE>.
+
+syntax = "proto2";
+
 package mumbleproto;
 
 option optimize_for = SPEED;
@@ -65,7 +72,8 @@ message Ping {
 // Sent by the server when it rejects the user connection.
 message Reject {
 	enum RejectType {
-		// TODO ??
+		// The rejection reason is unknown (details should be available
+		// in Reject.reason).
 		None = 0;
 		// The client attempted to connect with an incompatible version.
 		WrongVersion = 1;
@@ -100,7 +108,7 @@ message ServerSync {
 	optional uint32 max_bandwidth = 2;
 	// Server welcome text.
 	optional string welcome_text = 3;
-	// Current user permissions TODO: Confirm??
+	// Current user permissions in the root channel.
 	optional uint64 permissions = 4;
 }
 
@@ -140,6 +148,10 @@ message ChannelState {
 	// the maximum number of users allowed in the channel is given by the
 	// server's "usersperchannel" setting.
 	optional uint32 max_users = 11;
+	// Whether this channel has enter restrictions (ACL denying ENTER) set
+	optional bool is_enter_restricted = 12;
+	// Whether the receiver of this msg is considered to be able to enter this channel
+	optional bool can_enter = 13;
 }
 
 // Used to communicate user leaving or being kicked. May be sent by the client
@@ -186,9 +198,14 @@ message UserState {
 	optional bool self_deaf = 10;
 	// User image if it is less than 128 bytes.
 	optional bytes texture = 11;
-	// TODO ??
+	// The positional audio plugin identifier.
+	// Positional audio information is only sent to users who share
+	// identical plugin contexts.
+	//
+	// This value is not trasmitted to clients.
 	optional bytes plugin_context = 12;
-	// TODO ??
+	// The user's plugin-specific identity.
+	// This value is not transmitted to clients.
 	optional string plugin_identity = 13;
 	// User comment if it is less than 128 bytes.
 	optional string comment = 14;
@@ -202,6 +219,8 @@ message UserState {
 	optional bool priority_speaker = 18;
 	// True if the user is currently recording.
 	optional bool recording = 19;
+	// A list of temporary acces tokens to be respected when processing this request.
+	repeated string temporary_access_tokens = 20;
 }
 
 // Relays information on the bans. The client may send the BanList message to
@@ -215,7 +234,7 @@ message BanList {
 		required uint32 mask = 2;
 		// User name for identification purposes (does not affect the ban).
 		optional string name = 3;
-		// TODO ??
+		// The certificate hash of the banned user.
 		optional string hash = 4;
 		// Reason for the ban (does not affect the ban).
 		optional string reason = 5;
@@ -269,7 +288,10 @@ message PermissionDenied {
 		UserName = 8;
 		// Channel is full.
 		ChannelFull = 9;
+		// Channels are nested too deply.
 		NestingLimit = 10;
+		// Maximum channel count reached.
+		ChannelCountLimit = 11;
 	}
 	// The denied permission when type is Permission.
 	optional uint32 permission = 1;
@@ -409,9 +431,9 @@ message VoiceTarget {
 	message Target {
 		// Users that are included as targets.
 		repeated uint32 session = 1;
-		// Channels that are included as targets.
+		// Channel that is included as a target.
 		optional uint32 channel_id = 2;
-		// TODO ??
+		// ACL group that is included as a target.
 		optional string group = 3;
 		// True if the voice should follow links from the specified channel.
 		optional bool links = 4 [default = false];
