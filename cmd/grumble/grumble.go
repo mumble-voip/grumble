@@ -37,14 +37,14 @@ func main() {
 	dataDir.Close()
 
 	// Set up logging
-	err = logtarget.Target.OpenFile(Args.LogPath)
+	logtarget.Default, err = logtarget.OpenFile(Args.LogPath, os.Stderr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to open log file (%v): %v", Args.LogPath, err)
 		return
 	}
 	log.SetPrefix("[G] ")
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
-	log.SetOutput(&logtarget.Target)
+	log.SetOutput(logtarget.Default)
 	log.Printf("Grumble")
 	log.Printf("Using data directory: %s", Args.DataDir)
 
