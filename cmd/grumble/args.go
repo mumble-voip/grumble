@@ -85,16 +85,20 @@ func Usage() {
 	}
 }
 
-var Args args
+func readCommandlineArguments() args {
+	var a args
 
-func init() {
 	flag.Usage = Usage
 
-	flag.BoolVar(&Args.ShowHelp, "help", false, "")
-	flag.StringVar(&Args.DataDir, "datadir", defaultDataDir(), "")
-	flag.StringVar(&Args.LogPath, "log", defaultLogPath(), "")
-	flag.BoolVar(&Args.RegenKeys, "regen-keys", false, "")
+	flag.BoolVar(&a.ShowHelp, "help", false, "")
+	flag.StringVar(&a.DataDir, "datadir", defaultDataDir(), "")
+	flag.StringVar(&a.LogPath, "log", defaultLogPath(), "")
+	flag.BoolVar(&a.RegenKeys, "regen-keys", false, "")
 
-	flag.StringVar(&Args.SQLiteDB, "import-murmurdb", "", "")
-	flag.BoolVar(&Args.CleanUp, "cleanup", false, "")
+	flag.StringVar(&a.SQLiteDB, "import-murmurdb", "", "")
+	flag.BoolVar(&a.CleanUp, "cleanup", false, "")
+
+	flag.Parse()
+
+	return a
 }

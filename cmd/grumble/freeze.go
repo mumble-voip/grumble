@@ -52,7 +52,7 @@ func (server *Server) openFreezeLog() error {
 		server.freezelog = nil
 	}
 
-	logfn := filepath.Join(Args.DataDir, "servers", strconv.FormatInt(server.Id, 10), "log.fz")
+	logfn := filepath.Join(server.DataDir, "servers", strconv.FormatInt(server.Id, 10), "log.fz")
 	err := os.Remove(logfn)
 	if os.IsNotExist(err) {
 		// fallthrough
@@ -374,13 +374,13 @@ func FreezeGroup(group acl.Group) (*freezer.Group, error) {
 // Once both the full server and the log file has been merged together
 // in memory, a new full seralized server will be written and synced to
 // disk, and the existing log file will be removed.
-func NewServerFromFrozen(name string) (s *Server, err error) {
+func NewServerFromFrozen(name string, dataDir string) (s *Server, err error) {
 	id, err := strconv.ParseInt(name, 10, 64)
 	if err != nil {
 		return nil, err
 	}
 
-	path := filepath.Join(Args.DataDir, "servers", name)
+	path := filepath.Join(dataDir, "servers", name)
 	mainFile := filepath.Join(path, "main.fz")
 	backupFile := filepath.Join(path, "backup.fz")
 	logFn := filepath.Join(path, "log.fz")
@@ -424,6 +424,7 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 	if err != nil {
 		return nil, err
 	}
+	s.DataDir = dataDir
 	s.cfg = serverconf.New(cfgMap)
 
 	// Unfreeze the server's frozen bans.

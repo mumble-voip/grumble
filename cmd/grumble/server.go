@@ -122,6 +122,9 @@ type Server struct {
 
 	// Logging
 	*log.Logger
+
+	// Other configuration
+	DataDir string
 }
 
 type clientLogForwarder struct {
@@ -1432,8 +1435,8 @@ func (server *Server) Start() (err error) {
 	*/
 
 	// Wrap a TLS listener around the TCP connection
-	certFn := filepath.Join(Args.DataDir, "cert.pem")
-	keyFn := filepath.Join(Args.DataDir, "key.pem")
+	certFn := filepath.Join(server.DataDir, "cert.pem")
+	keyFn := filepath.Join(server.DataDir, "key.pem")
 	cert, err := tls.LoadX509KeyPair(certFn, keyFn)
 	if err != nil {
 		return err

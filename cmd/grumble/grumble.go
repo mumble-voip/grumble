@@ -5,7 +5,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -22,31 +21,31 @@ var blobStore blobstore.BlobStore
 func main() {
 	var err error
 
-	flag.Parse()
-	if Args.ShowHelp == true {
+	cmdArgs := readCommandlineArguments()
+	if cmdArgs.ShowHelp == true {
 		Usage()
 		return
 	}
 
 	// Open the data dir to check whether it exists.
-	dataDir, err := os.Open(Args.DataDir)
+	dataDir, err := os.Open(cmdArgs.DataDir)
 	if err != nil {
-		log.Fatalf("Unable to open data directory (%v): %v", Args.DataDir, err)
+		log.Fatalf("Unable to open data directory (%v): %v", cmdArgs.DataDir, err)
 		return
 	}
 	dataDir.Close()
 
 	// Set up logging
-	err = logtarget.Target.OpenFile(Args.LogPath)
+	err = logtarget.Target.OpenFile(cmdArgs.LogPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to open log file (%v): %v", Args.LogPath, err)
+		fmt.Fprintf(os.Stderr, "Unable to open log file (%v): %v", cmdArgs.LogPath, err)
 		return
 	}
 	log.SetPrefix("[G] ")
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 	log.SetOutput(&logtarget.Target)
 	log.Printf("Grumble")
-	log.Printf("Using data directory: %s", Args.DataDir)
+	log.Printf("Using data directory: %s", cmdArgs.DataDir)
 
 	// Open the blobstore.  If the directory doesn't
 	// already exist, create the directory and open
@@ -54,7 +53,7 @@ func main() {
 	// The Open method of the blobstore performs simple
 	// sanity checking of content of the blob directory,
 	// and will return an error if something's amiss.
-	blobDir := filepath.Join(Args.DataDir, "blob")
+	blobDir := filepath.Join(cmdArgs.DataDir, "blob")
 	err = os.Mkdir(blobDir, 0700)
 	if err != nil && !os.IsExist(err) {
 		log.Fatalf("Unable to create blob directory (%v): %v", blobDir, err)
@@ -66,10 +65,10 @@ func main() {
 	// These are used as the default certificate of all virtual servers
 	// and the SSH admin console, but can be overridden using the "key"
 	// and "cert" arguments to Grumble.
-	certFn := filepath.Join(Args.DataDir, "cert.pem")
-	keyFn := filepath.Join(Args.DataDir, "key.pem")
+	certFn := filepath.Join(cmdArgs.DataDir, "cert.pem")
+	keyFn := filepath.Join(cmdArgs.DataDir, "key.pem")
 	shouldRegen := false
-	if Args.RegenKeys {
+	if cmdArgs.RegenKeys {
 		shouldRegen = true
 	} else {
 		// OK. Here's the idea:  We check for the existence of the cert.pem
@@ -100,7 +99,7 @@ func main() {
 	if shouldRegen {
 		log.Printf("Generating 4096-bit RSA keypair for self-signed certificate...")
 
-		err := GenerateSelfSignedCert(certFn, keyFn)
+		err := GenerateSelfSignedCert(certFn, keyFn, cmdArgs.DataDir)
 		if err != nil {
 			log.Printf("Error: %v", err)
 			return
@@ -111,8 +110,8 @@ func main() {
 	}
 
 	// Should we import data from a Murmur SQLite file?
-	if SQLiteSupport && len(Args.SQLiteDB) > 0 {
-		f, err := os.Open(Args.DataDir)
+	if SQLiteSupport && len(cmdArgs.SQLiteDB) > 0 {
+		f, err := os.Open(cmdArgs.DataDir)
 		if err != nil {
 			log.Fatalf("Murmur import failed: %s", err.Error())
 		}
@@ -123,20 +122,20 @@ func main() {
 			log.Fatalf("Murmur import failed: %s", err.Error())
 		}
 
-		if !Args.CleanUp && len(names) > 0 {
+		if !cmdArgs.CleanUp && len(names) > 0 {
 			log.Fatalf("Non-empty datadir. Refusing to import Murmur data.")
 		}
-		if Args.CleanUp {
+		if cmdArgs.CleanUp {
 			log.Print("Cleaning up existing data directory")
 			for _, name := range names {
-				if err := os.RemoveAll(filepath.Join(Args.DataDir, name)); err != nil {
+				if err := os.RemoveAll(filepath.Join(cmdArgs.DataDir, name)); err != nil {
 					log.Fatalf("Unable to cleanup file: %s", name)
 				}
 			}
 		}
 
-		log.Printf("Importing Murmur data from '%s'", Args.SQLiteDB)
-		if err = MurmurImport(Args.SQLiteDB); err != nil {
+		log.Printf("Importing Murmur data from '%s'", cmdArgs.SQLiteDB)
+		if err = MurmurImport(cmdArgs.SQLiteDB, cmdArgs.DataDir); err != nil {
 			log.Fatalf("Murmur import failed: %s", err.Error())
 		}
 
@@ -148,7 +147,7 @@ func main() {
 
 	// Create the servers directory if it doesn't already
 	// exist.
-	serversDirPath := filepath.Join(Args.DataDir, "servers")
+	serversDirPath := filepath.Join(cmdArgs.DataDir, "servers")
 	err = os.Mkdir(serversDirPath, 0700)
 	if err != nil && !os.IsExist(err) {
 		log.Fatalf("Unable to create servers directory: %v", err)
@@ -177,7 +176,7 @@ func main() {
 	for _, name := range names {
 		if matched, _ := regexp.MatchString("^[0-9]+$", name); matched {
 			log.Printf("Loading server %v", name)
-			s, err := NewServerFromFrozen(name)
+			s, err := NewServerFromFrozen(name, cmdArgs.DataDir)
 			if err != nil {
 				log.Fatalf("Unable to load server: %v", err.Error())
 			}
@@ -192,6 +191,7 @@ func main() {
 	// If no servers were found, create the default virtual server.
 	if len(servers) == 0 {
 		s, err := NewServer(1)
+		s.DataDir = cmdArgs.DataDir
 		if err != nil {
 			log.Fatalf("Couldn't start server: %s", err.Error())
 		}
