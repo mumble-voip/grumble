@@ -1358,6 +1358,12 @@ func (server *Server) Port() int {
 	return port
 }
 
+// ListenWebPort returns true if we should listen to the
+// web port, otherwise false
+func (server *Server) ListenWebPort() bool {
+	return !server.cfg.BoolValue("NoWebServer")
+}
+
 // WebPort returns the port the web server will listen on when it is
 // started.
 func (server *Server) WebPort() int {
@@ -1399,6 +1405,7 @@ func (server *Server) Start() (err error) {
 	host := server.HostAddress()
 	port := server.Port()
 	webport := server.WebPort()
+	shouldListenWeb := server.ListenWebPort()
 
 	// Setup our UDP listener
 	server.udpconn, err = net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP(host), Port: port})
@@ -1437,37 +1444,42 @@ func (server *Server) Start() (err error) {
 	}
 	server.tlsl = tls.NewListener(server.tcpl, server.tlscfg)
 
-	// Create HTTP server and WebSocket "listener"
-	webaddr := &net.TCPAddr{IP: net.ParseIP(host), Port: webport}
-	server.webtlscfg = &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		ClientAuth:   tls.NoClientCert,
-		NextProtos:   []string{"http/1.1"},
-	}
-	server.webwsl = web.NewListener(webaddr, server.Logger)
-	mux := http.NewServeMux()
-	mux.Handle("/", server.webwsl)
-	server.webhttp = &http.Server{
-		Addr:      webaddr.String(),
-		Handler:   mux,
-		TLSConfig: server.webtlscfg,
-		ErrorLog:  server.Logger,
-
-		// Set sensible timeouts, in case no reverse proxy is in front of Grumble.
-		// Non-conforming (or malicious) clients may otherwise block indefinitely and cause
-		// file descriptors (or handles, depending on your OS) to leak and/or be exhausted
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  2 * time.Minute,
-	}
-	go func() {
-		err := server.webhttp.ListenAndServeTLS("", "")
-		if err != http.ErrServerClosed {
-			server.Fatalf("Fatal HTTP server error: %v", err)
+	if shouldListenWeb {
+		// Create HTTP server and WebSocket "listener"
+		webaddr := &net.TCPAddr{IP: net.ParseIP(host), Port: webport}
+		server.webtlscfg = &tls.Config{
+			Certificates: []tls.Certificate{cert},
+			ClientAuth:   tls.NoClientCert,
+			NextProtos:   []string{"http/1.1"},
 		}
-	}()
+		server.webwsl = web.NewListener(webaddr, server.Logger)
+		mux := http.NewServeMux()
+		mux.Handle("/", server.webwsl)
+		server.webhttp = &http.Server{
+			Addr:      webaddr.String(),
+			Handler:   mux,
+			TLSConfig: server.webtlscfg,
+			ErrorLog:  server.Logger,
 
-	server.Printf("Started: listening on %v and %v", server.tcpl.Addr(), server.webwsl.Addr())
+			// Set sensible timeouts, in case no reverse proxy is in front of Grumble.
+			// Non-conforming (or malicious) clients may otherwise block indefinitely and cause
+			// file descriptors (or handles, depending on your OS) to leak and/or be exhausted
+			ReadTimeout:  5 * time.Second,
+			WriteTimeout: 10 * time.Second,
+			IdleTimeout:  2 * time.Minute,
+		}
+		go func() {
+			err := server.webhttp.ListenAndServeTLS("", "")
+			if err != http.ErrServerClosed {
+				server.Fatalf("Fatal HTTP server error: %v", err)
+			}
+		}()
+
+		server.Printf("Started: listening on %v and %v", server.tcpl.Addr(), server.webwsl.Addr())
+	} else {
+		server.Printf("Started: listening on %v", server.tcpl.Addr())
+	}
+
 	server.running = true
 
 	// Open a fresh freezer log
@@ -1490,10 +1502,17 @@ func (server *Server) Start() (err error) {
 	// for the servers. Each network goroutine defers a call to
 	// netwg.Done(). In the Stop() we close all the connections
 	// and call netwg.Wait() to wait for the goroutines to end.
-	server.netwg.Add(3)
+	numWG := 2
+	if shouldListenWeb {
+		numWG++
+	}
+
+	server.netwg.Add(numWG)
 	go server.udpListenLoop()
 	go server.acceptLoop(server.tlsl)
-	go server.acceptLoop(server.webwsl)
+	if shouldListenWeb {
+		go server.acceptLoop(server.webwsl)
+	}
 
 	// Schedule a server registration update (if needed)
 	go func() {
@@ -1523,20 +1542,23 @@ func (server *Server) Stop() (err error) {
 	// This does not apply to opened WebSockets, which were forcibly closed when
 	// all clients were disconnected.
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
-	err = server.webhttp.Shutdown(ctx)
-	cancel()
-	if err == context.DeadlineExceeded {
-		server.Println("Forcibly shutdown HTTP server while stopping")
-	} else if err != nil {
-		return err
+	if server.ListenWebPort() {
+		err = server.webhttp.Shutdown(ctx)
+		cancel()
+		if err == context.DeadlineExceeded {
+			server.Println("Forcibly shutdown HTTP server while stopping")
+		} else if err != nil {
+			return err
+		}
+
+		err = server.webwsl.Close()
+		if err != nil {
+			return err
+		}
 	}
 
 	// Close the listeners
 	err = server.tlsl.Close()
-	if err != nil {
-		return err
-	}
-	err = server.webwsl.Close()
 	if err != nil {
 		return err
 	}
