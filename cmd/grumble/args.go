@@ -21,7 +21,7 @@ var usageTmpl = `usage: grumble [options]
  grumble {{.Version}} ({{.BuildDate}})
  target: {{.OS}}, {{.Arch}}
 
- --help
+ --help, --version
      Shows this help listing.
 
  --datadir <data-dir> (default: {{.DefaultDataDir}})
@@ -29,6 +29,20 @@ var usageTmpl = `usage: grumble [options]
 
  --log <log-path> (default: $DATADIR/grumble.log)
      Log file path.
+
+ --ini <config-path> (default: $DATADIR/grumble.ini)
+     Config file path.
+
+ --supw <password> [server-id]
+     Set password for SuperUser account. Optionally takes
+     the virtual server to modify as the first positional argument.
+
+ --readsupw [server-id]
+     Like --supw, but reads from stdin instead.
+
+ --disablesu [server-id]
+     Disables the SuperUser account. Optionally takes
+     the virtual server to modify as the first positional argument.
 
  --regen-keys
      Force grumble to regenerate its global RSA
@@ -46,12 +60,17 @@ var usageTmpl = `usage: grumble [options]
 `
 
 type args struct {
-	ShowHelp  bool
-	DataDir   string
-	LogPath   string
-	RegenKeys bool
-	SQLiteDB  string
-	CleanUp   bool
+	ShowHelp    bool
+	DataDir     string
+	LogPath     string
+	ConfigPath  string
+	SuperUserPW string
+	ReadPass    bool
+	DisablePass bool
+	RegenKeys   bool
+	ServerId    int64
+	SQLiteDB    string
+	CleanUp     bool
 }
 
 func defaultDataDir() string {
@@ -61,10 +80,6 @@ func defaultDataDir() string {
 		homedir = os.Getenv("USERPROFILE")
 	}
 	return filepath.Join(homedir, dirname)
-}
-
-func defaultLogPath() string {
-	return filepath.Join(defaultDataDir(), "grumble.log")
 }
 
 func Usage() {
@@ -90,9 +105,17 @@ var Args args
 func init() {
 	flag.Usage = Usage
 
+	flag.BoolVar(&Args.ShowHelp, "version", false, "")
 	flag.BoolVar(&Args.ShowHelp, "help", false, "")
+
 	flag.StringVar(&Args.DataDir, "datadir", defaultDataDir(), "")
-	flag.StringVar(&Args.LogPath, "log", defaultLogPath(), "")
+	flag.StringVar(&Args.LogPath, "log", "", "")
+	flag.StringVar(&Args.ConfigPath, "ini", "", "")
+
+	flag.StringVar(&Args.SuperUserPW, "supw", "", "")
+	flag.BoolVar(&Args.ReadPass, "readsupw", false, "")
+	flag.BoolVar(&Args.DisablePass, "disablesu", false, "")
+
 	flag.BoolVar(&Args.RegenKeys, "regen-keys", false, "")
 
 	flag.StringVar(&Args.SQLiteDB, "import-murmurdb", "", "")

@@ -86,7 +86,7 @@ func MurmurImport(filename string) (err error) {
 
 // Create a new Server from a Murmur SQLite database
 func NewServerFromSQLite(id int64, db *sql.DB) (s *Server, err error) {
-	s, err = NewServer(id)
+	s, err = NewServer(id, nil)
 	if err != nil {
 		return nil, err
 	}

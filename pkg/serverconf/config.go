@@ -5,44 +5,51 @@
 package serverconf
 
 import (
+	"path/filepath"
 	"strconv"
 	"sync"
 )
 
 var defaultCfg = map[string]string{
-	"MaxBandwidth":          "72000",
-	"MaxUsers":              "1000",
-	"MaxUsersPerChannel":    "0",
-	"MaxTextMessageLength":  "5000",
-	"MaxImageMessageLength": "131072",
-	"AllowHTML":             "true",
-	"DefaultChannel":        "0",
-	"RememberChannel":       "true",
-	"WelcomeText":           "Welcome to this server running <b>Grumble</b>.",
-	"SendVersion":           "true",
+	"bandwidth":          "72000",
+	"users":              "1000",
+	"usersperchannel":    "0",
+	"textmessagelength":  "5000",
+	"imagemessagelength": "131072",
+	"allowhtml":          "true",
+	"defaultchannel":     "0",
+	"rememberchannel":    "true",
+	"welcometext":        "Welcome to this server running <b>Grumble</b>.",
+	"sendversion":        "true",
+	"allowping":          "true",
+	"logfile":            "grumble.log",
+	"sslCert":            "cert.pem",
+	"sslKey":             "key.pem",
 }
 
 type Config struct {
-	cfgMap map[string]string
-	mutex  sync.RWMutex
+	fallbackMap   map[string]string
+	persistentMap map[string]string
+	mutex         sync.RWMutex
 }
 
-// Create a new Config using cfgMap as the intial internal config map.
-// If cfgMap is nil, ConfigWithMap will create a new config map.
-func New(cfgMap map[string]string) *Config {
-	if cfgMap == nil {
-		cfgMap = make(map[string]string)
+// New returns a new Config using persistentMap as the initial internal config map.
+// The map persistentMap may not be reused. If set to nil, a new map is created.
+// Optionally, defaults may be passed in fallbackMap. This map is only read, not written.
+func New(persistentMap, fallbackMap map[string]string) *Config {
+	if persistentMap == nil {
+		persistentMap = make(map[string]string)
 	}
-	return &Config{cfgMap: cfgMap}
+	return &Config{persistentMap: persistentMap, fallbackMap: fallbackMap}
 }
 
-// GetAll gets a copy of the Config's internal config map
-func (cfg *Config) GetAll() (all map[string]string) {
+// GetAllPersistent returns a copy of the internal persistent key-value map.
+func (cfg *Config) GetAllPersistent() (all map[string]string) {
 	cfg.mutex.RLock()
 	defer cfg.mutex.RUnlock()
 
 	all = make(map[string]string)
-	for k, v := range cfg.cfgMap {
+	for k, v := range cfg.persistentMap {
 		all[k] = v
 	}
 	return
@@ -52,14 +59,14 @@ func (cfg *Config) GetAll() (all map[string]string) {
 func (cfg *Config) Set(key string, value string) {
 	cfg.mutex.Lock()
 	defer cfg.mutex.Unlock()
-	cfg.cfgMap[key] = value
+	cfg.persistentMap[key] = value
 }
 
 // Reset the value of a config key
 func (cfg *Config) Reset(key string) {
 	cfg.mutex.Lock()
 	defer cfg.mutex.Unlock()
-	delete(cfg.cfgMap, key)
+	delete(cfg.persistentMap, key)
 }
 
 // StringValue gets the value of a specific config key encoded as a string
@@ -67,7 +74,12 @@ func (cfg *Config) StringValue(key string) (value string) {
 	cfg.mutex.RLock()
 	defer cfg.mutex.RUnlock()
 
-	value, exists := cfg.cfgMap[key]
+	value, exists := cfg.persistentMap[key]
+	if exists {
+		return value
+	}
+
+	value, exists = cfg.fallbackMap[key]
 	if exists {
 		return value
 	}
@@ -80,7 +92,7 @@ func (cfg *Config) StringValue(key string) (value string) {
 	return ""
 }
 
-// IntValue gets the value of a speific config key as an int
+// Get the value of a specific config key as an int
 func (cfg *Config) IntValue(key string) (intval int) {
 	str := cfg.StringValue(key)
 	intval, _ = strconv.Atoi(str)
@@ -94,9 +106,19 @@ func (cfg *Config) Uint32Value(key string) (uint32val uint32) {
 	return uint32(uintval)
 }
 
-// BoolValue gets the value fo a sepcific config key as a bool
+// Get the value of a specific config key as a bool
 func (cfg *Config) BoolValue(key string) (boolval bool) {
 	str := cfg.StringValue(key)
 	boolval, _ = strconv.ParseBool(str)
 	return
+}
+
+// Get the value of a specific config key as a path,
+// joined with the path in rel if not absolute.
+func (cfg *Config) PathValue(key string, rel string) (path string) {
+	str := cfg.StringValue(key)
+	if filepath.IsAbs(str) {
+		return filepath.Clean(str)
+	}
+	return filepath.Join(rel, str)
 }

@@ -510,7 +510,7 @@ func (client *Client) tlsRecvLoop() {
 				Release:     proto.String("Grumble"),
 				CryptoModes: cryptstate.SupportedModes(),
 			}
-			if client.server.cfg.BoolValue("SendOSInfo") {
+			if client.server.cfg.BoolValue("sendversion") {
 				version.Os = proto.String(runtime.GOOS)
 				version.OsVersion = proto.String("(Unknown version)")
 			}

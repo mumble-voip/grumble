@@ -6,35 +6,41 @@ import (
 )
 
 func TestReclaim(t *testing.T) {
-	pool := New()
-	id := pool.Get()
+	pool := New(2)
+	id, err := pool.Get()
+	if err != nil {
+		t.Errorf("Expected no error: %v", err)
+	}
 	if id != 1 {
 		t.Errorf("Got %v, expected 1 (first time)", id)
 	}
 
 	pool.Reclaim(1)
 
-	id = pool.Get()
+	id, err = pool.Get()
+	if err != nil {
+		t.Errorf("Expected no error: %v", err)
+	}
 	if id != 1 {
 		t.Errorf("Got %v, expected 1 (second time)", id)
 	}
 
-	id = pool.Get()
+	id, err = pool.Get()
+	if err != nil {
+		t.Errorf("Expected no error: %v", err)
+	}
 	if id != 2 {
 		t.Errorf("Got %v, expected 2", id)
 	}
 }
 
 func TestDepletion(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r != "SessionPool depleted" {
-			t.Errorf("Expected depletion panic")
-		}
-	}()
-	pool := New()
+	pool := New(0)
 	pool.cur = math.MaxUint32
-	pool.Get()
+	_, err := pool.Get()
+	if err == nil {
+		t.Errorf("Expected depletion error")
+	}
 }
 
 func TestUseTracking(t *testing.T) {
@@ -45,7 +51,7 @@ func TestUseTracking(t *testing.T) {
 		}
 	}()
 
-	pool := New()
+	pool := New(0)
 	pool.EnableUseTracking()
 	pool.Reclaim(42)
 }

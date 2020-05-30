@@ -6,6 +6,7 @@
 package sessionpool
 
 import (
+	"errors"
 	"math"
 	"sync"
 )
@@ -17,11 +18,17 @@ type SessionPool struct {
 	used   map[uint32]bool
 	unused []uint32
 	cur    uint32
+	max    uint32
 }
 
 // Create a new SessionPool container.
-func New() (pool *SessionPool) {
+func New(max uint32) (pool *SessionPool) {
 	pool = new(SessionPool)
+	if max == 0 {
+		pool.max = math.MaxUint32
+	} else {
+		pool.max = max
+	}
 	return
 }
 
@@ -41,7 +48,7 @@ func (pool *SessionPool) EnableUseTracking() {
 
 // Get a new session ID from the SessionPool.
 // Must be reclaimed using Reclaim() when done using it.
-func (pool *SessionPool) Get() (id uint32) {
+func (pool *SessionPool) Get() (id uint32, err error) {
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
 
@@ -60,11 +67,12 @@ func (pool *SessionPool) Get() (id uint32) {
 		return
 	}
 
-	// Check for depletion. If cur is MaxUint32,
+	// Check for depletion. If cur is max,
 	// there aren't any session IDs left, since the
-	// increment below would overflow us back to 0.
-	if pool.cur == math.MaxUint32 {
-		panic("SessionPool depleted")
+	// increment below would return an out of range ID.
+	if pool.cur == pool.max {
+		err = errors.New("depleted session pool")
+		return
 	}
 
 	// Increment the next session id and return it.
