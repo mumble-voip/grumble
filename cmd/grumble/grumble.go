@@ -87,9 +87,9 @@ func main() {
 	} else {
 		logFn = config.PathValue("logfile", Args.DataDir)
 	}
-	logtarget.Default, err = logtarget.OpenFile(Args.LogPath, os.Stderr)
+	logtarget.Default, err = logtarget.OpenFile(logFn, os.Stderr)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to open log file (%v): %v", logFn, err)
+		log.Fatalf("Unable to open log file (%v): %v", logFn, err)
 		return
 	}
 	log.SetPrefix("[G] ")
