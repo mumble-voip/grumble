@@ -262,7 +262,7 @@ func (c *Channel) Unfreeze(fc *freezer.Channel) {
 			if fgrp.Name == nil {
 				continue
 			}
-			g := acl.Group{}
+			g := acl.EmptyGroupWithName(fgrp.GetName())
 			if fgrp.Inherit != nil {
 				g.Inherit = *fgrp.Inherit
 			}
