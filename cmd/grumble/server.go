@@ -689,12 +689,10 @@ func (server *Server) finishAuthenticate(client *Client) {
 	if client.IsSuperUser() {
 		sync.Permissions = proto.Uint64(uint64(acl.AllPermissions))
 	} else {
-		// fixme(mkrautz): previously we calculated the user's
-		// permissions and sent them to the client in here. This
-		// code relied on our ACL cache, but that has been temporarily
-		// thrown out because of our ACL handling code moving to its
-		// own package.
-		sync.Permissions = nil
+		// todo: acl caching?
+		// It might seem like we should send the permissions relative to the channel joined, but
+		// Murmur sends the root channel permissions, so we do the same
+		sync.Permissions = proto.Uint64(uint64(acl.EffectivePermission(&server.RootChannel().ACL, client)))
 	}
 	if err := client.sendMessage(sync); err != nil {
 		client.Panicf("%v", err)
@@ -899,10 +897,8 @@ func (server *Server) sendClientPermissions(client *Client, channel *Channel) {
 		return
 	}
 
-	// fixme(mkrautz): re-add when we have ACL caching
-	return
-
-	perm := acl.Permission(acl.NonePermission)
+	// todo: acl caching?
+	perm := acl.EffectivePermission(&channel.ACL, client)
 	client.sendMessage(&mumbleproto.PermissionQuery{
 		ChannelId:   proto.Uint32(uint32(channel.Id)),
 		Permissions: proto.Uint32(uint32(perm)),
