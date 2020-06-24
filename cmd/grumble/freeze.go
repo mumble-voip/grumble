@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -483,7 +484,7 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 		// Update the server's user maps to point correctly
 		// to the new user.
 		s.Users[u.Id] = u
-		s.UserNameMap[u.Name] = u
+		s.UserNameMap[strings.ToLower(u.Name)] = u
 		if len(u.CertHash) > 0 {
 			s.UserCertMap[u.CertHash] = u
 		}
@@ -553,7 +554,7 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 				// Update the various user maps in the server to
 				// be able to correctly look up the user.
 				s.Users[user.Id] = user
-				s.UserNameMap[user.Name] = user
+				s.UserNameMap[strings.ToLower(user.Name)] = user
 				if len(user.CertHash) > 0 {
 					s.UserCertMap[user.CertHash] = user
 				}
@@ -574,7 +575,7 @@ func NewServerFromFrozen(name string) (s *Server, err error) {
 				if ok {
 					// Clear the server maps. That should do it.
 					delete(s.Users, userId)
-					delete(s.UserNameMap, user.Name)
+					delete(s.UserNameMap, strings.ToLower(user.Name))
 					if len(user.CertHash) > 0 {
 						delete(s.UserCertMap, user.CertHash)
 					}

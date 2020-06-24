@@ -9,6 +9,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -1269,7 +1270,7 @@ func (server *Server) handleQueryUsers(client *Client, msg *Message) {
 	}
 
 	for _, name := range query.Names {
-		user, exists := server.UserNameMap[name]
+		user, exists := server.UserNameMap[strings.ToLower(name)]
 		if exists {
 			reply.Ids = append(reply.Ids, user.Id)
 			reply.Names = append(reply.Names, name)

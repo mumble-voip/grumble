@@ -149,7 +149,7 @@ func NewServer(id int64) (s *Server, err error) {
 	s.UserCertMap = make(map[string]*User)
 	s.UserNameMap = make(map[string]*User)
 	s.Users[0], err = NewUser(0, "SuperUser")
-	s.UserNameMap["SuperUser"] = s.Users[0]
+	s.UserNameMap["superuser"] = s.Users[0]
 	s.nextUserId = 1
 
 	s.Channels = make(map[int]*Channel)
@@ -508,7 +508,7 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 		} else {
 			if server.CheckSuperUserPassword(*auth.Password) {
 				ok := false
-				client.user, ok = server.UserNameMap[client.Username]
+				client.user, ok = server.UserNameMap[strings.ToLower(client.Username)]
 				if !ok {
 					client.RejectAuth(mumbleproto.Reject_InvalidUsername, "")
 					return
@@ -520,7 +520,7 @@ func (server *Server) handleAuthenticate(client *Client, msg *Message) {
 		}
 	} else {
 		// First look up registration by name.
-		user, exists := server.UserNameMap[client.Username]
+		user, exists := server.UserNameMap[strings.ToLower(client.Username)]
 		if exists {
 			if client.HasCertificate() && user.CertHash == client.CertHash() {
 				client.user = user
@@ -1138,7 +1138,7 @@ func (s *Server) RegisterClient(client *Client) (uid uint32, err error) {
 	uid = s.nextUserId
 	s.Users[uid] = user
 	s.UserCertMap[client.CertHash()] = user
-	s.UserNameMap[client.Username] = user
+	s.UserNameMap[strings.ToLower(client.Username)] = user
 
 	return uid, nil
 }
@@ -1153,7 +1153,7 @@ func (s *Server) RemoveRegistration(uid uint32) (err error) {
 	// Remove from user maps
 	delete(s.Users, uid)
 	delete(s.UserCertMap, user.CertHash)
-	delete(s.UserNameMap, user.Name)
+	delete(s.UserNameMap, strings.ToLower(user.Name))
 
 	// Remove from groups and ACLs.
 	s.removeRegisteredUserFromChannel(uid, s.RootChannel())
