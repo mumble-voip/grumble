@@ -9,6 +9,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -1211,6 +1212,7 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 			if pbacl.UserId != nil {
 				chanacl.UserId = int(*pbacl.UserId)
 			} else {
+				chanacl.UserId = -1
 				chanacl.Group = *pbacl.Group
 			}
 			chanacl.Deny = acl.Permission(*pbacl.Deny & acl.AllPermissions)
@@ -1223,13 +1225,14 @@ func (server *Server) handleAclMessage(client *Client, msg *Message) {
 		server.ClearCaches()
 
 		// Regular user?
-		if !acl.HasPermission(&channel.ACL, client, acl.WritePermission) && client.IsRegistered() || client.HasCertificate() {
+		if !acl.HasPermission(&channel.ACL, client, acl.WritePermission) && (client.IsRegistered() || client.HasCertificate()) {
 			chanacl := acl.ACL{}
 			chanacl.ApplyHere = true
 			chanacl.ApplySubs = false
 			if client.IsRegistered() {
 				chanacl.UserId = client.UserId()
 			} else if client.HasCertificate() {
+				chanacl.UserId = -1
 				chanacl.Group = "$" + client.CertHash()
 			}
 			chanacl.Deny = acl.Permission(acl.NonePermission)
@@ -1267,7 +1270,7 @@ func (server *Server) handleQueryUsers(client *Client, msg *Message) {
 	}
 
 	for _, name := range query.Names {
-		user, exists := server.UserNameMap[name]
+		user, exists := server.UserNameMap[strings.ToLower(name)]
 		if exists {
 			reply.Ids = append(reply.Ids, user.Id)
 			reply.Names = append(reply.Names, name)

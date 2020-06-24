@@ -344,7 +344,7 @@ func GroupMemberCheck(current *Context, acl *Context, name string, user User) (o
 func (ctx *Context) GroupNames() []string {
 	names := map[string]bool{}
 	origCtx := ctx
-	contexts := []*Context{}
+	contexts := buildChain(ctx)
 
 	// Walk through the whole context chain and all groups in it.
 	for _, ctx := range contexts {
