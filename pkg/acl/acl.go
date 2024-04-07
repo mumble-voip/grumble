@@ -61,7 +61,7 @@ type ACL struct {
 	// The ApplyHere flag determines whether the ACL
 	// should apply to the current channel.
 	ApplyHere bool
-	// The ApplySubs flag determines whethr the ACL
+	// The ApplySubs flag determines whether the ACL
 	// should apply to subchannels.
 	ApplySubs bool
 
@@ -87,17 +87,21 @@ func (acl *ACL) IsChannelACL() bool {
 // HasPermission checks whether the given user has permission perm in the given context.
 // The permission perm must be a single permission and not a combination of permissions.
 func HasPermission(ctx *Context, user User, perm Permission) bool {
+	// This test mirrors the Murmur behaviour. Unfortunately, this means that a combination of permissions
+	// results in an inclusive OR check i.e. if any one of the bits are set return true.
+	return (EffectivePermission(ctx, user) & perm) != NonePermission
+}
+
+// EffectivePermission returns the effective permission bits for a user in the given context.
+func EffectivePermission(ctx *Context, user User) Permission {
 	// We can't check permissions on a nil ctx.
 	if ctx == nil {
-		panic("acl: HasPermission got nil context")
+		panic("acl: EffectivePermission got nil context")
 	}
 
 	// SuperUser can't speak or whisper, but everything else is OK
 	if user.UserId() == 0 {
-		if perm == SpeakPermission || perm == WhisperPermission {
-			return false
-		}
-		return true
+		return Permission(AllPermissions &^ (SpeakPermission | WhisperPermission))
 	}
 
 	// Default permissions
@@ -116,13 +120,13 @@ func HasPermission(ctx *Context, user User, perm Permission) bool {
 		}
 		// Iterate through ACLs that are defined on ctx. Note: this does not include
 		// ACLs that iter has inherited from a parent (unless there is also a group on
-		// iter with the same name, that changes the permissions a bit!)
+		// iter with the same name, that modifies the permissions a bit!)
 		for _, acl := range ctx.ACLs {
 			// Determine whether the ACL applies to user.
 			// If it is a user ACL and the user id of the ACL
 			// matches user's id, we're good to go.
 			//
-			// If it's a group ACL, we have to parse and interpret
+			// If it is a group ACL, we have to parse and interpret
 			// the group string in the current context to determine
 			// membership. For that we use GroupMemberCheck.
 			matchUser := acl.IsUserACL() && acl.UserId == user.UserId()
@@ -158,12 +162,10 @@ func HasPermission(ctx *Context, user User, perm Permission) bool {
 
 	// The +write permission implies all permissions except for +speak and +whisper.
 	// This means that if the user has WritePermission, we should return true for all
-	// permissions exccept SpeakPermission and WhisperPermission.
-	if perm != SpeakPermission && perm != WhisperPermission {
-		return (granted & (perm | WritePermission)) != NonePermission
-	} else {
-		return (granted & perm) != NonePermission
+	// permissions except SpeakPermission and WhisperPermission.
+	if (granted & WritePermission) != NonePermission {
+		return granted | (AllPermissions &^ (SpeakPermission | WhisperPermission))
 	}
 
-	return false
+	return granted
 }
