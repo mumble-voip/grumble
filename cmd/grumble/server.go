@@ -774,6 +774,18 @@ func (server *Server) updateCodecVersions(connecting *Client) {
 			txtMsg.Session = []uint32{connecting.Session()}
 			connecting.sendMessage(txtMsg)
 		}
+		// A client that arrives when nothing changed still needs to be told
+		// what the codecs are. Without it gumble builds neither encoder nor
+		// decoder and drops audio without a word, so only the first client of
+		// a session ever works.
+		if connecting != nil {
+			connecting.sendMessage(&mumbleproto.CodecVersion{
+				Alpha:       proto.Int32(server.AlphaCodec),
+				Beta:        proto.Int32(server.BetaCodec),
+				PreferAlpha: proto.Bool(server.PreferAlphaCodec),
+				Opus:        proto.Bool(server.Opus),
+			})
+		}
 		return
 	}
 
